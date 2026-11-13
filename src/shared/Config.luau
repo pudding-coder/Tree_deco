@@ -25,6 +25,7 @@ Config.GLOBAL_ANNOUNCE_MIN_RARITY = 6 -- 미스틱 이상: 모든 서버 공지
 
 -- 가방
 Config.BAG_BASE_SLOTS = 50
+Config.BAG_MAX_SLOTS = 500
 
 -- 업그레이드 (0 = 업그레이드 전)
 Config.LUCK_MULT = { [0] = 1.0, 1.2, 1.4, 1.6, 1.9, 2.2, 2.6, 3.0, 3.5, 4.2, 5.0 }
