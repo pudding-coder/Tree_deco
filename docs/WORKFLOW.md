@@ -87,6 +87,72 @@ git push
 
 ---
 
+## 팀 작업
+
+### 브랜치 규칙
+
+- `main`은 모두가 보는 기준이다. **`main`에 직접 올리지 않는다.**
+- 각자 `main`에서 자기 브랜치를 만들어 작업하고, 끝나면 PR로 `main`에 합친다.
+- 브랜치 이름: `이름/작업내용` (예: `minji/new-decorations`). Claude는 `claude/...` 브랜치를 쓴다.
+- 남의 브랜치에는 올리지 않는다.
+
+```
+main ─────●──────────●──────────●───→
+           \        /  \        /
+ claude/... ●──●──●     \      /
+                         \    /
+ 이름/작업내용            ●──●
+```
+
+### 처음 합류할 때 (팀원)
+
+1. 저장소 주인에게 GitHub 저장소(**Settings → Collaborators**)와 Roblox 게임(Studio의 **Collaborate**) 초대를 받는다.
+2. 내려받기
+   ```bash
+   cd ~ && git clone https://github.com/pudding-coder/Tree_deco.git
+   ```
+3. Rokit 설치 (한 번만), Rojo 설치
+   ```bash
+   curl -sSf https://raw.githubusercontent.com/rojo-rbx/rokit/main/scripts/install.sh | bash
+   ```
+   터미널을 다시 열고
+   ```bash
+   cd ~/Tree_deco && rokit install && rojo plugin install
+   ```
+4. VS Code에서 `~/Tree_deco` 폴더를 연다. (확장: Luau Language Server)
+
+### 새 작업 시작 (팀원)
+
+```bash
+cd ~/Tree_deco && git checkout main && git pull
+```
+```bash
+git checkout -b 이름/작업내용
+```
+
+작업한 뒤 처음 올릴 때:
+
+```bash
+git add -A && git commit -m "무엇을 바꿨는지" && git push -u origin 이름/작업내용
+```
+
+GitHub 저장소 페이지에 뜨는 **Compare & pull request** 버튼으로 PR을 만든다. 저장소 주인이 확인하고 합친다.
+
+### Rojo는 한 플레이스에 한 명만
+
+같은 플레이스에 두 사람이 동시에 Rojo **Connect**하면 서로의 코드로 덮어쓴다.
+
+- **각자 테스트용 플레이스를 따로 쓴다.** Studio에서 새 Baseplate를 만들어 **Publish**(새 게임으로) → 거기에 Rojo 연결.
+  저장(DataStore) 테스트도 하려면 그 플레이스의 **Game Settings → Security → Enable Studio Access to API Services**를 켠다.
+- 원래 게임 플레이스에는 `main`이 확정된 뒤 **한 사람만** 연결해서 반영하고 Publish한다.
+
+### 같은 파일을 동시에 고치지 않기
+
+장식 목록(`Decorations.luau`), `Config.luau`처럼 여럿이 자주 고치는 파일은 작업 전에 누가 고칠지 말해 두면 충돌이 줄어든다.
+충돌이 나면 `git rebase --abort`(또는 `git merge --abort`) 후 Claude에게 화면을 보낸다.
+
+---
+
 ## 언제 main에 합치나
 
 Studio에서 동작을 확인한 기능이 하나 끝났을 때, Publish 직전, 며칠 쉬기 전.
