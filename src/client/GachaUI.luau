@@ -186,19 +186,19 @@ local function buildSlot(gui)
 	})
 	ui.potionLabel = label({
 		Text = "",
-		TextSize = 14,
+		TextSize = 13,
 		TextColor3 = COLORS.gold,
-		Size = UDim2.new(0.3, 0, 0, 28),
-		Position = UDim2.fromScale(0.35, 0),
+		Size = UDim2.new(0.2, 0, 0, 28),
+		Position = UDim2.fromScale(0.28, 0),
 		Visible = false,
 		Parent = slot,
 	})
 	ui.coins = label({
 		Text = "코인 0",
-		TextSize = 18,
+		TextSize = 16,
 		TextColor3 = COLORS.gold,
-		Size = UDim2.new(0.4, 0, 0, 28),
-		Position = UDim2.fromScale(0.6, 0),
+		Size = UDim2.new(0.52, 0, 0, 28),
+		Position = UDim2.fromScale(0.48, 0),
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = slot,
 	})
@@ -460,7 +460,7 @@ local function buildInventory(gui)
 	padding(detail, 10)
 	ui.detailName = scaledLabel({
 		Text = "",
-		Size = UDim2.new(1, -230, 0, 26),
+		Size = UDim2.new(1, -350, 0, 26),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = detail,
 	}, 18, 10)
@@ -468,11 +468,20 @@ local function buildInventory(gui)
 		Text = "칸을 눌러 장식을 골라 주세요",
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
-		Size = UDim2.new(1, -230, 0, 20),
+		Size = UDim2.new(1, -350, 0, 20),
 		Position = UDim2.fromOffset(0, 28),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = detail,
 	}, 13, 9)
+	ui.detailPlace = button({
+		Text = "트리에 걸기",
+		TextSize = 14,
+		Color = COLORS.green,
+		Size = UDim2.fromOffset(110, 40),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -228, 0.5, 0),
+		Parent = detail,
+	})
 	ui.detailLock = button({
 		Text = "잠그기",
 		TextSize = 14,
@@ -610,6 +619,169 @@ local function buildUpgradeWindow(gui)
 	}
 end
 
+-- 트리 영역 (Config의 자리 수)
+local TREE_AREAS = {
+	{ id = "Topper", name = "토퍼", count = Config.MAX_TOPPER },
+	{ id = "Ornament", name = "오너먼트", count = Config.MAX_ORNAMENT },
+	{ id = "Garland", name = "띠", count = Config.MAX_GARLAND },
+}
+
+-- 트리 버튼 (업그레이드 버튼 위)
+local function buildTreeButton(gui)
+	ui.treeButton = button({
+		Name = "TreeButton",
+		Text = "내 트리",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -148),
+		Radius = 14,
+		Parent = gui,
+	})
+	create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.treeButton,
+	})
+end
+
+-- 트리 창: 영역별 자리 칸. 칸을 누르면 아래에 정보와 빼기 버튼
+local function buildTreeWindow(gui)
+	local window = panel({
+		Name = "Tree",
+		Size = UDim2.fromOffset(620, 470),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Visible = false,
+		Parent = gui,
+	})
+	window.ZIndex = 5
+	ui.treeWindow = window
+
+	ui.treeTitle = label({
+		Text = "내 트리",
+		TextSize = 20,
+		Size = UDim2.new(1, -40, 0, 30),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+	ui.treeClose = button({
+		Text = "X",
+		TextSize = 18,
+		Size = UDim2.fromOffset(32, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Parent = window,
+	})
+	ui.treeInfo = label({
+		Text = "",
+		TextSize = 14,
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(1, 0, 0, 20),
+		Position = UDim2.fromOffset(0, 32),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+
+	local scroll = create("ScrollingFrame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 58),
+		Size = UDim2.new(1, 0, 1, -58 - 62),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 6,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Parent = window,
+	})
+	create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
+
+	ui.treeCells = {}
+	for order, area in TREE_AREAS do
+		label({
+			Text = string.format("%s (%d자리)", area.name, area.count),
+			TextSize = 14,
+			Size = UDim2.new(1, 0, 0, 22),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			LayoutOrder = order * 2 - 1,
+			Parent = scroll,
+		})
+		local grid = create("Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, -8, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			LayoutOrder = order * 2,
+			Parent = scroll,
+		})
+		create("UIGridLayout", {
+			CellSize = UDim2.fromOffset(106, 52),
+			CellPadding = UDim2.fromOffset(6, 6),
+			SortOrder = Enum.SortOrder.LayoutOrder,
+			Parent = grid,
+		})
+		ui.treeCells[area.id] = {}
+		for index = 1, area.count do
+			local cell = create("TextButton", {
+				Text = "",
+				AutoButtonColor = false,
+				BackgroundColor3 = COLORS.panelLight,
+				BorderSizePixel = 0,
+				LayoutOrder = index,
+				Parent = grid,
+			})
+			corner(cell, 8)
+			local stroke = create("UIStroke", {
+				Color = COLORS.subText,
+				Thickness = 2,
+				ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+				Parent = cell,
+			})
+			local trait = label({
+				Text = "",
+				TextSize = 10,
+				Size = UDim2.new(1, -8, 0, 14),
+				Position = UDim2.fromOffset(4, 2),
+				TextXAlignment = Enum.TextXAlignment.Left,
+				Parent = cell,
+			})
+			local name = scaledLabel({
+				Text = "빈 자리",
+				Size = UDim2.new(1, -8, 0, 32),
+				Position = UDim2.fromOffset(4, 16),
+				Parent = cell,
+			}, 13, 8)
+			ui.treeCells[area.id][index] = { button = cell, stroke = stroke, trait = trait, name = name }
+		end
+	end
+
+	local footer = create("Frame", {
+		BackgroundColor3 = COLORS.panelLight,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 1, -56),
+		Size = UDim2.new(1, 0, 0, 56),
+		Parent = window,
+	})
+	corner(footer, 10)
+	padding(footer, 8)
+	ui.treeDetail = scaledLabel({
+		Text = "",
+		Size = UDim2.new(1, -140, 1, 0),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = footer,
+	}, 15, 9)
+	ui.treeRemove = button({
+		Text = "빼기",
+		TextSize = 15,
+		Size = UDim2.fromOffset(120, 40),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.fromScale(1, 0.5),
+		Parent = footer,
+	})
+end
+
 local function buildUI()
 	local gui = create("ScreenGui", {
 		Name = "GachaGui",
@@ -633,8 +805,10 @@ local function buildUI()
 	buildOdds(gui)
 	buildBagButton(gui)
 	buildUpgradeButton(gui)
+	buildTreeButton(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
+	buildTreeWindow(gui)
 
 	-- 공지
 	ui.toast = create("CanvasGroup", {
@@ -674,12 +848,40 @@ end
 -- 화면 갱신
 ----------------------------------------------------------------
 
+-- 지금 초당 수입 (서버와 같은 공식)
+local function currentIncome(): number
+	if not state then
+		return 0
+	end
+	local minutes = (workspace:GetServerTimeNow() - state.displayStartedAt) / 60
+	return Gacha.GetIncomePerSec(state.treeValue, state.votes, minutes)
+end
+
+local function currentCoinSpinCost(): number
+	return Gacha.GetCoinSpinCost(state.luck, currentIncome())
+end
+
+local function currentPotionCost(): number
+	return Gacha.GetPotionCost(currentIncome())
+end
+
+local function formatIncome(value: number): string
+	if value < 10 then
+		return string.format("%.1f", value)
+	end
+	return Gacha.FormatNumber(value)
+end
+
 local function setStatus(text: string)
 	ui.status.Text = text
 end
 
 local function refreshCoins()
+	local income = currentIncome()
 	ui.coins.Text = "코인 " .. Gacha.FormatNumber(state.coins)
+	if income > 0 then
+		ui.coins.Text ..= string.format("  (+%s/초)", formatIncome(income))
+	end
 end
 
 local function refreshOdds()
@@ -781,6 +983,7 @@ local function refreshSellButtons()
 		ui.detailInfo.Text = "칸을 눌러 장식을 골라 주세요"
 		ui.detailLock.Visible = false
 		ui.detailSell.Visible = false
+		ui.detailPlace.Visible = false
 		return
 	end
 	local deco, trait = stackInfo(stack)
@@ -797,6 +1000,7 @@ local function refreshSellButtons()
 	)
 	ui.detailLock.Visible = true
 	ui.detailSell.Visible = true
+	ui.detailPlace.Visible = true
 	ui.detailLock.Text = if stack.l then "잠금 풀기" else "잠그기"
 	ui.detailLock.BackgroundColor3 = if stack.l then COLORS.gold else COLORS.panelHover
 	if stack.l then
@@ -986,11 +1190,85 @@ local function refreshUpgrades()
 	rows.potion.title.Text = "물약"
 	setButton(
 		rows.potion.button,
-		Gacha.FormatNumber(state.potionCost) .. "코인",
-		state.coins >= state.potionCost,
+		Gacha.FormatNumber(currentPotionCost()) .. "코인",
+		state.coins >= currentPotionCost(),
 		COLORS.gold
 	)
 	refreshPotionTimer()
+end
+
+local selectedSlot = nil -- { area = 영역 id, index = 자리 번호 }
+
+local function treeEntry(area: string, index: number)
+	for _, entry in state.tree do
+		if entry.a == area and entry.i == index then
+			return entry
+		end
+	end
+	return nil
+end
+
+local function refreshTreeIncome()
+	if not state then
+		return
+	end
+	local minutes = (workspace:GetServerTimeNow() - state.displayStartedAt) / 60
+	ui.treeInfo.Text = string.format(
+		"초당 %s코인 · 전시 보너스 ×%.2f (접속해 있는 동안 최대 ×%s까지 오릅니다)",
+		formatIncome(currentIncome()),
+		Gacha.GetDisplayBonus(minutes),
+		tostring(Config.DISPLAY_BONUS_MAX)
+	)
+end
+
+local function refreshTree()
+	ui.treeTitle.Text = "내 트리 · 가치 " .. Gacha.FormatNumber(state.treeValue) .. "코인"
+	refreshTreeIncome()
+
+	for _, area in TREE_AREAS do
+		for index, cell in ui.treeCells[area.id] do
+			local entry = treeEntry(area.id, index)
+			local deco = entry and Catalog.DecorationById[entry.d]
+			local trait = entry and Catalog.TraitById[entry.t]
+			local selected = selectedSlot ~= nil and selectedSlot.area == area.id and selectedSlot.index == index
+			if deco and trait then
+				local color = Rarity.List[deco.rarity].color
+				cell.name.Text = deco.name
+				cell.name.TextColor3 = color
+				cell.trait.Text = if trait == Catalog.BaseTrait then "" else trait.name
+				cell.trait.TextColor3 = traitColor(trait)
+				cell.stroke.Color = if selected then COLORS.text else color
+			else
+				cell.name.Text = "빈 자리"
+				cell.name.TextColor3 = COLORS.subText
+				cell.trait.Text = ""
+				cell.stroke.Color = if selected then COLORS.text else COLORS.disabled
+			end
+			cell.stroke.Thickness = if selected then 3 else 2
+			cell.button.BackgroundColor3 = if selected then COLORS.panelHover else COLORS.panelLight
+		end
+	end
+
+	-- 선택한 자리
+	local entry = selectedSlot and treeEntry(selectedSlot.area, selectedSlot.index)
+	local deco = entry and Catalog.DecorationById[entry.d]
+	local trait = entry and Catalog.TraitById[entry.t]
+	if deco and trait then
+		local r = Rarity.List[deco.rarity]
+		ui.treeDetail.Text = string.format(
+			"%s [%s] 가치 %s코인",
+			itemName(deco, trait),
+			r.name,
+			Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, trait.mult))
+		)
+		ui.treeDetail.TextColor3 = r.color
+		ui.treeRemove.Visible = true
+		setButton(ui.treeRemove, "빼기", true, COLORS.panelHover)
+	else
+		ui.treeDetail.Text = "가방에서 장식을 골라 '트리에 걸기'를 눌러 주세요. 걸린 칸을 누르면 뺄 수 있습니다."
+		ui.treeDetail.TextColor3 = COLORS.subText
+		ui.treeRemove.Visible = false
+	end
 end
 
 local function applyState(newState)
@@ -999,6 +1277,7 @@ local function applyState(newState)
 	refreshOdds()
 	GachaUI.RefreshBag()
 	refreshUpgrades()
+	refreshTree()
 end
 
 local function refreshSpinButtons()
@@ -1018,7 +1297,7 @@ local function refreshSpinButtons()
 		setButton(ui.freeButton, "무료 돌리기", true, COLORS.green)
 	end
 
-	local cost = state.coinSpinCost
+	local cost = currentCoinSpinCost()
 	setButton(ui.coinButton, Gacha.FormatNumber(cost) .. "코인 돌리기", state.coins >= cost, COLORS.gold)
 end
 
@@ -1361,10 +1640,50 @@ local function buyPotion()
 	end
 end
 
+local function placeSelected()
+	local stack = findStateStack(selectedKey)
+	if not stack then
+		return
+	end
+	local result = bagRequest(Remotes.PlaceDecoration, stackKey(stack))
+	if result then
+		showToast(
+			string.format("트리의 %s %d번 자리에 걸었습니다", Catalog.AREAS[result.area], result.index),
+			COLORS.green
+		)
+	end
+end
+
+local function removeSelectedSlot()
+	if not selectedSlot then
+		return
+	end
+	local result = bagRequest(Remotes.RemoveDecoration, selectedSlot.area, selectedSlot.index)
+	if result then
+		selectedSlot = nil
+		refreshTree()
+		showToast("장식을 가방에 넣었습니다", COLORS.gold)
+	end
+end
+
+local function setTreeOpen(open: boolean)
+	ui.treeWindow.Visible = open
+	selectedSlot = nil
+	if open then
+		ui.inventory.Visible = false
+		ui.upgradeWindow.Visible = false
+		selectedKey = nil
+	end
+	if state then
+		refreshTree()
+	end
+end
+
 local function setUpgradeOpen(open: boolean)
 	ui.upgradeWindow.Visible = open
 	if open then
 		ui.inventory.Visible = false
+		ui.treeWindow.Visible = false
 		selectedKey = nil
 	end
 end
@@ -1372,6 +1691,7 @@ end
 local function setInventoryOpen(open: boolean)
 	if open then
 		ui.upgradeWindow.Visible = false
+		ui.treeWindow.Visible = false
 	end
 	ui.inventory.Visible = open
 	if not open then
@@ -1453,6 +1773,23 @@ function GachaUI.Start()
 	ui.autoSellButton.Activated:Connect(cycleAutoSell)
 	ui.detailLock.Activated:Connect(toggleSelectedLock)
 	ui.detailSell.Activated:Connect(sellSelected)
+	ui.detailPlace.Activated:Connect(placeSelected)
+	ui.treeButton.Activated:Connect(function()
+		setTreeOpen(not ui.treeWindow.Visible)
+	end)
+	ui.treeClose.Activated:Connect(function()
+		setTreeOpen(false)
+	end)
+	ui.treeRemove.Activated:Connect(removeSelectedSlot)
+	for _, area in TREE_AREAS do
+		for index, cell in ui.treeCells[area.id] do
+			cell.button.Activated:Connect(function()
+				local same = selectedSlot and selectedSlot.area == area.id and selectedSlot.index == index
+				selectedSlot = if same then nil else { area = area.id, index = index }
+				refreshTree()
+			end)
+		end
+	end
 	Remotes.Announce.OnClientEvent:Connect(onAnnounce)
 
 	-- 리더보드 코인이 바뀌면 화면에도 반영
@@ -1474,6 +1811,9 @@ function GachaUI.Start()
 		while true do
 			refreshSpinButtons()
 			refreshPotionTimer()
+			if ui.treeWindow.Visible then
+				refreshTreeIncome()
+			end
 
 			-- 물약이 끝나면 행운·속도가 바뀌므로 서버 값을 다시 받는다
 			local potionActive = potionRemaining() > 0

@@ -69,20 +69,20 @@ Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙은 장식(반�
 ----------------------------------------------------------------
 -- 트리·서버
 ----------------------------------------------------------------
-Config.SERVER_MAX_PLAYERS = 8 -- [미구현] 서버당 최대 인원(= 플롯 수). 실제 인원 제한은 Roblox 게임 설정에서도 같이 바꿔야 한다
-Config.MAX_TOPPER = 1 -- [미구현] 토퍼 최대 개수
-Config.MAX_ORNAMENT = 10 -- [미구현] 오너먼트 최대 개수
-Config.MAX_GARLAND = 3 -- [미구현] 띠 최대 개수 (가정)
+Config.SERVER_MAX_PLAYERS = 8 -- 서버당 최대 인원(= 플롯 수). 실제 인원 제한은 Roblox 게임 설정에서도 같이 바꿔야 한다
+Config.MAX_TOPPER = 1 -- 토퍼 최대 개수
+Config.MAX_ORNAMENT = 10 -- 오너먼트 최대 개수
+Config.MAX_GARLAND = 3 -- 띠 최대 개수 (가정)
 
 ----------------------------------------------------------------
 -- 수익·투표
 ----------------------------------------------------------------
-Config.INCOME_RATE = 0.001 -- [미구현] 트리 가치 대비 초당 수입 비율 (장식 1개가 약 17분에 본전)
-Config.POP_MULT_BASE = 1.0 -- [미구현] 투표 0표일 때 인기 배수
+Config.INCOME_RATE = 0.001 -- 트리 가치 대비 초당 수입 비율 (장식 1개가 약 17분에 본전)
+Config.POP_MULT_BASE = 1.0 -- 투표 0표일 때 인기 배수
 Config.POP_PER_VOTE = 0.01 -- [미구현] 1표당 인기 배수 증가량
 Config.POP_MULT_MAX = 3.0 -- [미구현] 인기 배수 상한 (0.01씩이면 200표에서 도달)
-Config.DISPLAY_BONUS_PER_MIN = 0.01 -- [미구현] 연속 전시 1분당 보너스 증가량
-Config.DISPLAY_BONUS_MAX = 1.3 -- [미구현] 전시 시간 보너스 상한 (0.01씩이면 30분에서 도달)
+Config.DISPLAY_BONUS_PER_MIN = 0.01 -- 연속 전시 1분당 보너스 증가량
+Config.DISPLAY_BONUS_MAX = 1.3 -- 전시 시간 보너스 상한 (0.01씩이면 30분에서 도달)
 Config.VOTES_PER_DAY = 10 -- [미구현] 1인당 하루 투표권 수
 Config.VOTES_PER_TREE_PER_DAY = 1 -- [미구현] 같은 트리에 하루에 줄 수 있는 표 수
 Config.VOTE_RESET_HOUR_UTC = 0 -- [미구현] 투표권 초기화 시각 (UTC 시. 0이면 한국 09:00, 미국 서부 16:00)

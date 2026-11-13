@@ -29,6 +29,24 @@ function Gacha.GetCoinSpinCost(luckMult: number, incomePerSec: number?): number
 	return math.ceil(math.max(byLuck, byIncome))
 end
 
+-- 인기 배수 = min(POP_MULT_BASE + 누적 투표 수 × POP_PER_VOTE, POP_MULT_MAX)
+function Gacha.GetPopularityMultiplier(votes: number): number
+	return math.min(Config.POP_MULT_BASE + votes * Config.POP_PER_VOTE, Config.POP_MULT_MAX)
+end
+
+-- 전시 시간 보너스 = min(1 + 연속 전시 시간(분) × DISPLAY_BONUS_PER_MIN, DISPLAY_BONUS_MAX)
+function Gacha.GetDisplayBonus(minutes: number): number
+	return math.min(1 + math.max(0, minutes) * Config.DISPLAY_BONUS_PER_MIN, Config.DISPLAY_BONUS_MAX)
+end
+
+-- 초당 수입 = 트리 가치 × 인기 배수 × 전시 시간 보너스 × INCOME_RATE
+function Gacha.GetIncomePerSec(treeValue: number, votes: number, displayMinutes: number): number
+	return treeValue
+		* Gacha.GetPopularityMultiplier(votes)
+		* Gacha.GetDisplayBonus(displayMinutes)
+		* Config.INCOME_RATE
+end
+
 -- 코인 물약 가격 = max(POTION_MIN_COST, 초당 수입 × POTION_COST_INCOME_SEC)
 function Gacha.GetPotionCost(incomePerSec: number?): number
 	return math.ceil(math.max(Config.POTION_MIN_COST, (incomePerSec or 0) * Config.POTION_COST_INCOME_SEC))

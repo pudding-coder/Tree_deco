@@ -13,7 +13,9 @@
         "SetLock": { "$className": "RemoteFunction" },
         "SetAutoSell": { "$className": "RemoteFunction" },
         "Upgrade": { "$className": "RemoteFunction" },
-        "BuyPotion": { "$className": "RemoteFunction" }
+        "BuyPotion": { "$className": "RemoteFunction" },
+        "PlaceDecoration": { "$className": "RemoteFunction" },
+        "RemoveDecoration": { "$className": "RemoteFunction" }
       }
     },
     "ServerScriptService": {

@@ -10,6 +10,7 @@ local Catalog = require(Shared:WaitForChild("Catalog"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local PlayerData = require(script.Parent.PlayerData)
+local Income = require(script.Parent.Income)
 
 local GachaService = {}
 
@@ -42,9 +43,9 @@ local function getSpeedBoost(player: Player): number
 	return 1
 end
 
--- 전시 수익이 들어오면 여기서 초당 수입을 돌려준다.
-local function getIncomePerSec(_player: Player): number
-	return 0
+-- 초당 전시 수익 (코인 룰렛·물약 가격이 여기에 비례한다)
+local function getIncomePerSec(player: Player): number
+	return Income.GetPerSec(PlayerData.Get(player))
 end
 
 GachaService.GetIncomePerSec = getIncomePerSec
@@ -87,6 +88,12 @@ function GachaService.BuildState(player: Player)
 		speedLevel = profile.speedLevel,
 		potionEndsAt = profile.potionEndsAt,
 		potionCost = Gacha.GetPotionCost(getIncomePerSec(player)),
+
+		-- 트리
+		tree = table.clone(profile.tree),
+		treeValue = Income.GetTreeValue(profile),
+		votes = profile.votes,
+		displayStartedAt = profile.displayStartedAt,
 	}
 end
 

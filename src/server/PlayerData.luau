@@ -52,8 +52,13 @@ local function newProfile()
 		bagCapacity = Config.BAG_BASE_SLOTS,
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
 		potionEndsAt = 0, -- 물약이 끝나는 서버 시각. 저장할 때는 남은 시간(초)으로 바꾼다 (접속 중에만 줄어듦)
+		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id }
+		tree = {},
+		votes = 0, -- 누적으로 받은 투표 수 (투표 기능 전까지 0)
 
 		-- 아래는 저장하지 않는 값
+		displayStartedAt = workspace:GetServerTimeNow(), -- 이번 접속에서 전시를 시작한 서버 시각 (전시 시간 보너스)
+		coinCarry = 0, -- 초당 수입의 소수점 부분을 모아 두는 곳
 		nextFreeSpinAt = 0, -- 서버 시각(workspace:GetServerTimeNow())
 		busyUntil = 0, -- 룰렛 연출이 끝나는 서버 시각
 		canSave = true,
@@ -68,6 +73,22 @@ local function copyStacks(stacks)
 	return copy
 end
 
+local function copyTree(tree)
+	local copy = table.create(#tree)
+	for i, entry in tree do
+		copy[i] = { a = entry.a, i = entry.i, d = entry.d, t = entry.t }
+	end
+	return copy
+end
+
+-- 영역별 자리 수
+local AREA_CAPACITY = {
+	Topper = Config.MAX_TOPPER,
+	Ornament = Config.MAX_ORNAMENT,
+	Garland = Config.MAX_GARLAND,
+}
+PlayerData.AREA_CAPACITY = AREA_CAPACITY
+
 -- 저장할 값만 골라낸다
 local function serialize(profile)
 	return {
@@ -79,6 +100,8 @@ local function serialize(profile)
 		bagCapacity = profile.bagCapacity,
 		autoSellMax = profile.autoSellMax,
 		potionRemaining = math.max(0, math.floor(profile.potionEndsAt - workspace:GetServerTimeNow())),
+		tree = copyTree(profile.tree),
+		votes = profile.votes,
 	}
 end
 
@@ -105,6 +128,28 @@ local function reconcile(saved)
 	profile.speedLevel = readInt(saved.speedLevel, 0, #Config.SPEED_TIME_MULT, 0)
 	profile.bagCapacity = readInt(saved.bagCapacity, Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS, Config.BAG_BASE_SLOTS)
 	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+	profile.votes = readInt(saved.votes, 0, math.huge, 0)
+
+	-- 트리: 영역·자리 번호가 맞고 겹치지 않는 것만 (자리 수를 줄였으면 넘치는 장식은 가방으로)
+	local overflow = {}
+	if type(saved.tree) == "table" then
+		local used = {}
+		for _, entry in saved.tree do
+			if type(entry) ~= "table" or type(entry.d) ~= "string" or type(entry.t) ~= "string" then
+				continue
+			end
+			local capacity = AREA_CAPACITY[entry.a]
+			local index = readInt(entry.i, 0, 1000, 0)
+			local slotKey = tostring(entry.a) .. ":" .. index
+			if capacity and index >= 1 and index <= capacity and not used[slotKey] then
+				used[slotKey] = true
+				table.insert(profile.tree, { a = entry.a, i = index, d = entry.d, t = entry.t })
+			else
+				table.insert(overflow, entry)
+			end
+		end
+	end
+
 	local potionRemaining = readInt(saved.potionRemaining, 0, 7 * 24 * 3600, 0)
 	if potionRemaining > 0 then
 		profile.potionEndsAt = workspace:GetServerTimeNow() + potionRemaining
@@ -135,6 +180,22 @@ local function reconcile(saved)
 		for i = 1, Rarity.Count do
 			local count = readInt(saved.bag[i], 0, math.huge, 0)
 			profile.coins += Gacha.GetSellPrice(i, 1) * count
+		end
+	end
+
+	-- 트리 자리에서 넘친 장식을 가방에 넣는다 (가방 칸 수를 넘어도 넣어서 잃어버리지 않게)
+	for _, entry in overflow do
+		local key = stackKey(entry.d, entry.t)
+		local merged = false
+		for _, stack in profile.stacks do
+			if stackKey(stack.d, stack.t) == key then
+				stack.c += 1
+				merged = true
+				break
+			end
+		end
+		if not merged then
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, c = 1, l = false })
 		end
 	end
 	return profile
