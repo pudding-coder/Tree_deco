@@ -189,8 +189,8 @@ local function bagPanel(parent)
 	local frame = panel({
 		Name = "Bag",
 		Size = UDim2.fromOffset(320, 54 + Rarity.Count * 28 + 40),
-		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 16, 0.5, 0),
+		AnchorPoint = Vector2.new(0, 1), -- 왼쪽 아래 (왼쪽 위는 Roblox 채팅창 자리)
+		Position = UDim2.new(0, 16, 1, -20),
 		Parent = parent,
 	})
 	ui.bagTitle = label({
@@ -366,9 +366,9 @@ local function buildUI()
 		Parent = slot,
 	})
 
-	-- 확률표 (오른쪽), 가방 (왼쪽)
+	-- 확률표 (오른쪽 아래), 가방 (왼쪽 아래)
 	ui.oddsTitle, ui.oddsLabels =
-		rarityListPanel("Odds", "확률", Vector2.new(1, 0.5), UDim2.new(1, -16, 0.5, 0), gui)
+		rarityListPanel("Odds", "확률", Vector2.new(1, 1), UDim2.new(1, -16, 1, -20), gui)
 	bagPanel(gui)
 
 	-- 공지
