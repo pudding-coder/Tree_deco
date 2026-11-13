@@ -1,4 +1,5 @@
 -- 룰렛(뽑기) 서버 처리. 결과는 항상 서버에서 정한다.
+-- 한 번 돌리면 레어도 → 장식 → 특성 순서로 정해진다.
 local MessagingService = game:GetService("MessagingService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -6,6 +7,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local Gacha = require(Shared:WaitForChild("Gacha"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local PlayerData = require(script.Parent.PlayerData)
@@ -45,6 +47,15 @@ function GachaService.BuildState(player: Player)
 	end
 	local luck = getLuck(player, profile)
 	local speedBoost = getSpeedBoost(player)
+
+	-- 카탈로그에 있는 칸만 보낸다
+	local stacks = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
+			table.insert(stacks, { d = stack.d, t = stack.t, c = stack.c, l = stack.l })
+		end
+	end
+
 	return {
 		coins = profile.coins,
 		luck = luck,
@@ -52,29 +63,34 @@ function GachaService.BuildState(player: Player)
 		freeCooldown = Gacha.GetFreeCooldown(profile.speedLevel, speedBoost),
 		nextFreeSpinAt = profile.nextFreeSpinAt,
 		coinSpinCost = Gacha.GetCoinSpinCost(luck, getIncomePerSec(player)),
-		bag = table.clone(profile.bag),
-		bagUsed = PlayerData.GetBagSlotsUsed(profile),
+		stacks = stacks,
+		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
-		locked = table.clone(profile.locked),
 		autoSellMax = profile.autoSellMax,
 	}
 end
 
-local function announceToServer(playerName: string, rarityIndex: number, isGlobal: boolean)
+----------------------------------------------------------------
+-- 공지
+----------------------------------------------------------------
+
+local function announceToServer(playerName: string, decoId: string, traitId: string, isGlobal: boolean)
 	Remotes.Announce:FireAllClients({
 		playerName = playerName,
-		rarity = rarityIndex,
+		decoId = decoId,
+		traitId = traitId,
 		global = isGlobal,
 	})
 end
 
-local function publishGlobal(playerName: string, rarityIndex: number)
+local function publishGlobal(playerName: string, decoId: string, traitId: string)
 	task.spawn(function()
 		local ok, err = pcall(function()
 			MessagingService:PublishAsync(GLOBAL_TOPIC, {
 				jobId = game.JobId,
 				playerName = playerName,
-				rarity = rarityIndex,
+				decoId = decoId,
+				traitId = traitId,
 			})
 		end)
 		if not ok then
@@ -91,11 +107,16 @@ local function onGlobalMessage(message)
 	if data.jobId == game.JobId then
 		return -- 우리 서버 공지는 이미 보냈다
 	end
-	if type(data.rarity) ~= "number" or not Rarity.List[data.rarity] then
+	-- 다른 버전의 서버가 보낸, 이 서버가 모르는 장식이면 무시한다
+	if not Catalog.DecorationById[data.decoId] or not Catalog.TraitById[data.traitId] then
 		return
 	end
-	announceToServer(tostring(data.playerName), data.rarity, true)
+	announceToServer(tostring(data.playerName), data.decoId, data.traitId, true)
 end
+
+----------------------------------------------------------------
+-- 돌리기
+----------------------------------------------------------------
 
 local function fail(reason: string)
 	return { ok = false, reason = reason }
@@ -139,15 +160,24 @@ local function onSpin(player: Player, kind: any)
 	profile.busyUntil = t + reelTime - 0.05
 
 	local rarityIndex = Gacha.Roll(luck, rng)
+	local deco = Catalog.RollDecoration(rarityIndex, rng)
+	local trait = Catalog.RollTrait(rng)
 	local coinsAfterCost = profile.coins
 
-	-- 자동 판매: 지정한 등급 이하이고 잠기지 않았으면 가방에 넣지 않고 바로 판다
+	-- 자동 판매: 지정한 등급 이하이고, 그 칸이 잠기지 않았고, (설정에 따라) 특성이 없을 때
+	local key = PlayerData.StackKey(deco.id, trait.id)
+	local existing = PlayerData.FindStack(profile, key)
+	local isLocked = if existing
+		then existing.l
+		else rarityIndex >= Config.DEFAULT_LOCK_MIN_RARITY
+	local traitAllowed = trait == Catalog.BaseTrait or not Config.AUTO_SELL_ONLY_BASE_TRAIT
+
 	local saleCoins = 0
-	if rarityIndex <= profile.autoSellMax and not profile.locked[rarityIndex] then
-		saleCoins = Gacha.GetSellPrice(rarityIndex)
+	if rarityIndex <= profile.autoSellMax and not isLocked and traitAllowed then
+		saleCoins = Gacha.GetSellPrice(rarityIndex, trait.mult)
 		PlayerData.AddCoins(player, saleCoins)
 	else
-		profile.bag[rarityIndex] += 1
+		PlayerData.AddItem(profile, deco, trait, 1)
 	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)
@@ -155,9 +185,9 @@ local function onSpin(player: Player, kind: any)
 		local playerName = player.DisplayName
 		local isGlobal = rarityIndex >= Config.GLOBAL_ANNOUNCE_MIN_RARITY
 		task.delay(reelTime, function()
-			announceToServer(playerName, rarityIndex, isGlobal)
+			announceToServer(playerName, deco.id, trait.id, isGlobal)
 			if isGlobal then
-				publishGlobal(playerName, rarityIndex)
+				publishGlobal(playerName, deco.id, trait.id)
 			end
 		end)
 	end
@@ -165,6 +195,8 @@ local function onSpin(player: Player, kind: any)
 	return {
 		ok = true,
 		rarity = rarityIndex,
+		decoId = deco.id,
+		traitId = trait.id,
 		reelTime = reelTime,
 		autoSold = saleCoins > 0,
 		saleCoins = saleCoins,

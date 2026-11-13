@@ -1,4 +1,4 @@
--- 룰렛 화면: 슬롯 · 확률표 · 가방 · 공지
+-- 룰렛 화면: 슬롯 3칸 · 확률표 · 가방(인벤토리) · 공지
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -8,6 +8,7 @@ local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
 local Gacha = require(Shared:WaitForChild("Gacha"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 
 local player = Players.LocalPlayer
@@ -17,17 +18,59 @@ local GachaUI = {}
 local COLORS = {
 	panel = Color3.fromRGB(20, 28, 40),
 	panelLight = Color3.fromRGB(32, 43, 60),
+	panelHover = Color3.fromRGB(48, 62, 84),
 	text = Color3.fromRGB(242, 245, 250),
 	subText = Color3.fromRGB(160, 172, 190),
 	green = Color3.fromRGB(40, 168, 92),
 	gold = Color3.fromRGB(226, 170, 40),
 	disabled = Color3.fromRGB(68, 76, 90),
-	error = Color3.fromRGB(255, 110, 110),
+	error = Color3.fromRGB(230, 80, 80),
+	errorText = Color3.fromRGB(255, 110, 110),
 }
+
+-- 특성 글자색 (여기 없는 특성은 흰색)
+local TRAIT_COLORS = {
+	None = COLORS.subText,
+	Glitter = Color3.fromRGB(255, 240, 150),
+	Frost = Color3.fromRGB(170, 220, 255),
+	Golden = Color3.fromRGB(255, 200, 40),
+	Rainbow = Color3.fromRGB(255, 120, 200),
+	Aurora = Color3.fromRGB(120, 255, 200),
+}
+
+local function traitColor(trait): Color3
+	return TRAIT_COLORS[trait.id] or COLORS.text
+end
 
 local state = nil
 local spinning = false
+local selectedKey = nil
 local ui = {}
+
+----------------------------------------------------------------
+-- 장식 정보 헬퍼
+----------------------------------------------------------------
+
+-- "✨반짝이 빨간 공" (기본 특성이면 장식 이름만)
+local function itemName(deco, trait): string
+	if trait == Catalog.BaseTrait then
+		return deco.name
+	end
+	return trait.emoji .. trait.name .. " " .. deco.name
+end
+
+local function stackInfo(stack)
+	return Catalog.DecorationById[stack.d], Catalog.TraitById[stack.t]
+end
+
+local function stackKey(stack): string
+	return stack.d .. ":" .. stack.t
+end
+
+local function stackSellPrice(stack): number
+	local deco, trait = stackInfo(stack)
+	return Gacha.GetSellPrice(deco.rarity, trait.mult)
+end
 
 ----------------------------------------------------------------
 -- UI 헬퍼
@@ -68,6 +111,15 @@ local function label(props)
 	return create("TextLabel", props)
 end
 
+-- 글자가 칸보다 길면 자동으로 작아지는 라벨
+local function scaledLabel(props, maxSize: number, minSize: number?)
+	props.TextScaled = true
+	props.TextWrapped = true
+	local lbl = label(props)
+	create("UITextSizeConstraint", { MaxTextSize = maxSize, MinTextSize = minSize or 8, Parent = lbl })
+	return lbl
+end
+
 local function panel(props)
 	local frame = create("Frame", {
 		Name = props.Name,
@@ -77,6 +129,7 @@ local function panel(props)
 		BackgroundColor3 = COLORS.panel,
 		BackgroundTransparency = 0.08,
 		BorderSizePixel = 0,
+		Visible = if props.Visible == nil then true else props.Visible,
 		Parent = props.Parent,
 	})
 	corner(frame, 14)
@@ -90,227 +143,36 @@ local function button(props)
 		Name = props.Name,
 		Size = props.Size,
 		Position = props.Position,
-		BackgroundColor3 = props.Color,
+		AnchorPoint = props.AnchorPoint,
+		BackgroundColor3 = props.Color or COLORS.panelLight,
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
 		Font = Enum.Font.GothamBold,
-		TextSize = 18,
+		TextSize = props.TextSize or 18,
 		TextColor3 = COLORS.text,
 		Text = props.Text,
 		Parent = props.Parent,
 	})
-	corner(btn, 10)
+	corner(btn, props.Radius or 10)
 	return btn
 end
 
--- 등급 목록 패널 (확률표, 가방)
-local function rarityListPanel(name: string, title: string, anchor: Vector2, position: UDim2, parent)
-	local frame = panel({
-		Name = name,
-		Size = UDim2.fromOffset(210, 54 + Rarity.Count * 28),
-		AnchorPoint = anchor,
-		Position = position,
-		Parent = parent,
-	})
-	local titleLabel = label({
-		Name = "Title",
-		Text = title,
-		Size = UDim2.new(1, 0, 0, 24),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = frame,
-	})
-	local list = create("Frame", {
-		Name = "List",
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 30),
-		Size = UDim2.new(1, 0, 1, -30),
-		Parent = frame,
-	})
-	create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
-
-	local valueLabels = {}
-	for i, r in Rarity.List do
-		local row = create("Frame", {
-			Name = r.id,
-			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 24),
-			LayoutOrder = i,
-			Parent = list,
-		})
-		local dot = create("Frame", {
-			BackgroundColor3 = r.color,
-			BorderSizePixel = 0,
-			Size = UDim2.fromOffset(10, 10),
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 0, 0.5, 0),
-			Parent = row,
-		})
-		corner(dot, 5)
-		label({
-			Text = r.name,
-			TextColor3 = r.color,
-			Size = UDim2.new(0.55, -16, 1, 0),
-			Position = UDim2.fromOffset(16, 0),
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = row,
-		})
-		valueLabels[i] = label({
-			Text = "-",
-			Font = Enum.Font.Gotham,
-			TextColor3 = COLORS.subText,
-			Size = UDim2.new(0.45, 0, 1, 0),
-			Position = UDim2.fromScale(0.55, 0),
-			TextXAlignment = Enum.TextXAlignment.Right,
-			Parent = row,
-		})
-	end
-	return titleLabel, valueLabels
-end
-
-local function smallButton(text: string, size: UDim2, position: UDim2, parent)
-	local btn = create("TextButton", {
-		Text = text,
-		Size = size,
-		Position = position,
-		BackgroundColor3 = COLORS.panelLight,
-		AutoButtonColor = false,
-		BorderSizePixel = 0,
-		Font = Enum.Font.GothamBold,
-		TextSize = 13,
-		TextColor3 = COLORS.text,
-		Parent = parent,
-	})
-	corner(btn, 6)
-	return btn
-end
-
--- 가방 패널: 등급 줄을 누르면 잠금/해제, 아래에 모두 판매 · 자동 판매
-local BAG_LIST_TOP = 30
-local BAG_ROW_HEIGHT = 28
-local BAG_LIST_HEIGHT = Rarity.Count * BAG_ROW_HEIGHT
-
-local function bagPanel(parent)
-	local frame = panel({
-		Name = "Bag",
-		Size = UDim2.fromOffset(260, 24 + BAG_LIST_TOP + BAG_LIST_HEIGHT + 6 + 36 + 6 + 30),
-		AnchorPoint = Vector2.new(0, 1), -- 왼쪽 아래 (왼쪽 위는 Roblox 채팅창 자리)
-		Position = UDim2.new(0, 16, 1, -20),
-		Parent = parent,
-	})
-	ui.bagTitle = label({
-		Name = "Title",
-		Text = "가방",
-		Size = UDim2.new(0.5, 0, 0, 24),
-		TextXAlignment = Enum.TextXAlignment.Left,
-		Parent = frame,
-	})
-	label({
-		Text = "눌러서 잠금",
-		Font = Enum.Font.Gotham,
-		TextSize = 12,
-		TextColor3 = COLORS.subText,
-		Size = UDim2.new(0.5, 0, 0, 24),
-		Position = UDim2.fromScale(0.5, 0),
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = frame,
-	})
-	local list = create("Frame", {
-		Name = "List",
-		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, BAG_LIST_TOP),
-		Size = UDim2.new(1, 0, 0, BAG_LIST_HEIGHT),
-		Parent = frame,
-	})
-	create("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
-
-	ui.bagRows = {}
-	for i, r in Rarity.List do
-		local row = create("TextButton", {
-			Name = r.id,
-			Text = "",
-			AutoButtonColor = false,
-			BackgroundColor3 = COLORS.panelLight,
-			BackgroundTransparency = 1,
-			BorderSizePixel = 0,
-			Size = UDim2.new(1, 0, 0, BAG_ROW_HEIGHT - 2),
-			LayoutOrder = i,
-			Parent = list,
-		})
-		corner(row, 6)
-		local dot = create("Frame", {
-			BackgroundColor3 = r.color,
-			BorderSizePixel = 0,
-			Size = UDim2.fromOffset(10, 10),
-			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 6, 0.5, 0),
-			Parent = row,
-		})
-		corner(dot, 5)
-		label({
-			Text = r.name,
-			TextColor3 = r.color,
-			TextSize = 15,
-			Size = UDim2.new(0, 90, 1, 0),
-			Position = UDim2.fromOffset(22, 0),
-			TextXAlignment = Enum.TextXAlignment.Left,
-			Parent = row,
-		})
-		ui.bagRows[i] = {
-			button = row,
-			count = label({
-				Text = "×0",
-				Font = Enum.Font.Gotham,
-				TextSize = 15,
-				TextColor3 = COLORS.subText,
-				Size = UDim2.new(1, -150, 1, 0),
-				Position = UDim2.fromOffset(112, 0),
-				TextXAlignment = Enum.TextXAlignment.Right,
-				Parent = row,
-			}),
-			lock = label({
-				Text = "",
-				TextSize = 14,
-				Size = UDim2.new(0, 28, 1, 0),
-				Position = UDim2.new(1, -32, 0, 0),
-				Parent = row,
-			}),
-		}
-	end
-
-	local buttonsTop = BAG_LIST_TOP + BAG_LIST_HEIGHT + 6
-	ui.sellAllButton = smallButton("모두 판매", UDim2.new(1, 0, 0, 36), UDim2.fromOffset(0, buttonsTop), frame)
-	ui.sellAllButton.TextSize = 15
-	ui.autoSellButton = smallButton("자동 판매: 끔", UDim2.new(1, 0, 0, 30), UDim2.fromOffset(0, buttonsTop + 42), frame)
-	ui.autoSellButton.TextSize = 14
+local function setButton(btn: TextButton, text: string, enabled: boolean, color: Color3)
+	btn.Text = text
+	btn.BackgroundColor3 = if enabled then color else COLORS.disabled
+	btn.TextColor3 = if enabled then COLORS.text else COLORS.subText
 end
 
 ----------------------------------------------------------------
 -- 화면 만들기
 ----------------------------------------------------------------
 
-local function buildUI()
-	local gui = create("ScreenGui", {
-		Name = "GachaGui",
-		ResetOnSpawn = false,
-		IgnoreGuiInset = true,
-		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		Parent = player:WaitForChild("PlayerGui"),
-	})
+local REEL_TITLES = { "등급", "장식", "특성" }
 
-	-- 화면 크기에 맞춰 전체 크기 조절 (폰에서도 보이게)
-	local uiScale = create("UIScale", { Parent = gui })
-	local camera = workspace.CurrentCamera
-	local function updateScale()
-		local size = camera.ViewportSize
-		uiScale.Scale = math.clamp(math.min(size.X / 1280, size.Y / 720), 0.55, 1.2)
-	end
-	camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
-	updateScale()
-
-	-- 슬롯머신
+local function buildSlot(gui)
 	local slot = panel({
 		Name = "Slot",
-		Size = UDim2.fromOffset(400, 274),
+		Size = UDim2.fromOffset(520, 280),
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
 		Parent = gui,
@@ -332,34 +194,61 @@ local function buildUI()
 		Parent = slot,
 	})
 
-	local reel = create("Frame", {
-		Name = "Reel",
-		BackgroundColor3 = COLORS.panelLight,
-		BorderSizePixel = 0,
-		Position = UDim2.fromOffset(0, 38),
-		Size = UDim2.new(1, 0, 0, 112),
-		ClipsDescendants = true,
+	-- 슬롯 3칸: 등급 · 장식 · 특성
+	local reels = create("Frame", {
+		Name = "Reels",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 36),
+		Size = UDim2.new(1, 0, 0, 96),
 		Parent = slot,
 	})
-	corner(reel, 12)
-	ui.reelStroke = create("UIStroke", { Color = COLORS.subText, Thickness = 3, Parent = reel })
-	ui.reelText = label({
-		Text = "?",
-		TextSize = 44,
-		Font = Enum.Font.GothamBlack,
-		Size = UDim2.new(1, 0, 0, 70),
-		Position = UDim2.fromOffset(0, 12),
-		Parent = reel,
+	create("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = reels,
 	})
-	ui.reelScale = create("UIScale", { Parent = ui.reelText })
+	ui.reels = {}
+	local widths = { 0.27, 0.46, 0.27 } -- 장식 이름이 길어서 가운데 칸을 넓게
+	for i, title in REEL_TITLES do
+		local cell = create("Frame", {
+			Name = "Reel" .. i,
+			BackgroundColor3 = COLORS.panelLight,
+			BorderSizePixel = 0,
+			Size = UDim2.new(widths[i], -6, 1, 0),
+			LayoutOrder = i,
+			ClipsDescendants = true,
+			Parent = reels,
+		})
+		corner(cell, 10)
+		local stroke = create("UIStroke", { Color = COLORS.subText, Thickness = 3, Parent = cell })
+		label({
+			Text = title,
+			TextSize = 12,
+			Font = Enum.Font.Gotham,
+			TextColor3 = COLORS.subText,
+			Size = UDim2.new(1, 0, 0, 18),
+			Position = UDim2.fromOffset(0, 4),
+			Parent = cell,
+		})
+		local text = scaledLabel({
+			Text = "?",
+			Font = Enum.Font.GothamBlack,
+			Size = UDim2.new(1, -12, 0, 60),
+			Position = UDim2.fromOffset(6, 26),
+			Parent = cell,
+		}, 30, 10)
+		ui.reels[i] = { stroke = stroke, text = text, scale = create("UIScale", { Parent = text }) }
+	end
+
 	ui.reelSub = label({
 		Text = "버튼을 눌러 돌려보세요",
 		TextSize = 15,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
 		Size = UDim2.new(1, 0, 0, 22),
-		Position = UDim2.fromOffset(0, 82),
-		Parent = reel,
+		Position = UDim2.fromOffset(0, 138),
+		Parent = slot,
 	})
 
 	ui.freeButton = button({
@@ -367,7 +256,7 @@ local function buildUI()
 		Text = "무료 돌리기",
 		Color = COLORS.green,
 		Size = UDim2.new(0.5, -6, 0, 54),
-		Position = UDim2.fromOffset(0, 162),
+		Position = UDim2.fromOffset(0, 166),
 		Parent = slot,
 	})
 	ui.coinButton = button({
@@ -375,45 +264,285 @@ local function buildUI()
 		Text = "코인 돌리기",
 		Color = COLORS.gold,
 		Size = UDim2.new(0.5, -6, 0, 54),
-		Position = UDim2.new(0.5, 6, 0, 162),
+		Position = UDim2.new(0.5, 6, 0, 166),
 		Parent = slot,
 	})
 	ui.status = label({
 		Text = "",
 		TextSize = 14,
 		Font = Enum.Font.Gotham,
-		TextColor3 = COLORS.error,
+		TextColor3 = COLORS.errorText,
 		Size = UDim2.new(1, 0, 0, 20),
-		Position = UDim2.fromOffset(0, 226),
+		Position = UDim2.fromOffset(0, 230),
 		Parent = slot,
 	})
+end
 
-	-- 확률표 (오른쪽 아래), 가방 (왼쪽 아래)
-	ui.oddsTitle, ui.oddsLabels =
-		rarityListPanel("Odds", "확률", Vector2.new(1, 1), UDim2.new(1, -16, 1, -20), gui)
-	bagPanel(gui)
+-- 확률표 (오른쪽 아래): 등급 확률 + 특성 확률
+local function buildOdds(gui)
+	local rowHeight = 22
+	local traitCount = 0
+	for _, trait in Catalog.Traits do
+		if not trait.retired then
+			traitCount += 1
+		end
+	end
+	local height = 30 + Rarity.Count * rowHeight + 10 + 30 + traitCount * rowHeight + 24
+
+	local frame = panel({
+		Name = "Odds",
+		Size = UDim2.fromOffset(220, height),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -16, 1, -20),
+		Parent = gui,
+	})
+	local list = create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = frame })
+	create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+
+	local order = 0
+	local function nextOrder()
+		order += 1
+		return order
+	end
+	local function titleRow(text: string)
+		return label({
+			Text = text,
+			Size = UDim2.new(1, 0, 0, 30),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			LayoutOrder = nextOrder(),
+			Parent = list,
+		})
+	end
+	local function row(name: string, color: Color3)
+		local r = create("Frame", {
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, rowHeight),
+			LayoutOrder = nextOrder(),
+			Parent = list,
+		})
+		label({
+			Text = name,
+			TextSize = 14,
+			TextColor3 = color,
+			Size = UDim2.fromScale(0.5, 1),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = r,
+		})
+		return label({
+			Text = "-",
+			TextSize = 14,
+			Font = Enum.Font.Gotham,
+			TextColor3 = COLORS.subText,
+			Size = UDim2.fromScale(0.5, 1),
+			Position = UDim2.fromScale(0.5, 0),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			Parent = r,
+		})
+	end
+
+	ui.oddsTitle = titleRow("확률")
+	ui.oddsLabels = {}
+	for i, r in Rarity.List do
+		ui.oddsLabels[i] = row("● " .. r.name, r.color)
+	end
+	create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 10), LayoutOrder = nextOrder(), Parent = list })
+	titleRow("특성")
+	for _, trait in Catalog.Traits do
+		if trait.retired then
+			continue
+		end
+		local odds = if trait.n then Gacha.FormatOdds(1 / trait.n) else "나머지"
+		local valueLabel = row(trait.emoji .. trait.name, traitColor(trait))
+		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
+	end
+end
+
+-- 가방 버튼 (왼쪽 아래)
+local function buildBagButton(gui)
+	ui.bagButton = button({
+		Name = "BagButton",
+		Text = "🎒 가방",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -20),
+		Radius = 14,
+		Parent = gui,
+	})
+	create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.bagButton,
+	})
+end
+
+-- 인벤토리 창 (가운데, 가방 버튼으로 열고 닫음)
+local function buildInventory(gui)
+	local window = panel({
+		Name = "Inventory",
+		Size = UDim2.fromOffset(620, 500),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Visible = false,
+		Parent = gui,
+	})
+	window.ZIndex = 5 -- 슬롯·확률표 위에 보이게
+	ui.inventory = window
+
+	ui.invTitle = label({
+		Text = "가방",
+		TextSize = 20,
+		Size = UDim2.new(1, -40, 0, 30),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+	ui.invClose = button({
+		Text = "✕",
+		TextSize = 18,
+		Size = UDim2.fromOffset(32, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Parent = window,
+	})
+
+	-- 격자
+	ui.grid = create("ScrollingFrame", {
+		Name = "Grid",
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 38),
+		Size = UDim2.new(1, 0, 1, -38 - 70 - 44 - 12),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 6,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Parent = window,
+	})
+	create("UIGridLayout", {
+		CellSize = UDim2.fromOffset(86, 96),
+		CellPadding = UDim2.fromOffset(8, 8),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = ui.grid,
+	})
+	create("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), Parent = ui.grid })
+	ui.emptyLabel = label({
+		Text = "아직 장식이 없어요. 룰렛을 돌려보세요!",
+		TextSize = 15,
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Position = UDim2.fromOffset(0, 38),
+		Size = UDim2.new(1, 0, 0, 60),
+		Visible = false,
+		Parent = window,
+	})
+
+	-- 선택한 칸 정보
+	local detail = create("Frame", {
+		Name = "Detail",
+		BackgroundColor3 = COLORS.panelLight,
+		BorderSizePixel = 0,
+		Position = UDim2.new(0, 0, 1, -70 - 44 - 6),
+		Size = UDim2.new(1, 0, 0, 70),
+		Parent = window,
+	})
+	corner(detail, 10)
+	padding(detail, 10)
+	ui.detailName = scaledLabel({
+		Text = "",
+		Size = UDim2.new(1, -230, 0, 26),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = detail,
+	}, 18, 10)
+	ui.detailInfo = scaledLabel({
+		Text = "칸을 눌러 장식을 고르세요",
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(1, -230, 0, 20),
+		Position = UDim2.fromOffset(0, 28),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = detail,
+	}, 13, 9)
+	ui.detailLock = button({
+		Text = "🔒 잠그기",
+		TextSize = 14,
+		Size = UDim2.fromOffset(104, 40),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -116, 0.5, 0),
+		Parent = detail,
+	})
+	ui.detailSell = button({
+		Text = "판매",
+		TextSize = 14,
+		Size = UDim2.fromOffset(110, 40),
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, 0, 0.5, 0),
+		Parent = detail,
+	})
+
+	-- 아래 버튼: 모두 판매 · 자동 판매
+	ui.sellAllButton = button({
+		Text = "모두 판매",
+		TextSize = 15,
+		Size = UDim2.new(0.55, -4, 0, 44),
+		Position = UDim2.new(0, 0, 1, -44),
+		Parent = window,
+	})
+	ui.autoSellButton = button({
+		Text = "자동 판매: 끔",
+		TextSize = 14,
+		Size = UDim2.new(0.45, -4, 0, 44),
+		Position = UDim2.new(0.55, 4, 1, -44),
+		Parent = window,
+	})
+end
+
+local function buildUI()
+	local gui = create("ScreenGui", {
+		Name = "GachaGui",
+		ResetOnSpawn = false,
+		IgnoreGuiInset = true,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		Parent = player:WaitForChild("PlayerGui"),
+	})
+
+	-- 화면 크기에 맞춰 전체 크기 조절 (폰에서도 보이게)
+	local uiScale = create("UIScale", { Parent = gui })
+	local camera = workspace.CurrentCamera
+	local function updateScale()
+		local size = camera.ViewportSize
+		uiScale.Scale = math.clamp(math.min(size.X / 1280, size.Y / 720), 0.5, 1.2)
+	end
+	camera:GetPropertyChangedSignal("ViewportSize"):Connect(updateScale)
+	updateScale()
+
+	buildSlot(gui)
+	buildOdds(gui)
+	buildBagButton(gui)
+	buildInventory(gui)
 
 	-- 공지
 	ui.toast = create("CanvasGroup", {
 		Name = "Toast",
 		AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.new(0.5, 0, 0, 64),
-		Size = UDim2.fromOffset(600, 48),
+		Size = UDim2.fromOffset(640, 48),
 		BackgroundColor3 = COLORS.panel,
 		BorderSizePixel = 0,
 		GroupTransparency = 1,
 		Visible = false,
+		ZIndex = 8,
 		Parent = gui,
 	})
 	corner(ui.toast, 12)
 	ui.toastStroke = create("UIStroke", { Thickness = 2, Color = COLORS.gold, Parent = ui.toast })
-	ui.toastLabel = label({
+	ui.toastLabel = scaledLabel({
 		Text = "",
-		TextSize = 18,
-		Size = UDim2.fromScale(1, 1),
-		TextWrapped = true,
+		Size = UDim2.new(1, -24, 1, -8),
+		Position = UDim2.fromOffset(12, 4),
 		Parent = ui.toast,
-	})
+	}, 18, 10)
 
 	-- 희귀 등급 화면 번쩍임
 	ui.flash = create("Frame", {
@@ -421,8 +550,8 @@ local function buildUI()
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
-		ZIndex = 10,
 		Active = false,
+		ZIndex = 10,
 		Parent = gui,
 	})
 end
@@ -447,20 +576,46 @@ local function refreshOdds()
 	ui.oddsTitle.Text = string.format("확률 · 행운 ×%.1f", state.luck)
 end
 
-local function setSmallButton(btn: TextButton, enabled: boolean)
-	btn.BackgroundColor3 = if enabled then COLORS.panelLight else COLORS.panel
-	btn.TextColor3 = if enabled then COLORS.text else COLORS.disabled
+-- 가방 정렬: 등급 높은 순 → 가치 높은 순 → 이름 순
+local function sortedStacks()
+	local list = table.clone(state.stacks)
+	table.sort(list, function(a, b)
+		local decoA, traitA = stackInfo(a)
+		local decoB, traitB = stackInfo(b)
+		if decoA.rarity ~= decoB.rarity then
+			return decoA.rarity > decoB.rarity
+		end
+		local valueA = Gacha.GetItemValue(decoA.rarity, traitA.mult)
+		local valueB = Gacha.GetItemValue(decoB.rarity, traitB.mult)
+		if valueA ~= valueB then
+			return valueA > valueB
+		end
+		return itemName(decoA, traitA) < itemName(decoB, traitB)
+	end)
+	return list
+end
+
+local function findStateStack(key: string?)
+	if not key or not state then
+		return nil
+	end
+	for _, stack in state.stacks do
+		if stackKey(stack) == key then
+			return stack
+		end
+	end
+	return nil
 end
 
 -- 잠기지 않은 장식을 모두 팔면 받는 코인과, 확인이 필요한 등급이 들어 있는지
 local function getSellAllPreview()
 	local total = 0
 	local needsConfirm = false
-	for i = 1, Rarity.Count do
-		local count = state.bag[i] or 0
-		if count > 0 and not state.locked[i] then
-			total += Gacha.GetSellPrice(i) * count
-			if i >= Config.SELL_CONFIRM_MIN_RARITY then
+	for _, stack in state.stacks do
+		if not stack.l then
+			total += stackSellPrice(stack) * stack.c
+			local deco = stackInfo(stack)
+			if deco.rarity >= Config.SELL_CONFIRM_MIN_RARITY then
 				needsConfirm = true
 			end
 		end
@@ -468,37 +623,34 @@ local function getSellAllPreview()
 	return total, needsConfirm
 end
 
-local sellConfirmUntil = 0 -- 이 시각 전에 한 번 더 누르면 판매
+-- 한 번 더 눌러야 파는 버튼: [버튼 이름] = 이 시각 전에 다시 누르면 판매
+local confirmUntil = {}
 
-local function refreshSellAllButton()
-	local total = getSellAllPreview()
-	if total <= 0 then
-		ui.sellAllButton.Text = "팔 장식이 없어요"
-		setSmallButton(ui.sellAllButton, false)
-	elseif os.clock() < sellConfirmUntil then
-		ui.sellAllButton.Text = string.format("한 번 더 누르면 판매 (+💰%s)", Gacha.FormatNumber(total))
-		ui.sellAllButton.BackgroundColor3 = COLORS.error
-		ui.sellAllButton.TextColor3 = COLORS.text
-	else
-		ui.sellAllButton.Text = string.format("모두 판매 +💰%s", Gacha.FormatNumber(total))
-		ui.sellAllButton.BackgroundColor3 = COLORS.gold
-		ui.sellAllButton.TextColor3 = COLORS.text
-	end
+local function isConfirming(name: string): boolean
+	return (confirmUntil[name] or 0) > os.clock()
 end
 
-local function refreshBag()
-	for i, row in ui.bagRows do
-		local count = state.bag[i] or 0
-		local locked = state.locked[i] == true
-		row.count.Text = "×" .. Gacha.FormatNumber(count)
-		row.count.TextColor3 = if count > 0 then COLORS.text else COLORS.subText
-		row.lock.Text = if locked then "🔒" else ""
-		row.button.BackgroundTransparency = if locked then 0.3 else 1
-	end
-	ui.bagTitle.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
-	refreshSellAllButton()
+local function refreshBagButton()
+	local full = state.bagUsed >= state.bagCapacity
+	ui.bagButton.Text = string.format("🎒 가방 %d/%d", state.bagUsed, state.bagCapacity)
+	ui.bagButton.TextColor3 = if full then COLORS.errorText else COLORS.text
+	ui.invTitle.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
+end
 
+local function refreshSellButtons()
+	-- 모두 판매
+	local total = getSellAllPreview()
+	if total <= 0 then
+		setButton(ui.sellAllButton, "팔 장식이 없어요", false, COLORS.gold)
+	elseif isConfirming("all") then
+		setButton(ui.sellAllButton, string.format("한 번 더 누르면 판매 (+💰%s)", Gacha.FormatNumber(total)), true, COLORS.error)
+	else
+		setButton(ui.sellAllButton, string.format("잠금 빼고 모두 판매 +💰%s", Gacha.FormatNumber(total)), true, COLORS.gold)
+	end
+
+	-- 자동 판매
 	local level = state.autoSellMax
+	ui.autoSellButton.BackgroundColor3 = COLORS.panelLight
 	if level <= 0 then
 		ui.autoSellButton.Text = "자동 판매: 끔"
 		ui.autoSellButton.TextColor3 = COLORS.subText
@@ -507,22 +659,141 @@ local function refreshBag()
 		ui.autoSellButton.Text = string.format("자동 판매: %s 이하", r.name)
 		ui.autoSellButton.TextColor3 = r.color
 	end
+
+	-- 선택한 칸
+	local stack = findStateStack(selectedKey)
+	if not stack then
+		ui.detailName.Text = ""
+		ui.detailInfo.Text = "칸을 눌러 장식을 고르세요"
+		ui.detailLock.Visible = false
+		ui.detailSell.Visible = false
+		return
+	end
+	local deco, trait = stackInfo(stack)
+	local r = Rarity.List[deco.rarity]
+	local value = Gacha.GetItemValue(deco.rarity, trait.mult)
+	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait), Gacha.FormatNumber(stack.c))
+	ui.detailName.TextColor3 = r.color
+	ui.detailInfo.Text = string.format(
+		"%s · %s · 가치 💰%s · 1개 판매 💰%s",
+		r.name,
+		Catalog.AREAS[deco.area],
+		Gacha.FormatNumber(value),
+		Gacha.FormatNumber(stackSellPrice(stack))
+	)
+	ui.detailLock.Visible = true
+	ui.detailSell.Visible = true
+	ui.detailLock.Text = if stack.l then "🔓 잠금 풀기" else "🔒 잠그기"
+	ui.detailLock.BackgroundColor3 = if stack.l then COLORS.gold else COLORS.panelHover
+	if stack.l then
+		setButton(ui.detailSell, "잠겨 있어요", false, COLORS.gold)
+	elseif isConfirming("one") then
+		setButton(ui.detailSell, "한 번 더 누르기", true, COLORS.error)
+	else
+		setButton(ui.detailSell, "판매 +💰" .. Gacha.FormatNumber(stackSellPrice(stack) * stack.c), true, COLORS.gold)
+	end
+end
+
+local function makeCell(stack, order: number)
+	local deco, trait = stackInfo(stack)
+	local r = Rarity.List[deco.rarity]
+	local key = stackKey(stack)
+	local selected = key == selectedKey
+
+	local cell = create("TextButton", {
+		Name = key,
+		Text = "",
+		AutoButtonColor = false,
+		BackgroundColor3 = if selected then COLORS.panelHover else COLORS.panelLight,
+		BorderSizePixel = 0,
+		LayoutOrder = order,
+		Parent = ui.grid,
+	})
+	corner(cell, 10)
+	create("UIStroke", {
+		Color = if selected then COLORS.text else r.color,
+		Thickness = if selected then 3 else 2,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = cell,
+	})
+	if trait ~= Catalog.BaseTrait then
+		label({
+			Text = trait.emoji,
+			TextSize = 16,
+			Size = UDim2.fromOffset(24, 22),
+			Position = UDim2.fromOffset(4, 2),
+			Parent = cell,
+		})
+	end
+	if stack.l then
+		label({
+			Text = "🔒",
+			TextSize = 14,
+			Size = UDim2.fromOffset(22, 22),
+			Position = UDim2.new(1, -24, 0, 2),
+			Parent = cell,
+		})
+	end
+	scaledLabel({
+		Text = deco.name,
+		TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
+		Size = UDim2.new(1, -10, 0, 44),
+		Position = UDim2.fromOffset(5, 24),
+		Parent = cell,
+	}, 14, 8)
+	label({
+		Text = r.name,
+		TextSize = 11,
+		TextColor3 = r.color,
+		Size = UDim2.new(0.6, -4, 0, 18),
+		Position = UDim2.new(0, 5, 1, -22),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = cell,
+	})
+	label({
+		Text = "×" .. Gacha.FormatNumber(stack.c),
+		TextSize = 13,
+		Size = UDim2.new(0.4, -4, 0, 18),
+		Position = UDim2.new(0.6, 0, 1, -22),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = cell,
+	})
+
+	cell.Activated:Connect(function()
+		selectedKey = if selectedKey == key then nil else key
+		confirmUntil.one = 0
+		GachaUI.RefreshBag()
+	end)
+end
+
+function GachaUI.RefreshBag()
+	refreshBagButton()
+	if not findStateStack(selectedKey) then
+		selectedKey = nil
+	end
+
+	if ui.inventory.Visible then
+		for _, child in ui.grid:GetChildren() do
+			if child:IsA("GuiButton") then
+				child:Destroy()
+			end
+		end
+		for order, stack in sortedStacks() do
+			makeCell(stack, order)
+		end
+		ui.emptyLabel.Visible = #state.stacks == 0
+	end
+	refreshSellButtons()
 end
 
 local function applyState(newState)
 	state = newState
 	refreshCoins()
 	refreshOdds()
-	refreshBag()
+	GachaUI.RefreshBag()
 end
 
-local function setButton(btn: TextButton, text: string, enabled: boolean, color: Color3)
-	btn.Text = text
-	btn.BackgroundColor3 = if enabled then color else COLORS.disabled
-	btn.TextColor3 = if enabled then COLORS.text else COLORS.subText
-end
-
-local function refreshButtons()
+local function refreshSpinButtons()
 	if not state then
 		return
 	end
@@ -541,13 +812,6 @@ local function refreshButtons()
 
 	local cost = state.coinSpinCost
 	setButton(ui.coinButton, "💰 " .. Gacha.FormatNumber(cost) .. " 돌리기", state.coins >= cost, COLORS.gold)
-end
-
-local function showRarity(index: number)
-	local r = Rarity.List[index]
-	ui.reelText.Text = r.name
-	ui.reelText.TextColor3 = r.color
-	ui.reelStroke.Color = r.color
 end
 
 local toastToken = 0
@@ -575,57 +839,138 @@ end
 -- 연출
 ----------------------------------------------------------------
 
--- 슬롯이 처음엔 빠르게, 끝으로 갈수록 느리게 바뀌다가 결과에서 멈춘다.
-local function playReel(resultIndex: number, duration: number)
-	local steps = math.max(12, math.floor(duration * 14))
-	local sequence = table.create(steps, 1)
-	local prev = 0
-	for i = 1, steps - 1 do
-		local pick
-		repeat
-			pick = math.random(1, Rarity.Count)
-		until pick ~= prev and (i < steps - 1 or pick ~= resultIndex)
-		sequence[i] = pick
-		prev = pick
+local function setReel(i: number, text: string, color: Color3)
+	local reel = ui.reels[i]
+	reel.text.Text = text
+	reel.text.TextColor3 = color
+	reel.stroke.Color = color
+end
+
+local function showRarityReel(index: number)
+	local r = Rarity.List[index]
+	setReel(1, r.name, r.color)
+end
+
+local function showDecoReel(deco)
+	setReel(2, deco.name, Rarity.List[deco.rarity].color)
+end
+
+local function showTraitReel(trait)
+	setReel(3, trait.emoji .. trait.name, traitColor(trait))
+end
+
+local function popReel(i: number, size: number, duration: number, style: Enum.EasingStyle?)
+	local scale = ui.reels[i].scale
+	scale.Scale = size
+	TweenService:Create(scale, TweenInfo.new(duration, style or Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		Scale = 1,
+	}):Play()
+end
+
+-- 연출에서 무작위로 보여줄 목록 (그만 나오는 것 제외)
+local activeDecos = {}
+local activeTraits = {}
+for _, deco in Catalog.Decorations do
+	if not deco.retired then
+		table.insert(activeDecos, deco)
 	end
-	sequence[steps] = resultIndex
+end
+for _, trait in Catalog.Traits do
+	if not trait.retired then
+		table.insert(activeTraits, trait)
+	end
+end
+
+local function randomFrom(list)
+	return list[math.random(1, #list)]
+end
+
+-- 슬롯 3칸이 같이 돌다가 등급 → 장식 → 특성 순서로 멈춘다 (전체 시간의 45% · 75% · 100% 지점)
+local REEL_STOP_FRACTIONS = { 0.45, 0.75, 1.0 }
+
+local function playReel(rarityIndex: number, deco, trait, duration: number)
+	local finals = { rarityIndex, deco, trait }
+	local showers = { showRarityReel, showDecoReel, showTraitReel }
+	local pickers = {
+		function()
+			return math.random(1, Rarity.Count)
+		end,
+		function()
+			return randomFrom(activeDecos)
+		end,
+		function()
+			return randomFrom(activeTraits)
+		end,
+	}
+
+	local reels = {}
+	for i = 1, 3 do
+		local stopTime = duration * REEL_STOP_FRACTIONS[i]
+		local steps = math.max(8, math.floor(stopTime * 14))
+		local sequence = table.create(steps)
+		local prev = nil
+		for s = 1, steps - 1 do
+			local pick
+			local tries = 0
+			repeat
+				pick = pickers[i]()
+				tries += 1
+			until (pick ~= prev and (s < steps - 1 or pick ~= finals[i])) or tries > 10
+			sequence[s] = pick
+			prev = pick
+		end
+		sequence[steps] = finals[i]
+		reels[i] = { stopTime = stopTime, steps = steps, sequence = sequence, shown = 0, done = false }
+	end
 
 	ui.reelSub.Text = ""
 	local start = os.clock()
-	local shown = 0
 	while true do
-		local alpha = math.clamp((os.clock() - start) / duration, 0, 1)
-		local eased = 1 - (1 - alpha) ^ 3
-		local step = if alpha >= 1 then steps else math.clamp(math.floor(eased * (steps - 1)) + 1, 1, steps)
-		if step ~= shown then
-			shown = step
-			showRarity(sequence[step])
-			ui.reelScale.Scale = 1.08
-			TweenService:Create(ui.reelScale, TweenInfo.new(0.08), { Scale = 1 }):Play()
+		local elapsed = os.clock() - start
+		local allDone = true
+		for i, reel in reels do
+			if reel.done then
+				continue
+			end
+			local alpha = math.clamp(elapsed / reel.stopTime, 0, 1)
+			local eased = 1 - (1 - alpha) ^ 3
+			local step = if alpha >= 1
+				then reel.steps
+				else math.clamp(math.floor(eased * (reel.steps - 1)) + 1, 1, reel.steps)
+			if step ~= reel.shown then
+				reel.shown = step
+				showers[i](reel.sequence[step])
+				if step == reel.steps then
+					popReel(i, 1.3, 0.3, Enum.EasingStyle.Back) -- 멈춘 칸은 크게 튕긴다
+				else
+					popReel(i, 1.08, 0.08)
+				end
+			end
+			if alpha >= 1 then
+				reel.done = true
+			else
+				allDone = false
+			end
 		end
-		if alpha >= 1 then
+		if allDone then
 			break
 		end
 		RunService.RenderStepped:Wait()
 	end
 end
 
-local function playResultEffect(index: number)
-	local r = Rarity.List[index]
+local function playResultEffect(rarityIndex: number, deco, trait)
+	local r = Rarity.List[rarityIndex]
 	local probs = Gacha.GetProbabilities(state.luck)
-	ui.reelSub.Text = string.format("%s · 가치 💰%s", Gacha.FormatOdds(probs[index]), Gacha.FormatNumber(r.value))
+	local value = Gacha.GetItemValue(rarityIndex, trait.mult)
+	ui.reelSub.Text = string.format("%s · 가치 💰%s", Gacha.FormatOdds(probs[rarityIndex]), Gacha.FormatNumber(value))
 
-	ui.reelScale.Scale = 1.35
-	TweenService:Create(ui.reelScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-		Scale = 1,
-	}):Play()
-
-	if index < Config.EFFECT_MIN_RARITY then
+	if rarityIndex < Config.EFFECT_MIN_RARITY then
 		return
 	end
 
 	-- 등급이 높을수록 더 많이 번쩍인다
-	local flashes = index - Config.EFFECT_MIN_RARITY + 1
+	local flashes = rarityIndex - Config.EFFECT_MIN_RARITY + 1
 	task.spawn(function()
 		for _ = 1, flashes do
 			ui.flash.BackgroundColor3 = r.color
@@ -637,22 +982,25 @@ local function playResultEffect(index: number)
 	end)
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
-	if index < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("✨ [%s] 장식을 뽑았어요!", r.name), r.color)
+	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
+		showToast(string.format("✨ %s [%s] 뽑았어요!", itemName(deco, trait), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
-	if index == Rarity.Count then
+	if rarityIndex == Rarity.Count then
 		task.spawn(function()
 			local start = os.clock()
 			while os.clock() - start < 3 do
-				local hue = ((os.clock() - start) * 0.8) % 1
-				local color = Color3.fromHSV(hue, 0.8, 1)
-				ui.reelText.TextColor3 = color
-				ui.reelStroke.Color = color
+				local color = Color3.fromHSV(((os.clock() - start) * 0.8) % 1, 0.8, 1)
+				for i = 1, 3 do
+					ui.reels[i].stroke.Color = color
+				end
+				ui.reels[1].text.TextColor3 = color
 				RunService.RenderStepped:Wait()
 			end
-			showRarity(index)
+			showRarityReel(rarityIndex)
+			showDecoReel(deco)
+			showTraitReel(trait)
 		end)
 	end
 end
@@ -667,7 +1015,7 @@ local function spin(kind: string)
 	end
 	spinning = true
 	setStatus("")
-	refreshButtons()
+	refreshSpinButtons()
 
 	local ok, result = pcall(function()
 		return Remotes.Spin:InvokeServer(kind)
@@ -683,14 +1031,17 @@ local function spin(kind: string)
 		return
 	end
 
+	local deco = Catalog.DecorationById[result.decoId]
+	local trait = Catalog.TraitById[result.traitId]
+
 	-- 쓴 코인과 쿨타임은 바로, 가방과 자동 판매 코인은 슬롯이 멈춘 뒤에 반영
 	state.coins = result.coinsAfterCost
 	state.nextFreeSpinAt = result.state.nextFreeSpinAt
 	refreshCoins()
 
-	playReel(result.rarity, result.reelTime)
+	playReel(result.rarity, deco, trait, result.reelTime)
 	applyState(result.state)
-	playResultEffect(result.rarity)
+	playResultEffect(result.rarity, deco, trait)
 	if result.autoSold then
 		ui.reelSub.Text = string.format("자동 판매 +💰%s", Gacha.FormatNumber(result.saleCoins))
 	end
@@ -720,57 +1071,103 @@ local function bagRequest(remote: RemoteFunction, ...)
 	return result
 end
 
+-- 확인이 필요하면 첫 번째 누름에서는 버튼만 바꾸고 false를 돌려준다
+local function confirmFirst(name: string, needsConfirm: boolean): boolean
+	if not needsConfirm or isConfirming(name) then
+		confirmUntil[name] = 0
+		return true
+	end
+	confirmUntil[name] = os.clock() + 3
+	refreshSellButtons()
+	task.delay(3.05, function()
+		if state then
+			refreshSellButtons()
+		end
+	end)
+	return false
+end
+
+local function showSaleToast(result)
+	showToast(
+		string.format("장식 %s개 판매 +💰%s", Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
+		COLORS.gold
+	)
+end
+
 local function sellAll()
 	if not state then
 		return
 	end
 	local total, needsConfirm = getSellAllPreview()
-	if total <= 0 then
+	if total <= 0 or not confirmFirst("all", needsConfirm) then
 		return
 	end
-	-- 에픽 이상이 섞여 있으면 한 번 더 눌러야 판다
-	if needsConfirm and os.clock() >= sellConfirmUntil then
-		sellConfirmUntil = os.clock() + 3
-		refreshSellAllButton()
-		task.delay(3.05, function()
-			if state then
-				refreshSellAllButton()
-			end
-		end)
-		return
-	end
-	sellConfirmUntil = 0
-
 	local result = bagRequest(Remotes.Sell)
 	if result then
-		showToast(
-			string.format("장식 %s개 판매 +💰%s", Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
-			COLORS.gold
-		)
+		showSaleToast(result)
 	end
-	refreshSellAllButton()
 end
 
-local function toggleLock(rarityIndex: number)
-	bagRequest(Remotes.SetLock, rarityIndex, not state.locked[rarityIndex])
+local function sellSelected()
+	local stack = findStateStack(selectedKey)
+	if not stack or stack.l then
+		return
+	end
+	local deco = stackInfo(stack)
+	if not confirmFirst("one", deco.rarity >= Config.SELL_CONFIRM_MIN_RARITY) then
+		return
+	end
+	local result = bagRequest(Remotes.Sell, stackKey(stack))
+	if result then
+		showSaleToast(result)
+	end
+end
+
+local function toggleSelectedLock()
+	local stack = findStateStack(selectedKey)
+	if stack then
+		bagRequest(Remotes.SetLock, stackKey(stack), not stack.l)
+	end
 end
 
 local function cycleAutoSell()
+	if not state then
+		return
+	end
 	local nextLevel = (state.autoSellMax + 1) % (Config.AUTO_SELL_MAX_OPTION + 1)
 	bagRequest(Remotes.SetAutoSell, nextLevel)
+end
+
+local function setInventoryOpen(open: boolean)
+	ui.inventory.Visible = open
+	if not open then
+		selectedKey = nil
+	end
+	if state then
+		GachaUI.RefreshBag()
+	end
 end
 
 local function onAnnounce(data)
 	if type(data) ~= "table" then
 		return
 	end
-	local r = Rarity.List[data.rarity]
-	if not r then
+	local deco = Catalog.DecorationById[data.decoId]
+	local trait = Catalog.TraitById[data.traitId]
+	if not deco or not trait then
 		return
 	end
+	local r = Rarity.List[deco.rarity]
 	local prefix = if data.global then "🌍" else "📢"
 	showToast(
-		string.format("%s %s님이 [%s] 장식을 뽑았어요! (%s)", prefix, tostring(data.playerName), r.name, Gacha.FormatOdds(1 / r.n)),
+		string.format(
+			"%s %s님이 뽑았어요: %s [%s] (%s)",
+			prefix,
+			tostring(data.playerName),
+			itemName(deco, trait),
+			r.name,
+			Gacha.FormatOdds(1 / r.n)
+		),
 		r.color
 	)
 end
@@ -799,16 +1196,19 @@ function GachaUI.Start()
 	ui.coinButton.Activated:Connect(function()
 		spin("coin")
 	end)
-	for i, row in ui.bagRows do
-		row.button.Activated:Connect(function()
-			toggleLock(i)
-		end)
-	end
+	ui.bagButton.Activated:Connect(function()
+		setInventoryOpen(not ui.inventory.Visible)
+	end)
+	ui.invClose.Activated:Connect(function()
+		setInventoryOpen(false)
+	end)
 	ui.sellAllButton.Activated:Connect(sellAll)
 	ui.autoSellButton.Activated:Connect(cycleAutoSell)
+	ui.detailLock.Activated:Connect(toggleSelectedLock)
+	ui.detailSell.Activated:Connect(sellSelected)
 	Remotes.Announce.OnClientEvent:Connect(onAnnounce)
 
-	-- 리더보드 코인이 바뀌면 화면에도 반영 (나중에 수입·판매가 생기면 필요)
+	-- 리더보드 코인이 바뀌면 화면에도 반영
 	task.spawn(function()
 		local leaderstats = player:WaitForChild("leaderstats")
 		local coinsValue = leaderstats:WaitForChild("Coins")
@@ -823,7 +1223,7 @@ function GachaUI.Start()
 
 	task.spawn(function()
 		while true do
-			refreshButtons()
+			refreshSpinButtons()
 			task.wait(0.1)
 		end
 	end)
