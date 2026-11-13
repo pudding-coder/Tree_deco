@@ -1,0 +1,26 @@
+{
+  "name": "Tree_deco",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "Shared": { "$path": "src/shared" },
+      "Remotes": {
+        "$className": "Folder",
+        "Spin": { "$className": "RemoteFunction" },
+        "GetState": { "$className": "RemoteFunction" },
+        "Announce": { "$className": "RemoteEvent" },
+        "Sell": { "$className": "RemoteFunction" },
+        "SetLock": { "$className": "RemoteFunction" },
+        "SetAutoSell": { "$className": "RemoteFunction" }
+      }
+    },
+    "ServerScriptService": {
+      "Server": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "Client": { "$path": "src/client" }
+      }
+    }
+  }
+}
