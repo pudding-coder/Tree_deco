@@ -32,41 +32,31 @@ local function getReadyProfile(player: Player)
 	return profile, nil
 end
 
--- amount: 1 이상 정수, 또는 "all"(그 등급 전부)
-local function onSell(player: Player, rarityIndex: any, amount: any)
-	if not isWholeNumber(rarityIndex, 1, Rarity.Count) then
-		return fail("잘못된 요청이에요")
-	end
+-- 잠기지 않은 장식을 모두 판다
+local function onSell(player: Player)
 	local profile, reason = getReadyProfile(player)
 	if not profile then
 		return fail(reason)
 	end
-	if profile.locked[rarityIndex] then
-		return fail("잠긴 장식은 팔 수 없어요")
-	end
 
-	local have = profile.bag[rarityIndex]
-	if have <= 0 then
+	local sold = 0
+	local gained = 0
+	for i = 1, Rarity.Count do
+		local count = profile.bag[i]
+		if count > 0 and not profile.locked[i] then
+			sold += count
+			gained += Gacha.GetSellPrice(i) * count
+			profile.bag[i] = 0
+		end
+	end
+	if sold == 0 then
 		return fail("팔 장식이 없어요")
 	end
-
-	local count
-	if amount == "all" then
-		count = have
-	elseif isWholeNumber(amount, 1, math.huge) then
-		count = math.min(amount, have)
-	else
-		return fail("잘못된 요청이에요")
-	end
-
-	local gained = Gacha.GetSellPrice(rarityIndex) * count
-	profile.bag[rarityIndex] = have - count
 	PlayerData.AddCoins(player, gained)
 
 	return {
 		ok = true,
-		rarity = rarityIndex,
-		sold = count,
+		sold = sold,
 		gained = gained,
 		state = GachaService.BuildState(player),
 	}

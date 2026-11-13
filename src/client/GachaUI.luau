@@ -184,11 +184,15 @@ local function smallButton(text: string, size: UDim2, position: UDim2, parent)
 	return btn
 end
 
--- 가방 패널: 등급별 개수 · 잠금 · 1개 팔기 · 전부 팔기 · 자동 판매
+-- 가방 패널: 등급 줄을 누르면 잠금/해제, 아래에 모두 판매 · 자동 판매
+local BAG_LIST_TOP = 30
+local BAG_ROW_HEIGHT = 28
+local BAG_LIST_HEIGHT = Rarity.Count * BAG_ROW_HEIGHT
+
 local function bagPanel(parent)
 	local frame = panel({
 		Name = "Bag",
-		Size = UDim2.fromOffset(320, 54 + Rarity.Count * 28 + 40),
+		Size = UDim2.fromOffset(260, 24 + BAG_LIST_TOP + BAG_LIST_HEIGHT + 6 + 36 + 6 + 30),
 		AnchorPoint = Vector2.new(0, 1), -- 왼쪽 아래 (왼쪽 위는 Roblox 채팅창 자리)
 		Position = UDim2.new(0, 16, 1, -20),
 		Parent = parent,
@@ -196,34 +200,49 @@ local function bagPanel(parent)
 	ui.bagTitle = label({
 		Name = "Title",
 		Text = "가방",
-		Size = UDim2.new(1, 0, 0, 24),
+		Size = UDim2.new(0.5, 0, 0, 24),
 		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = frame,
+	})
+	label({
+		Text = "눌러서 잠금",
+		Font = Enum.Font.Gotham,
+		TextSize = 12,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(0.5, 0, 0, 24),
+		Position = UDim2.fromScale(0.5, 0),
+		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = frame,
 	})
 	local list = create("Frame", {
 		Name = "List",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(0, 30),
-		Size = UDim2.new(1, 0, 0, Rarity.Count * 28),
+		Position = UDim2.fromOffset(0, BAG_LIST_TOP),
+		Size = UDim2.new(1, 0, 0, BAG_LIST_HEIGHT),
 		Parent = frame,
 	})
-	create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+	create("UIListLayout", { Padding = UDim.new(0, 2), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
 
 	ui.bagRows = {}
 	for i, r in Rarity.List do
-		local row = create("Frame", {
+		local row = create("TextButton", {
 			Name = r.id,
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundColor3 = COLORS.panelLight,
 			BackgroundTransparency = 1,
-			Size = UDim2.new(1, 0, 0, 24),
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, BAG_ROW_HEIGHT - 2),
 			LayoutOrder = i,
 			Parent = list,
 		})
+		corner(row, 6)
 		local dot = create("Frame", {
 			BackgroundColor3 = r.color,
 			BorderSizePixel = 0,
 			Size = UDim2.fromOffset(10, 10),
 			AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, 0, 0.5, 0),
+			Position = UDim2.new(0, 6, 0.5, 0),
 			Parent = row,
 		})
 		corner(dot, 5)
@@ -231,34 +250,37 @@ local function bagPanel(parent)
 			Text = r.name,
 			TextColor3 = r.color,
 			TextSize = 15,
-			Size = UDim2.fromOffset(76, 24),
-			Position = UDim2.fromOffset(16, 0),
+			Size = UDim2.new(0, 90, 1, 0),
+			Position = UDim2.fromOffset(22, 0),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = row,
 		})
 		ui.bagRows[i] = {
+			button = row,
 			count = label({
 				Text = "×0",
 				Font = Enum.Font.Gotham,
 				TextSize = 15,
 				TextColor3 = COLORS.subText,
-				Size = UDim2.fromOffset(52, 24),
-				Position = UDim2.fromOffset(92, 0),
+				Size = UDim2.new(1, -150, 1, 0),
+				Position = UDim2.fromOffset(112, 0),
 				TextXAlignment = Enum.TextXAlignment.Right,
 				Parent = row,
 			}),
-			lock = smallButton("🔓", UDim2.fromOffset(28, 24), UDim2.fromOffset(152, 0), row),
-			sellOne = smallButton("1개 팔기", UDim2.fromOffset(56, 24), UDim2.fromOffset(184, 0), row),
-			sellAll = smallButton("전부", UDim2.fromOffset(52, 24), UDim2.fromOffset(244, 0), row),
+			lock = label({
+				Text = "",
+				TextSize = 14,
+				Size = UDim2.new(0, 28, 1, 0),
+				Position = UDim2.new(1, -32, 0, 0),
+				Parent = row,
+			}),
 		}
 	end
 
-	ui.autoSellButton = smallButton(
-		"자동 판매: 끔",
-		UDim2.new(1, 0, 0, 30),
-		UDim2.fromOffset(0, 36 + Rarity.Count * 28),
-		frame
-	)
+	local buttonsTop = BAG_LIST_TOP + BAG_LIST_HEIGHT + 6
+	ui.sellAllButton = smallButton("모두 판매", UDim2.new(1, 0, 0, 36), UDim2.fromOffset(0, buttonsTop), frame)
+	ui.sellAllButton.TextSize = 15
+	ui.autoSellButton = smallButton("자동 판매: 끔", UDim2.new(1, 0, 0, 30), UDim2.fromOffset(0, buttonsTop + 42), frame)
 	ui.autoSellButton.TextSize = 14
 end
 
@@ -430,19 +452,51 @@ local function setSmallButton(btn: TextButton, enabled: boolean)
 	btn.TextColor3 = if enabled then COLORS.text else COLORS.disabled
 end
 
+-- 잠기지 않은 장식을 모두 팔면 받는 코인과, 확인이 필요한 등급이 들어 있는지
+local function getSellAllPreview()
+	local total = 0
+	local needsConfirm = false
+	for i = 1, Rarity.Count do
+		local count = state.bag[i] or 0
+		if count > 0 and not state.locked[i] then
+			total += Gacha.GetSellPrice(i) * count
+			if i >= Config.SELL_CONFIRM_MIN_RARITY then
+				needsConfirm = true
+			end
+		end
+	end
+	return total, needsConfirm
+end
+
+local sellConfirmUntil = 0 -- 이 시각 전에 한 번 더 누르면 판매
+
+local function refreshSellAllButton()
+	local total = getSellAllPreview()
+	if total <= 0 then
+		ui.sellAllButton.Text = "팔 장식이 없어요"
+		setSmallButton(ui.sellAllButton, false)
+	elseif os.clock() < sellConfirmUntil then
+		ui.sellAllButton.Text = string.format("한 번 더 누르면 판매 (+💰%s)", Gacha.FormatNumber(total))
+		ui.sellAllButton.BackgroundColor3 = COLORS.error
+		ui.sellAllButton.TextColor3 = COLORS.text
+	else
+		ui.sellAllButton.Text = string.format("모두 판매 +💰%s", Gacha.FormatNumber(total))
+		ui.sellAllButton.BackgroundColor3 = COLORS.gold
+		ui.sellAllButton.TextColor3 = COLORS.text
+	end
+end
+
 local function refreshBag()
 	for i, row in ui.bagRows do
 		local count = state.bag[i] or 0
 		local locked = state.locked[i] == true
 		row.count.Text = "×" .. Gacha.FormatNumber(count)
 		row.count.TextColor3 = if count > 0 then COLORS.text else COLORS.subText
-		row.lock.Text = if locked then "🔒" else "🔓"
-		row.lock.BackgroundColor3 = if locked then COLORS.gold else COLORS.panelLight
-		local canSell = count > 0 and not locked
-		setSmallButton(row.sellOne, canSell)
-		setSmallButton(row.sellAll, canSell)
+		row.lock.Text = if locked then "🔒" else ""
+		row.button.BackgroundTransparency = if locked then 0.3 else 1
 	end
 	ui.bagTitle.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
+	refreshSellAllButton()
 
 	local level = state.autoSellMax
 	if level <= 0 then
@@ -666,18 +720,35 @@ local function bagRequest(remote: RemoteFunction, ...)
 	return result
 end
 
-local function sell(rarityIndex: number, amount)
-	if (state.bag[rarityIndex] or 0) <= 0 or state.locked[rarityIndex] then
+local function sellAll()
+	if not state then
 		return
 	end
-	local result = bagRequest(Remotes.Sell, rarityIndex, amount)
+	local total, needsConfirm = getSellAllPreview()
+	if total <= 0 then
+		return
+	end
+	-- 에픽 이상이 섞여 있으면 한 번 더 눌러야 판다
+	if needsConfirm and os.clock() >= sellConfirmUntil then
+		sellConfirmUntil = os.clock() + 3
+		refreshSellAllButton()
+		task.delay(3.05, function()
+			if state then
+				refreshSellAllButton()
+			end
+		end)
+		return
+	end
+	sellConfirmUntil = 0
+
+	local result = bagRequest(Remotes.Sell)
 	if result then
-		local r = Rarity.List[rarityIndex]
 		showToast(
-			string.format("%s %s개 판매 +💰%s", r.name, Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
+			string.format("장식 %s개 판매 +💰%s", Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
 			COLORS.gold
 		)
 	end
+	refreshSellAllButton()
 end
 
 local function toggleLock(rarityIndex: number)
@@ -729,16 +800,11 @@ function GachaUI.Start()
 		spin("coin")
 	end)
 	for i, row in ui.bagRows do
-		row.lock.Activated:Connect(function()
+		row.button.Activated:Connect(function()
 			toggleLock(i)
 		end)
-		row.sellOne.Activated:Connect(function()
-			sell(i, 1)
-		end)
-		row.sellAll.Activated:Connect(function()
-			sell(i, "all")
-		end)
 	end
+	ui.sellAllButton.Activated:Connect(sellAll)
 	ui.autoSellButton.Activated:Connect(cycleAutoSell)
 	Remotes.Announce.OnClientEvent:Connect(onAnnounce)
 
