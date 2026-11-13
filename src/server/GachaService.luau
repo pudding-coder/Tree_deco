@@ -124,20 +124,20 @@ end
 
 local function onSpin(player: Player, kind: any)
 	if kind ~= "free" and kind ~= "coin" then
-		return fail("잘못된 요청이에요")
+		return fail("잘못된 요청입니다")
 	end
 
 	local profile = PlayerData.Get(player)
 	if not profile then
-		return fail("데이터를 불러오는 중이에요")
+		return fail("데이터를 불러오는 중입니다")
 	end
 
 	local t = now()
 	if t < profile.busyUntil then
-		return fail("룰렛이 돌아가는 중이에요")
+		return fail("룰렛이 돌아가는 중입니다")
 	end
 	if PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
-		return fail("가방이 가득 찼어요. 판매하거나 확장해 주세요")
+		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주십시오")
 	end
 
 	local luck = getLuck(player, profile)
@@ -145,13 +145,13 @@ local function onSpin(player: Player, kind: any)
 
 	if kind == "free" then
 		if t < profile.nextFreeSpinAt then
-			return fail("무료 룰렛을 기다리는 중이에요")
+			return fail("무료 룰렛을 기다리는 중입니다")
 		end
 		profile.nextFreeSpinAt = t + Gacha.GetFreeCooldown(profile.speedLevel, speedBoost)
 	else
 		local cost = Gacha.GetCoinSpinCost(luck, getIncomePerSec(player))
 		if profile.coins < cost then
-			return fail("코인이 부족해요")
+			return fail("코인이 부족합니다")
 		end
 		PlayerData.AddCoins(player, -cost)
 	end

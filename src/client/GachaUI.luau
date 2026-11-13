@@ -242,7 +242,7 @@ local function buildSlot(gui)
 	end
 
 	ui.reelSub = label({
-		Text = "버튼을 눌러 돌려보세요",
+		Text = "버튼을 눌러 룰렛을 돌리십시오",
 		TextSize = 15,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
@@ -428,7 +428,7 @@ local function buildInventory(gui)
 	})
 	create("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), Parent = ui.grid })
 	ui.emptyLabel = label({
-		Text = "아직 장식이 없어요. 룰렛을 돌려보세요!",
+		Text = "아직 장식이 없습니다. 룰렛을 돌려 보십시오.",
 		TextSize = 15,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
@@ -456,7 +456,7 @@ local function buildInventory(gui)
 		Parent = detail,
 	}, 18, 10)
 	ui.detailInfo = scaledLabel({
-		Text = "칸을 눌러 장식을 고르세요",
+		Text = "칸을 눌러 장식을 고르십시오",
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
 		Size = UDim2.new(1, -230, 0, 20),
@@ -641,7 +641,7 @@ local function refreshSellButtons()
 	-- 모두 판매
 	local total = getSellAllPreview()
 	if total <= 0 then
-		setButton(ui.sellAllButton, "팔 장식이 없어요", false, COLORS.gold)
+		setButton(ui.sellAllButton, "팔 장식이 없습니다", false, COLORS.gold)
 	elseif isConfirming("all") then
 		setButton(ui.sellAllButton, string.format("한 번 더 누르면 판매 (+%s코인)", Gacha.FormatNumber(total)), true, COLORS.error)
 	else
@@ -664,7 +664,7 @@ local function refreshSellButtons()
 	local stack = findStateStack(selectedKey)
 	if not stack then
 		ui.detailName.Text = ""
-		ui.detailInfo.Text = "칸을 눌러 장식을 고르세요"
+		ui.detailInfo.Text = "칸을 눌러 장식을 고르십시오"
 		ui.detailLock.Visible = false
 		ui.detailSell.Visible = false
 		return
@@ -686,7 +686,7 @@ local function refreshSellButtons()
 	ui.detailLock.Text = if stack.l then "잠금 풀기" else "잠그기"
 	ui.detailLock.BackgroundColor3 = if stack.l then COLORS.gold else COLORS.panelHover
 	if stack.l then
-		setButton(ui.detailSell, "잠겨 있어요", false, COLORS.gold)
+		setButton(ui.detailSell, "잠겨 있습니다", false, COLORS.gold)
 	elseif isConfirming("one") then
 		setButton(ui.detailSell, "한 번 더 누르기", true, COLORS.error)
 	else
@@ -987,7 +987,7 @@ local function playResultEffect(rarityIndex: number, deco, trait)
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
 	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("%s [%s] 뽑았어요!", itemName(deco, trait), r.name), r.color)
+		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
@@ -1026,12 +1026,12 @@ local function spin(kind: string)
 	end)
 	if not ok or type(result) ~= "table" then
 		spinning = false
-		setStatus("서버와 연결이 불안정해요. 다시 눌러 주세요")
+		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주십시오")
 		return
 	end
 	if not result.ok then
 		spinning = false
-		setStatus(result.reason or "지금은 돌릴 수 없어요")
+		setStatus(result.reason or "지금은 돌릴 수 없습니다")
 		return
 	end
 
@@ -1055,7 +1055,7 @@ end
 -- 가방 요청 공통 처리
 local function bagRequest(remote: RemoteFunction, ...)
 	if spinning or not state then
-		setStatus("룰렛이 멈춘 뒤에 할 수 있어요")
+		setStatus("룰렛이 멈춘 뒤에 할 수 있습니다")
 		return nil
 	end
 	local args = table.pack(...)
@@ -1063,11 +1063,11 @@ local function bagRequest(remote: RemoteFunction, ...)
 		return remote:InvokeServer(table.unpack(args, 1, args.n))
 	end)
 	if not ok or type(result) ~= "table" then
-		setStatus("서버와 연결이 불안정해요. 다시 눌러 주세요")
+		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주십시오")
 		return nil
 	end
 	if not result.ok then
-		setStatus(result.reason or "지금은 할 수 없어요")
+		setStatus(result.reason or "지금은 할 수 없습니다")
 		return nil
 	end
 	setStatus("")
@@ -1165,7 +1165,7 @@ local function onAnnounce(data)
 	local prefix = if data.global then "[전체]" else "[서버]"
 	showToast(
 		string.format(
-			"%s %s님이 뽑았어요: %s [%s] (%s)",
+			"%s %s님이 뽑았습니다: %s [%s] (%s)",
 			prefix,
 			tostring(data.playerName),
 			itemName(deco, trait),

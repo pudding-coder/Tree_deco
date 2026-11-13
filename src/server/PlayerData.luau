@@ -291,14 +291,14 @@ local function onPlayerAdded(player: Player)
 		if IS_STUDIO then
 			-- 게시 안 된 플레이스이거나 Studio API 접근이 꺼져 있으면 여기로 온다
 			warn(
-				"[PlayerData] DataStore를 쓸 수 없어 이번 테스트는 저장하지 않아요.",
+				"[PlayerData] DataStore를 쓸 수 없어 이번 테스트는 저장하지 않습니다.",
 				"(게임을 게시하고 Game Settings → Security → Enable Studio Access to API Services를 켜면 저장돼요)",
 				saved
 			)
 			canSave = false
 		else
 			-- 빈 데이터로 시작했다가 기존 데이터를 덮어쓰지 않도록 내보낸다
-			player:Kick("데이터를 불러오지 못했어요. 잠시 후 다시 접속해 주세요.")
+			player:Kick("데이터를 불러오지 못했습니다. 잠시 후 다시 접속해 주십시오.")
 			return
 		end
 	end
