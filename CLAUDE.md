@@ -20,3 +20,4 @@
 | 등급 이름·색 | `src/shared/Rarity.luau` (확률·가치는 `Config.luau`) |
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |
+| 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
