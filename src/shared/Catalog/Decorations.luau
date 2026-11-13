@@ -21,6 +21,8 @@ return {
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
+	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
+	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 
 	-- 언커먼
 	{ id = "BigBow", name = "큰 리본", rarity = "Uncommon", area = "Topper" },
@@ -31,14 +33,14 @@ return {
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
-	{ id = "KeycapKeyring", name = "키캡 키링", rarity = "Rare", area = "Ornament" },
-	{ id = "Seullangi", name = "슬랑이", rarity = "Rare", area = "Ornament" }, -- 모양 미정
+	{ id = "RainbowKeycap", name = "무지개 키캡", rarity = "Rare", area = "Ornament" },
+	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
 	-- 에픽
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
-	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" }, -- 모양 미정
+	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" }, 
 	{ id = "MagpieTigerKeyring", name = "까치호랑이 민화 키링", rarity = "Epic", area = "Ornament" },
 	{ id = "BlindBoxMonster", name = "블라인드박스 몬스터 인형", rarity = "Epic", area = "Ornament" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
