@@ -242,7 +242,7 @@ local function buildSlot(gui)
 	end
 
 	ui.reelSub = label({
-		Text = "버튼을 눌러 룰렛을 돌리십시오",
+		Text = "버튼을 눌러 룰렛을 돌려 주세요",
 		TextSize = 15,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
@@ -428,7 +428,7 @@ local function buildInventory(gui)
 	})
 	create("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingLeft = UDim.new(0, 4), Parent = ui.grid })
 	ui.emptyLabel = label({
-		Text = "아직 장식이 없습니다. 룰렛을 돌려 보십시오.",
+		Text = "아직 장식이 없습니다. 룰렛을 돌려 주세요.",
 		TextSize = 15,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
@@ -456,7 +456,7 @@ local function buildInventory(gui)
 		Parent = detail,
 	}, 18, 10)
 	ui.detailInfo = scaledLabel({
-		Text = "칸을 눌러 장식을 고르십시오",
+		Text = "칸을 눌러 장식을 골라 주세요",
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.subText,
 		Size = UDim2.new(1, -230, 0, 20),
@@ -664,7 +664,7 @@ local function refreshSellButtons()
 	local stack = findStateStack(selectedKey)
 	if not stack then
 		ui.detailName.Text = ""
-		ui.detailInfo.Text = "칸을 눌러 장식을 고르십시오"
+		ui.detailInfo.Text = "칸을 눌러 장식을 골라 주세요"
 		ui.detailLock.Visible = false
 		ui.detailSell.Visible = false
 		return
@@ -1026,7 +1026,7 @@ local function spin(kind: string)
 	end)
 	if not ok or type(result) ~= "table" then
 		spinning = false
-		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주십시오")
+		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주세요")
 		return
 	end
 	if not result.ok then
@@ -1063,7 +1063,7 @@ local function bagRequest(remote: RemoteFunction, ...)
 		return remote:InvokeServer(table.unpack(args, 1, args.n))
 	end)
 	if not ok or type(result) ~= "table" then
-		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주십시오")
+		setStatus("서버와 연결이 불안정합니다. 다시 눌러 주세요")
 		return nil
 	end
 	if not result.ok then

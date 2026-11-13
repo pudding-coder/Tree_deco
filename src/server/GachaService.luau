@@ -137,7 +137,7 @@ local function onSpin(player: Player, kind: any)
 		return fail("룰렛이 돌아가는 중입니다")
 	end
 	if PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
-		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주십시오")
+		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주세요")
 	end
 
 	local luck = getLuck(player, profile)

@@ -298,7 +298,7 @@ local function onPlayerAdded(player: Player)
 			canSave = false
 		else
 			-- 빈 데이터로 시작했다가 기존 데이터를 덮어쓰지 않도록 내보낸다
-			player:Kick("데이터를 불러오지 못했습니다. 잠시 후 다시 접속해 주십시오.")
+			player:Kick("데이터를 불러오지 못했습니다. 잠시 후 다시 접속해 주세요.")
 			return
 		end
 	end
