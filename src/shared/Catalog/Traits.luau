@@ -19,4 +19,5 @@ return {
 	{ id = "Golden", name = "황금", n = 100, mult = 5, effect = "Gold" },
 	{ id = "Rainbow", name = "무지개", n = 500, mult = 10, effect = "Rainbow" },
 	{ id = "Aurora", name = "오로라", n = 3000, mult = 25, effect = "Aurora" },
+	{ id = "Smoge", name = "스모그", n = 2000, mult = 25, effect = "Smoge"}
 }
