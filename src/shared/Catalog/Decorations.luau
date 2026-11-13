@@ -34,7 +34,7 @@ return {
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
-	{ id = "RainbowKeycap", name = "무지개 키캡", rarity = "Rare", area = "Ornament" },
+	{ id = "TakeLKeycap", name = "L을 가져가 키캡", rarity = "Rare", area = "Ornament" },
 	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
