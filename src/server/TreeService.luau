@@ -178,6 +178,7 @@ local function loadMapSpots()
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
 		spot.Transparency = 1
+		spot:ClearAllChildren() -- "앞" 글자(SurfaceGui) 같은 편집용 표시를 지운다
 		spot.CanCollide = false
 		spot.CanQuery = false
 		spot.CanTouch = false
