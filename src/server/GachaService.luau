@@ -5,7 +5,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
-local Rarity = require(Shared:WaitForChild("Rarity"))
 local Gacha = require(Shared:WaitForChild("Gacha"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
