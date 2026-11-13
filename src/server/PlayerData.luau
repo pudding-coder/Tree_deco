@@ -51,6 +51,7 @@ local function newProfile()
 		stacks = {},
 		bagCapacity = Config.BAG_BASE_SLOTS,
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
+		potionEndsAt = 0, -- 물약이 끝나는 서버 시각. 저장할 때는 남은 시간(초)으로 바꾼다 (접속 중에만 줄어듦)
 
 		-- 아래는 저장하지 않는 값
 		nextFreeSpinAt = 0, -- 서버 시각(workspace:GetServerTimeNow())
@@ -77,6 +78,7 @@ local function serialize(profile)
 		stacks = copyStacks(profile.stacks),
 		bagCapacity = profile.bagCapacity,
 		autoSellMax = profile.autoSellMax,
+		potionRemaining = math.max(0, math.floor(profile.potionEndsAt - workspace:GetServerTimeNow())),
 	}
 end
 
@@ -103,6 +105,10 @@ local function reconcile(saved)
 	profile.speedLevel = readInt(saved.speedLevel, 0, #Config.SPEED_TIME_MULT, 0)
 	profile.bagCapacity = readInt(saved.bagCapacity, Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS, Config.BAG_BASE_SLOTS)
 	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+	local potionRemaining = readInt(saved.potionRemaining, 0, 7 * 24 * 3600, 0)
+	if potionRemaining > 0 then
+		profile.potionEndsAt = workspace:GetServerTimeNow() + potionRemaining
+	end
 
 	if type(saved.stacks) == "table" then
 		local byKey = {}

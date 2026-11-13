@@ -20,12 +20,25 @@ local function now(): number
 	return workspace:GetServerTimeNow()
 end
 
--- 물약·게임패스가 들어오면 여기서 부스트 배수를 돌려준다.
-local function getLuckBoost(_player: Player): number
+local function isPotionActive(profile): boolean
+	return profile.potionEndsAt > now()
+end
+
+-- 행운 부스트 = 물약 × (게임패스는 로벅스 작업 때 추가). 상한은 Gacha.GetLuckMultiplier에서 적용
+local function getLuckBoost(player: Player): number
+	local profile = PlayerData.Get(player)
+	if profile and isPotionActive(profile) then
+		return Config.POTION_LUCK_MULT
+	end
 	return 1
 end
 
-local function getSpeedBoost(_player: Player): number
+-- 속도 부스트 (시간에 곱함)
+local function getSpeedBoost(player: Player): number
+	local profile = PlayerData.Get(player)
+	if profile and isPotionActive(profile) then
+		return Config.POTION_SPEED_MULT
+	end
 	return 1
 end
 
@@ -33,6 +46,8 @@ end
 local function getIncomePerSec(_player: Player): number
 	return 0
 end
+
+GachaService.GetIncomePerSec = getIncomePerSec
 
 local function getLuck(player: Player, profile): number
 	return Gacha.GetLuckMultiplier(profile.luckLevel, getLuckBoost(player))
@@ -66,6 +81,12 @@ function GachaService.BuildState(player: Player)
 		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
 		autoSellMax = profile.autoSellMax,
+
+		-- 업그레이드
+		luckLevel = profile.luckLevel,
+		speedLevel = profile.speedLevel,
+		potionEndsAt = profile.potionEndsAt,
+		potionCost = Gacha.GetPotionCost(getIncomePerSec(player)),
 	}
 end
 

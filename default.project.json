@@ -11,7 +11,9 @@
         "Announce": { "$className": "RemoteEvent" },
         "Sell": { "$className": "RemoteFunction" },
         "SetLock": { "$className": "RemoteFunction" },
-        "SetAutoSell": { "$className": "RemoteFunction" }
+        "SetAutoSell": { "$className": "RemoteFunction" },
+        "Upgrade": { "$className": "RemoteFunction" },
+        "BuyPotion": { "$className": "RemoteFunction" }
       }
     },
     "ServerScriptService": {

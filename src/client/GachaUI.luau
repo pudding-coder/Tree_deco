@@ -184,6 +184,15 @@ local function buildSlot(gui)
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = slot,
 	})
+	ui.potionLabel = label({
+		Text = "",
+		TextSize = 14,
+		TextColor3 = COLORS.gold,
+		Size = UDim2.new(0.3, 0, 0, 28),
+		Position = UDim2.fromScale(0.35, 0),
+		Visible = false,
+		Parent = slot,
+	})
 	ui.coins = label({
 		Text = "코인 0",
 		TextSize = 18,
@@ -498,6 +507,109 @@ local function buildInventory(gui)
 	})
 end
 
+-- 업그레이드 버튼 (가방 버튼 위)
+local function buildUpgradeButton(gui)
+	ui.upgradeButton = button({
+		Name = "UpgradeButton",
+		Text = "업그레이드",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -84),
+		Radius = 14,
+		Parent = gui,
+	})
+	create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.upgradeButton,
+	})
+end
+
+-- 업그레이드 창: 행운 · 속도 · 물약 세 줄
+local function buildUpgradeWindow(gui)
+	local window = panel({
+		Name = "Upgrades",
+		Size = UDim2.fromOffset(560, 340),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Visible = false,
+		Parent = gui,
+	})
+	window.ZIndex = 5
+	ui.upgradeWindow = window
+
+	label({
+		Text = "업그레이드",
+		TextSize = 20,
+		Size = UDim2.new(1, -40, 0, 30),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+	ui.upgradeClose = button({
+		Text = "X",
+		TextSize = 18,
+		Size = UDim2.fromOffset(32, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Parent = window,
+	})
+
+	local list = create("Frame", {
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.new(1, 0, 1, -40),
+		Parent = window,
+	})
+	create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+
+	local function row(order: number)
+		local frame = create("Frame", {
+			BackgroundColor3 = COLORS.panelLight,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, 0, 0, 86),
+			LayoutOrder = order,
+			Parent = list,
+		})
+		corner(frame, 10)
+		padding(frame, 12)
+		local title = label({
+			Text = "",
+			TextSize = 18,
+			Size = UDim2.new(1, -170, 0, 26),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = frame,
+		})
+		local info = scaledLabel({
+			Text = "",
+			Font = Enum.Font.Gotham,
+			TextColor3 = COLORS.subText,
+			Size = UDim2.new(1, -170, 0, 32),
+			Position = UDim2.fromOffset(0, 28),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Parent = frame,
+		}, 14, 9)
+		local btn = button({
+			Text = "",
+			TextSize = 15,
+			Size = UDim2.fromOffset(150, 46),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Parent = frame,
+		})
+		return { title = title, info = info, button = btn }
+	end
+
+	ui.upgradeRows = {
+		luck = row(1),
+		speed = row(2),
+		potion = row(3),
+	}
+end
+
 local function buildUI()
 	local gui = create("ScreenGui", {
 		Name = "GachaGui",
@@ -520,7 +632,9 @@ local function buildUI()
 	buildSlot(gui)
 	buildOdds(gui)
 	buildBagButton(gui)
+	buildUpgradeButton(gui)
 	buildInventory(gui)
+	buildUpgradeWindow(gui)
 
 	-- 공지
 	ui.toast = create("CanvasGroup", {
@@ -790,11 +904,101 @@ function GachaUI.RefreshBag()
 	refreshSellButtons()
 end
 
+-- 0:00 형식
+local function formatTime(seconds: number): string
+	seconds = math.max(0, math.ceil(seconds))
+	return string.format("%d:%02d", seconds // 60, seconds % 60)
+end
+
+local function potionRemaining(): number
+	if not state then
+		return 0
+	end
+	return state.potionEndsAt - workspace:GetServerTimeNow()
+end
+
+local function refreshPotionTimer()
+	local remaining = potionRemaining()
+	ui.potionLabel.Visible = remaining > 0
+	ui.potionLabel.Text = "물약 " .. formatTime(remaining)
+
+	local potion = ui.upgradeRows.potion
+	local info = string.format(
+		"%d분 동안 행운 ×%s, 돌리는 시간·무료 대기 ×%s",
+		Config.POTION_DURATION // 60,
+		tostring(Config.POTION_LUCK_MULT),
+		tostring(Config.POTION_SPEED_MULT)
+	)
+	if remaining > 0 then
+		info ..= "\n남은 시간 " .. formatTime(remaining) .. " (사면 시간이 늘어납니다)"
+	end
+	potion.info.Text = info
+end
+
+local function setUpgradeButton(btn: TextButton, cost: number?)
+	if not cost then
+		setButton(btn, "최대 단계", false, COLORS.gold)
+	else
+		setButton(btn, Gacha.FormatNumber(cost) .. "코인", state.coins >= cost, COLORS.gold)
+	end
+end
+
+local function refreshUpgrades()
+	local rows = ui.upgradeRows
+
+	-- 행운
+	local luckLevel = state.luckLevel
+	local luckMax = #Config.LUCK_COST
+	local luckCost = Config.LUCK_COST[luckLevel + 1]
+	rows.luck.title.Text = string.format("행운  Lv %d/%d", luckLevel, luckMax)
+	if luckCost then
+		rows.luck.info.Text = string.format(
+			"레어 이상 확률 ×%.1f → ×%.1f",
+			Config.LUCK_MULT[luckLevel],
+			Config.LUCK_MULT[luckLevel + 1]
+		)
+	else
+		rows.luck.info.Text = string.format("레어 이상 확률 ×%.1f (최대)", Config.LUCK_MULT[luckLevel])
+	end
+	setUpgradeButton(rows.luck.button, luckCost)
+
+	-- 속도 (물약 효과는 빼고 업그레이드만의 값)
+	local speedLevel = state.speedLevel
+	local speedMax = #Config.SPEED_COST
+	local speedCost = Config.SPEED_COST[speedLevel + 1]
+	rows.speed.title.Text = string.format("속도  Lv %d/%d", speedLevel, speedMax)
+	local reelNow = Gacha.GetReelTime(speedLevel, 1)
+	local cooldownNow = Gacha.GetFreeCooldown(speedLevel, 1)
+	if speedCost then
+		rows.speed.info.Text = string.format(
+			"돌리는 시간 %.1f초 → %.1f초\n무료 대기 %.1f초 → %.1f초",
+			reelNow,
+			Gacha.GetReelTime(speedLevel + 1, 1),
+			cooldownNow,
+			Gacha.GetFreeCooldown(speedLevel + 1, 1)
+		)
+	else
+		rows.speed.info.Text = string.format("돌리는 시간 %.1f초, 무료 대기 %.1f초 (최대)", reelNow, cooldownNow)
+	end
+	setUpgradeButton(rows.speed.button, speedCost)
+
+	-- 물약
+	rows.potion.title.Text = "물약"
+	setButton(
+		rows.potion.button,
+		Gacha.FormatNumber(state.potionCost) .. "코인",
+		state.coins >= state.potionCost,
+		COLORS.gold
+	)
+	refreshPotionTimer()
+end
+
 local function applyState(newState)
 	state = newState
 	refreshCoins()
 	refreshOdds()
 	GachaUI.RefreshBag()
+	refreshUpgrades()
 end
 
 local function refreshSpinButtons()
@@ -1142,7 +1346,33 @@ local function cycleAutoSell()
 	bagRequest(Remotes.SetAutoSell, nextLevel)
 end
 
+local function upgrade(kind: string)
+	local result = bagRequest(Remotes.Upgrade, kind)
+	if result then
+		local name = if kind == "luck" then "행운" else "속도"
+		showToast(string.format("%s Lv %d이 되었습니다", name, result.level), COLORS.gold)
+	end
+end
+
+local function buyPotion()
+	local result = bagRequest(Remotes.BuyPotion)
+	if result then
+		showToast("물약을 마셨습니다. 남은 시간 " .. formatTime(potionRemaining()), COLORS.gold)
+	end
+end
+
+local function setUpgradeOpen(open: boolean)
+	ui.upgradeWindow.Visible = open
+	if open then
+		ui.inventory.Visible = false
+		selectedKey = nil
+	end
+end
+
 local function setInventoryOpen(open: boolean)
+	if open then
+		ui.upgradeWindow.Visible = false
+	end
 	ui.inventory.Visible = open
 	if not open then
 		selectedKey = nil
@@ -1206,6 +1436,19 @@ function GachaUI.Start()
 	ui.invClose.Activated:Connect(function()
 		setInventoryOpen(false)
 	end)
+	ui.upgradeButton.Activated:Connect(function()
+		setUpgradeOpen(not ui.upgradeWindow.Visible)
+	end)
+	ui.upgradeClose.Activated:Connect(function()
+		setUpgradeOpen(false)
+	end)
+	ui.upgradeRows.luck.button.Activated:Connect(function()
+		upgrade("luck")
+	end)
+	ui.upgradeRows.speed.button.Activated:Connect(function()
+		upgrade("speed")
+	end)
+	ui.upgradeRows.potion.button.Activated:Connect(buyPotion)
 	ui.sellAllButton.Activated:Connect(sellAll)
 	ui.autoSellButton.Activated:Connect(cycleAutoSell)
 	ui.detailLock.Activated:Connect(toggleSelectedLock)
@@ -1221,13 +1464,28 @@ function GachaUI.Start()
 			if state and not spinning then
 				state.coins = value
 				refreshCoins()
+				refreshUpgrades()
 			end
 		end)
 	end)
 
 	task.spawn(function()
+		local potionWasActive = potionRemaining() > 0
 		while true do
 			refreshSpinButtons()
+			refreshPotionTimer()
+
+			-- 물약이 끝나면 행운·속도가 바뀌므로 서버 값을 다시 받는다
+			local potionActive = potionRemaining() > 0
+			if potionWasActive and not potionActive and not spinning then
+				local ok, result = pcall(function()
+					return Remotes.GetState:InvokeServer()
+				end)
+				if ok and result then
+					applyState(result)
+				end
+			end
+			potionWasActive = potionActive
 			task.wait(0.1)
 		end
 	end)

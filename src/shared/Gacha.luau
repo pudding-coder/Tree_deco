@@ -29,6 +29,11 @@ function Gacha.GetCoinSpinCost(luckMult: number, incomePerSec: number?): number
 	return math.ceil(math.max(byLuck, byIncome))
 end
 
+-- 코인 물약 가격 = max(POTION_MIN_COST, 초당 수입 × POTION_COST_INCOME_SEC)
+function Gacha.GetPotionCost(incomePerSec: number?): number
+	return math.ceil(math.max(Config.POTION_MIN_COST, (incomePerSec or 0) * Config.POTION_COST_INCOME_SEC))
+end
+
 -- 등급별 확률. 레어 이상은 행운 배수를 곱하고, 늘어난 만큼 커먼에서 뺀다.
 function Gacha.GetProbabilities(luckMult: number): { number }
 	local probs = table.create(Rarity.Count, 0)
