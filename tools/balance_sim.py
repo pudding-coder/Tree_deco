@@ -7,7 +7,8 @@
 
 사용법:
   python3 tools/balance_sim.py                     # 무과금 (하루 40분)
-  python3 tools/balance_sim.py '{"BOOST_LUCK":2,"BOOST_SPEED":0.75,"SESSION_MIN":120}'  # 과금 (하루 2시간)
+  python3 tools/balance_sim.py '{"BOOST_LUCK":2.25,"BOOST_SPEED":0.72,"SESSION_MIN":120}'  # 과금 (하루 2시간)
+  python3 tools/balance_sim.py '{"BOOST_LUCK":2.25,"BOOST_SPEED":0.72,"SESSION_MIN":120,"ROBUX_SPINS_PER_DAY":300}'  # 과금 + 로벅스 룰렛
   NRUNS=500 python3 tools/balance_sim.py           # 반복 횟수 변경
 """
 import random, statistics, sys, json
@@ -28,6 +29,7 @@ P = dict(
     DISP_PER_MIN=0.01, DISP_MAX=1.3,
     SESSION_MIN=40, HOURS=80,
     BOOST_LUCK=1.0, BOOST_SPEED=1.0,  # 물약·게임패스 등 상시 부스트 (과금 유저 가정)
+    ROBUX_SPINS_PER_DAY=0,  # 하루에 로벅스로 산 룰렛 횟수
 )
 
 def probs(L, N):
@@ -41,7 +43,7 @@ def probs(L, N):
 def run(P, seed):
     rnd = random.Random(seed)
     t = 0.0; coins = 0.0; tree = []; spd = 0; lk = 0; votes = 0
-    session_start = 0.0; next_free = 0.0
+    session_start = 0.0; next_free = 0.0; bonus = P['ROBUX_SPINS_PER_DAY']
     ev = {}
     pcache = {}
     sess = P['SESSION_MIN'] * 60
@@ -51,7 +53,7 @@ def run(P, seed):
     while t < end:
         # day boundary
         if t - session_start >= sess:
-            session_start = t; votes += P['VOTES_RECV_PER_DAY']
+            session_start = t; votes += P['VOTES_RECV_PER_DAY']; bonus = P['ROBUX_SPINS_PER_DAY']
         L = min(P['LUCK_MULT'][lk] * min(P['BOOST_LUCK'], P['BOOST_LUCK_CAP']), P['LUCK_CAP'])
         if L not in pcache: pcache[L] = probs(L, P['N'])
         p = pcache[L]
@@ -77,7 +79,9 @@ def run(P, seed):
                 if lk == len(P['LUCK_COST']): mark('luck_max')
             continue
         reserve = nxt[0][0] if nxt else 0
-        if t >= next_free:
+        if bonus > 0:
+            bonus -= 1; dt = reel
+        elif t >= next_free:
             next_free = t + cd; dt = reel
         elif coins - reserve >= coin_cost:
             coins -= coin_cost; dt = reel
