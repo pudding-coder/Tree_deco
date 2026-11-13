@@ -7,11 +7,13 @@ local RunService = game:GetService("RunService")
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
 local Rarity = require(Shared:WaitForChild("Rarity"))
+local Catalog = require(Shared:WaitForChild("Catalog"))
+local Gacha = require(Shared:WaitForChild("Gacha"))
 
 local PlayerData = {}
 
 local STORE_NAME = "PlayerData_v1"
-local DATA_VERSION = 1
+local DATA_VERSION = 2 -- 2: 가방이 등급별 개수에서 장식·특성 칸 목록으로 바뀜
 local AUTOSAVE_INTERVAL = 60 -- 초
 local MAX_RETRIES = 3
 local SHUTDOWN_SAVE_TIMEOUT = 25 -- 서버가 꺼질 때 저장을 기다리는 최대 시간(초)
@@ -39,18 +41,15 @@ local pendingSaves = 0
 ----------------------------------------------------------------
 
 local function newProfile()
-	local locked = table.create(Rarity.Count, false)
-	for i = Config.DEFAULT_LOCK_MIN_RARITY, Rarity.Count do
-		locked[i] = true
-	end
-
 	return {
 		coins = if IS_STUDIO then Config.STUDIO_START_COINS else Config.START_COINS,
 		luckLevel = 0,
 		speedLevel = 0,
-		bag = table.create(Rarity.Count, 0), -- 등급 번호 -> 개수 (같은 등급끼리 1칸에 쌓임)
+		-- 가방 칸 목록. 장식과 특성이 같으면 한 칸에 쌓인다.
+		-- { d = 장식 id, t = 특성 id, c = 개수, l = 잠금 여부 }
+		-- 카탈로그에 없는 id(지워졌거나 바뀐 장식)는 지우지 않고 보관만 한다. 화면·칸 수·판매에서 빠진다.
+		stacks = {},
 		bagCapacity = Config.BAG_BASE_SLOTS,
-		locked = locked, -- 등급 번호 -> 잠금 여부 (잠긴 등급은 판매·자동 판매 안 됨)
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
 
 		-- 아래는 저장하지 않는 값
@@ -60,6 +59,14 @@ local function newProfile()
 	}
 end
 
+local function copyStacks(stacks)
+	local copy = table.create(#stacks)
+	for i, stack in stacks do
+		copy[i] = { d = stack.d, t = stack.t, c = stack.c, l = stack.l }
+	end
+	return copy
+end
+
 -- 저장할 값만 골라낸다
 local function serialize(profile)
 	return {
@@ -67,9 +74,8 @@ local function serialize(profile)
 		coins = profile.coins,
 		luckLevel = profile.luckLevel,
 		speedLevel = profile.speedLevel,
-		bag = table.clone(profile.bag),
+		stacks = copyStacks(profile.stacks),
 		bagCapacity = profile.bagCapacity,
-		locked = table.clone(profile.locked),
 		autoSellMax = profile.autoSellMax,
 	}
 end
@@ -79,6 +85,10 @@ local function readInt(value, min: number, max: number, default: number): number
 		return default
 	end
 	return math.clamp(math.floor(value), min, max)
+end
+
+local function stackKey(decoId: string, traitId: string): string
+	return decoId .. ":" .. traitId
 end
 
 -- 저장된 값을 검사해서 프로필로 만든다. 없는 값은 기본값으로 채운다.
@@ -92,17 +102,35 @@ local function reconcile(saved)
 	profile.luckLevel = readInt(saved.luckLevel, 0, #Config.LUCK_MULT, 0)
 	profile.speedLevel = readInt(saved.speedLevel, 0, #Config.SPEED_TIME_MULT, 0)
 	profile.bagCapacity = readInt(saved.bagCapacity, Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS, Config.BAG_BASE_SLOTS)
-	if type(saved.bag) == "table" then
-		for i = 1, Rarity.Count do
-			profile.bag[i] = readInt(saved.bag[i], 0, math.huge, 0)
-		end
-	end
-	if type(saved.locked) == "table" then
-		for i = 1, Rarity.Count do
-			profile.locked[i] = saved.locked[i] == true
-		end
-	end
 	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+
+	if type(saved.stacks) == "table" then
+		local byKey = {}
+		for _, stack in saved.stacks do
+			if type(stack) ~= "table" or type(stack.d) ~= "string" or type(stack.t) ~= "string" then
+				continue
+			end
+			local count = readInt(stack.c, 0, math.huge, 0)
+			if count <= 0 then
+				continue
+			end
+			local key = stackKey(stack.d, stack.t)
+			local existing = byKey[key]
+			if existing then
+				existing.c += count -- 같은 칸이 두 번 저장돼 있으면 합친다
+			else
+				local entry = { d = stack.d, t = stack.t, c = count, l = stack.l == true }
+				byKey[key] = entry
+				table.insert(profile.stacks, entry)
+			end
+		end
+	elseif type(saved.bag) == "table" then
+		-- 버전 1(등급별 개수) 데이터: 장식 정보가 없으므로 판매 가격만큼 코인으로 돌려준다
+		for i = 1, Rarity.Count do
+			local count = readInt(saved.bag[i], 0, math.huge, 0)
+			profile.coins += Gacha.GetSellPrice(i, 1) * count
+		end
+	end
 	return profile
 end
 
@@ -171,15 +199,55 @@ function PlayerData.Get(player: Player)
 	return profiles[player]
 end
 
+PlayerData.StackKey = stackKey
+
+-- 카탈로그에 있는 장식·특성인지 (없으면 보관만 하고 화면·칸 수·판매에서 뺀다)
+function PlayerData.IsKnownStack(stack): boolean
+	return Catalog.DecorationById[stack.d] ~= nil and Catalog.TraitById[stack.t] ~= nil
+end
+
 -- 가방에서 쓰고 있는 칸 수
 function PlayerData.GetBagSlotsUsed(profile): number
 	local used = 0
-	for _, count in profile.bag do
-		if count > 0 then
+	for _, stack in profile.stacks do
+		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
 			used += 1
 		end
 	end
 	return used
+end
+
+function PlayerData.FindStack(profile, key: string)
+	for _, stack in profile.stacks do
+		if stackKey(stack.d, stack.t) == key then
+			return stack
+		end
+	end
+	return nil
+end
+
+-- 장식을 가방에 넣는다. 새 칸이면 레전더리 이상은 처음부터 잠근다.
+function PlayerData.AddItem(profile, deco, trait, count: number)
+	local key = stackKey(deco.id, trait.id)
+	local stack = PlayerData.FindStack(profile, key)
+	if stack then
+		stack.c += count
+	else
+		stack = { d = deco.id, t = trait.id, c = count, l = deco.rarity >= Config.DEFAULT_LOCK_MIN_RARITY }
+		table.insert(profile.stacks, stack)
+	end
+	return stack
+end
+
+-- 개수가 0인 칸을 지운다
+function PlayerData.RemoveEmptyStacks(profile)
+	local kept = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 then
+			table.insert(kept, stack)
+		end
+	end
+	profile.stacks = kept
 end
 
 function PlayerData.AddCoins(player: Player, amount: number)
@@ -223,14 +291,14 @@ local function onPlayerAdded(player: Player)
 		if IS_STUDIO then
 			-- 게시 안 된 플레이스이거나 Studio API 접근이 꺼져 있으면 여기로 온다
 			warn(
-				"[PlayerData] DataStore를 쓸 수 없어 이번 테스트는 저장하지 않아요.",
+				"[PlayerData] DataStore를 쓸 수 없어 이번 테스트는 저장하지 않습니다.",
 				"(게임을 게시하고 Game Settings → Security → Enable Studio Access to API Services를 켜면 저장돼요)",
 				saved
 			)
 			canSave = false
 		else
 			-- 빈 데이터로 시작했다가 기존 데이터를 덮어쓰지 않도록 내보낸다
-			player:Kick("데이터를 불러오지 못했어요. 잠시 후 다시 접속해 주세요.")
+			player:Kick("데이터를 불러오지 못했습니다. 잠시 후 다시 접속해 주세요.")
 			return
 		end
 	end

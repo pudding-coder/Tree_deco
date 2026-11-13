@@ -134,7 +134,6 @@ for index, trait in rawTraits do
 		local entry = {
 			id = trait.id,
 			name = trait.name,
-			emoji = trait.emoji or "",
 			n = trait.n,
 			mult = trait.mult,
 			effect = trait.effect,

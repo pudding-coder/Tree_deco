@@ -45,9 +45,14 @@ function Gacha.GetProbabilities(luckMult: number): { number }
 	return probs
 end
 
+-- 장식 가치 = 레어도 기본 가치 × 특성 배수 (소수점 버림)
+function Gacha.GetItemValue(rarityIndex: number, traitMult: number): number
+	return math.floor(Rarity.List[rarityIndex].value * traitMult)
+end
+
 -- 판매 가격 = 장식 가치 × SELL_RATE (소수점 버림, 최소 1코인)
-function Gacha.GetSellPrice(rarityIndex: number): number
-	return math.max(1, math.floor(Rarity.List[rarityIndex].value * Config.SELL_RATE))
+function Gacha.GetSellPrice(rarityIndex: number, traitMult: number): number
+	return math.max(1, math.floor(Gacha.GetItemValue(rarityIndex, traitMult) * Config.SELL_RATE))
 end
 
 -- 등급 번호(1~7)를 하나 뽑는다. 서버에서만 호출한다.

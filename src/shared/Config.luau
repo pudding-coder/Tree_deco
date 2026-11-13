@@ -21,7 +21,7 @@ Config.STUDIO_START_COINS = 1000 -- Studio 테스트용 시작 코인
 -- 룰렛
 ----------------------------------------------------------------
 Config.FREE_SPIN_COOLDOWN = 15 -- 무료 룰렛 쿨타임(초)
-Config.REEL_STOP_TIME = 2 -- 슬롯 한 칸이 멈추는 기본 시간(초)
+Config.REEL_STOP_TIME = 2 -- 한 번 돌릴 때 슬롯 3칸(레어도·장식·특성)이 모두 멈추는 기본 시간(초)
 Config.COIN_SPIN_MIN_COST = 60 -- 코인 룰렛 최소 비용 (행운 배수를 곱함)
 Config.COIN_SPIN_INCOME_SEC = 90 -- 코인 룰렛 비용 = 몇 초 치 수입인지
 
@@ -64,6 +64,7 @@ Config.SELL_RATE = 0.25 -- 판매 가격 = 장식 가치 × SELL_RATE (소수점
 Config.AUTO_SELL_MAX_OPTION = 5 -- 자동 판매로 고를 수 있는 최고 등급 (레전더리)
 Config.DEFAULT_LOCK_MIN_RARITY = 5 -- 처음부터 잠겨 있는 최소 등급 (레전더리 이상)
 Config.SELL_CONFIRM_MIN_RARITY = 4 -- 모두 판매에 이 등급 이상이 섞이면 한 번 더 눌러야 판다 (에픽)
+Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙은 장식(반짝이 등)은 자동 판매하지 않는다
 
 ----------------------------------------------------------------
 -- 트리·서버

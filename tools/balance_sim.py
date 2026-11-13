@@ -25,7 +25,7 @@ def _num(text):
 
 
 def load_config(path=CONFIG_PATH):
-    """Config.luau에서 `Config.이름 = 숫자` 와 `Config.이름 = { 숫자, ... }` 줄을 읽는다."""
+    """Config.luau에서 `Config.이름 = 숫자`, `Config.이름 = true/false`, `Config.이름 = { 숫자, ... }` 줄을 읽는다."""
     cfg = {}
     line_re = re.compile(r'^Config\.(\w+)\s*=\s*(.*?)\s*(--.*)?$')
     with open(path, encoding='utf-8') as f:
@@ -36,6 +36,9 @@ def load_config(path=CONFIG_PATH):
             name, value = m.group(1), m.group(2)
             if value.startswith('"'):
                 continue  # 문자열(게임 이름 등)은 밸런스 값이 아니다
+            if value in ('true', 'false'):
+                cfg[name] = value == 'true'
+                continue
             if value.startswith('{'):
                 items = [x for x in value.strip('{} ').split(',') if x.strip()]
                 cfg[name] = [_num(re.sub(r'^\s*\[0\]\s*=', '', x)) for x in items]

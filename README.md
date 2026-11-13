@@ -26,3 +26,7 @@ python3 tools/balance_sim.py
 ```
 
 자세한 순서는 `GAME_RULES.md`의 「부록: 밸런스 값 바꾸기」를 참고하세요.
+
+## 작업 순서
+
+작업 시작할 때와 노트북 끄기 전에 할 일은 [docs/WORKFLOW.md](docs/WORKFLOW.md)를 보세요.
