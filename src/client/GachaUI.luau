@@ -51,12 +51,12 @@ local ui = {}
 -- 장식 정보 헬퍼
 ----------------------------------------------------------------
 
--- "✨반짝이 빨간 공" (기본 특성이면 장식 이름만)
+-- "반짝이 빨간 공" (기본 특성이면 장식 이름만)
 local function itemName(deco, trait): string
 	if trait == Catalog.BaseTrait then
 		return deco.name
 	end
-	return trait.emoji .. trait.name .. " " .. deco.name
+	return trait.name .. " " .. deco.name
 end
 
 local function stackInfo(stack)
@@ -178,14 +178,14 @@ local function buildSlot(gui)
 		Parent = gui,
 	})
 	label({
-		Text = "🎄 장식 룰렛",
+		Text = "장식 룰렛",
 		TextSize = 20,
 		Size = UDim2.new(0.6, 0, 0, 28),
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = slot,
 	})
 	ui.coins = label({
-		Text = "💰 0",
+		Text = "코인 0",
 		TextSize = 18,
 		TextColor3 = COLORS.gold,
 		Size = UDim2.new(0.4, 0, 0, 28),
@@ -352,7 +352,7 @@ local function buildOdds(gui)
 			continue
 		end
 		local odds = if trait.n then Gacha.FormatOdds(1 / trait.n) else "나머지"
-		local valueLabel = row(trait.emoji .. trait.name, traitColor(trait))
+		local valueLabel = row(trait.name, traitColor(trait))
 		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
 	end
 end
@@ -361,7 +361,7 @@ end
 local function buildBagButton(gui)
 	ui.bagButton = button({
 		Name = "BagButton",
-		Text = "🎒 가방",
+		Text = "가방",
 		Color = COLORS.panel,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
@@ -399,7 +399,7 @@ local function buildInventory(gui)
 		Parent = window,
 	})
 	ui.invClose = button({
-		Text = "✕",
+		Text = "X",
 		TextSize = 18,
 		Size = UDim2.fromOffset(32, 30),
 		AnchorPoint = Vector2.new(1, 0),
@@ -465,7 +465,7 @@ local function buildInventory(gui)
 		Parent = detail,
 	}, 13, 9)
 	ui.detailLock = button({
-		Text = "🔒 잠그기",
+		Text = "잠그기",
 		TextSize = 14,
 		Size = UDim2.fromOffset(104, 40),
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -565,7 +565,7 @@ local function setStatus(text: string)
 end
 
 local function refreshCoins()
-	ui.coins.Text = "💰 " .. Gacha.FormatNumber(state.coins)
+	ui.coins.Text = "코인 " .. Gacha.FormatNumber(state.coins)
 end
 
 local function refreshOdds()
@@ -632,7 +632,7 @@ end
 
 local function refreshBagButton()
 	local full = state.bagUsed >= state.bagCapacity
-	ui.bagButton.Text = string.format("🎒 가방 %d/%d", state.bagUsed, state.bagCapacity)
+	ui.bagButton.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
 	ui.bagButton.TextColor3 = if full then COLORS.errorText else COLORS.text
 	ui.invTitle.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
 end
@@ -643,9 +643,9 @@ local function refreshSellButtons()
 	if total <= 0 then
 		setButton(ui.sellAllButton, "팔 장식이 없어요", false, COLORS.gold)
 	elseif isConfirming("all") then
-		setButton(ui.sellAllButton, string.format("한 번 더 누르면 판매 (+💰%s)", Gacha.FormatNumber(total)), true, COLORS.error)
+		setButton(ui.sellAllButton, string.format("한 번 더 누르면 판매 (+%s코인)", Gacha.FormatNumber(total)), true, COLORS.error)
 	else
-		setButton(ui.sellAllButton, string.format("잠금 빼고 모두 판매 +💰%s", Gacha.FormatNumber(total)), true, COLORS.gold)
+		setButton(ui.sellAllButton, string.format("잠금 빼고 모두 판매 +%s코인", Gacha.FormatNumber(total)), true, COLORS.gold)
 	end
 
 	-- 자동 판매
@@ -675,7 +675,7 @@ local function refreshSellButtons()
 	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait), Gacha.FormatNumber(stack.c))
 	ui.detailName.TextColor3 = r.color
 	ui.detailInfo.Text = string.format(
-		"%s · %s · 가치 💰%s · 1개 판매 💰%s",
+		"%s · %s · 가치 %s코인 · 1개 판매 %s코인",
 		r.name,
 		Catalog.AREAS[deco.area],
 		Gacha.FormatNumber(value),
@@ -683,14 +683,14 @@ local function refreshSellButtons()
 	)
 	ui.detailLock.Visible = true
 	ui.detailSell.Visible = true
-	ui.detailLock.Text = if stack.l then "🔓 잠금 풀기" else "🔒 잠그기"
+	ui.detailLock.Text = if stack.l then "잠금 풀기" else "잠그기"
 	ui.detailLock.BackgroundColor3 = if stack.l then COLORS.gold else COLORS.panelHover
 	if stack.l then
 		setButton(ui.detailSell, "잠겨 있어요", false, COLORS.gold)
 	elseif isConfirming("one") then
 		setButton(ui.detailSell, "한 번 더 누르기", true, COLORS.error)
 	else
-		setButton(ui.detailSell, "판매 +💰" .. Gacha.FormatNumber(stackSellPrice(stack) * stack.c), true, COLORS.gold)
+		setButton(ui.detailSell, "판매 +" .. Gacha.FormatNumber(stackSellPrice(stack) * stack.c) .. "코인", true, COLORS.gold)
 	end
 end
 
@@ -718,19 +718,23 @@ local function makeCell(stack, order: number)
 	})
 	if trait ~= Catalog.BaseTrait then
 		label({
-			Text = trait.emoji,
-			TextSize = 16,
-			Size = UDim2.fromOffset(24, 22),
-			Position = UDim2.fromOffset(4, 2),
+			Text = trait.name,
+			TextSize = 11,
+			TextColor3 = traitColor(trait),
+			Size = UDim2.fromOffset(44, 18),
+			Position = UDim2.fromOffset(5, 3),
+			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = cell,
 		})
 	end
 	if stack.l then
 		label({
-			Text = "🔒",
-			TextSize = 14,
-			Size = UDim2.fromOffset(22, 22),
-			Position = UDim2.new(1, -24, 0, 2),
+			Text = "잠금",
+			TextSize = 11,
+			TextColor3 = COLORS.gold,
+			Size = UDim2.fromOffset(30, 18),
+			Position = UDim2.new(1, -34, 0, 3),
+			TextXAlignment = Enum.TextXAlignment.Right,
 			Parent = cell,
 		})
 	end
@@ -811,7 +815,7 @@ local function refreshSpinButtons()
 	end
 
 	local cost = state.coinSpinCost
-	setButton(ui.coinButton, "💰 " .. Gacha.FormatNumber(cost) .. " 돌리기", state.coins >= cost, COLORS.gold)
+	setButton(ui.coinButton, Gacha.FormatNumber(cost) .. "코인 돌리기", state.coins >= cost, COLORS.gold)
 end
 
 local toastToken = 0
@@ -856,7 +860,7 @@ local function showDecoReel(deco)
 end
 
 local function showTraitReel(trait)
-	setReel(3, trait.emoji .. trait.name, traitColor(trait))
+	setReel(3, trait.name, traitColor(trait))
 end
 
 local function popReel(i: number, size: number, duration: number, style: Enum.EasingStyle?)
@@ -963,7 +967,7 @@ local function playResultEffect(rarityIndex: number, deco, trait)
 	local r = Rarity.List[rarityIndex]
 	local probs = Gacha.GetProbabilities(state.luck)
 	local value = Gacha.GetItemValue(rarityIndex, trait.mult)
-	ui.reelSub.Text = string.format("%s · 가치 💰%s", Gacha.FormatOdds(probs[rarityIndex]), Gacha.FormatNumber(value))
+	ui.reelSub.Text = string.format("%s · 가치 %s코인", Gacha.FormatOdds(probs[rarityIndex]), Gacha.FormatNumber(value))
 
 	if rarityIndex < Config.EFFECT_MIN_RARITY then
 		return
@@ -983,7 +987,7 @@ local function playResultEffect(rarityIndex: number, deco, trait)
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
 	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("✨ %s [%s] 뽑았어요!", itemName(deco, trait), r.name), r.color)
+		showToast(string.format("%s [%s] 뽑았어요!", itemName(deco, trait), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
@@ -1043,7 +1047,7 @@ local function spin(kind: string)
 	applyState(result.state)
 	playResultEffect(result.rarity, deco, trait)
 	if result.autoSold then
-		ui.reelSub.Text = string.format("자동 판매 +💰%s", Gacha.FormatNumber(result.saleCoins))
+		ui.reelSub.Text = string.format("자동 판매 +%s코인", Gacha.FormatNumber(result.saleCoins))
 	end
 	spinning = false
 end
@@ -1089,7 +1093,7 @@ end
 
 local function showSaleToast(result)
 	showToast(
-		string.format("장식 %s개 판매 +💰%s", Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
+		string.format("장식 %s개 판매 +%s코인", Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
 		COLORS.gold
 	)
 end
@@ -1158,7 +1162,7 @@ local function onAnnounce(data)
 		return
 	end
 	local r = Rarity.List[deco.rarity]
-	local prefix = if data.global then "🌍" else "📢"
+	local prefix = if data.global then "[전체]" else "[서버]"
 	showToast(
 		string.format(
 			"%s %s님이 뽑았어요: %s [%s] (%s)",

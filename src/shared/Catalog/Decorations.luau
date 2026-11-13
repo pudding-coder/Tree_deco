@@ -2,7 +2,7 @@
 	장식 목록 ― 새 장식은 맨 아래(또는 같은 등급 근처)에 한 줄 추가하면 된다.
 	자세한 방법: docs/ADDING_ITEMS.md
 
-	id      저장용 이름. 영문으로 시작, 영문·숫자·_만. ★ 한 번 정하면 절대 바꾸지 말 것 (바꾸면 가진 사람 장식이 사라짐)
+	id      저장용 이름. 영문으로 시작, 영문·숫자·_만. (중요) 한 번 정하면 절대 바꾸지 말 것 (바꾸면 가진 사람 장식이 사라짐)
 	name    화면에 보이는 이름. 언제든 바꿔도 된다.
 	rarity  "Common" "Uncommon" "Rare" "Epic" "Legendary" "Mystic" "Secret"
 	area    "Topper"(꼭대기) "Ornament"(가지에 거는 것) "Garland"(띠)
