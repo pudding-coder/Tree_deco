@@ -39,13 +39,18 @@ local pendingSaves = 0
 ----------------------------------------------------------------
 
 local function newProfile()
+	local locked = table.create(Rarity.Count, false)
+	for i = Config.DEFAULT_LOCK_MIN_RARITY, Rarity.Count do
+		locked[i] = true
+	end
+
 	return {
 		coins = if IS_STUDIO then Config.STUDIO_START_COINS else Config.START_COINS,
 		luckLevel = 0,
 		speedLevel = 0,
 		bag = table.create(Rarity.Count, 0), -- 등급 번호 -> 개수 (같은 등급끼리 1칸에 쌓임)
 		bagCapacity = Config.BAG_BASE_SLOTS,
-		locked = table.create(Rarity.Count, false), -- 등급 번호 -> 잠금 여부 (잠긴 등급은 판매·자동 판매 안 됨)
+		locked = locked, -- 등급 번호 -> 잠금 여부 (잠긴 등급은 판매·자동 판매 안 됨)
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
 
 		-- 아래는 저장하지 않는 값
