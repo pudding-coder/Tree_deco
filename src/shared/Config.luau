@@ -4,7 +4,7 @@ local Config = {}
 Config.GameName = "Tree_deco"
 
 -- 시작 코인. Studio 테스트에서는 코인 룰렛을 바로 해볼 수 있게 더 준다.
-Config.START_COINS = 0
+Config.START_COINS = 200 -- 처음 접속할 때 주는 코인 (코인 룰렛 3회)
 Config.STUDIO_START_COINS = 1000
 
 -- 룰렛

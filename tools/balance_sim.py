@@ -30,6 +30,7 @@ P = dict(
     SESSION_MIN=40, HOURS=80,
     BOOST_LUCK=1.0, BOOST_SPEED=1.0,  # 물약·게임패스 등 상시 부스트 (과금 유저 가정)
     ROBUX_SPINS_PER_DAY=0,  # 하루에 로벅스로 산 룰렛 횟수
+    START_COINS=0,  # 처음 접속할 때 주는 코인
 )
 
 def probs(L, N):
@@ -42,7 +43,7 @@ def probs(L, N):
 
 def run(P, seed):
     rnd = random.Random(seed)
-    t = 0.0; coins = 0.0; tree = []; spd = 0; lk = 0; votes = 0
+    t = 0.0; coins = float(P["START_COINS"]); tree = []; spd = 0; lk = 0; votes = 0
     session_start = 0.0; next_free = 0.0; bonus = P['ROBUX_SPINS_PER_DAY']
     ev = {}
     pcache = {}
