@@ -145,22 +145,72 @@ local function newPart(props)
 	return part
 end
 
+-- 맵에 트리 자리 표시(Workspace.PlotSpots 폴더의 파츠)가 있으면 그 자리를 쓴다 (docs/MAP.md)
+local usingMapSpots = false
+
+local function loadMapSpots()
+	local folder = workspace:FindFirstChild("PlotSpots")
+	if not folder then
+		return
+	end
+	local spots = {}
+	for _, child in folder:GetChildren() do
+		if child:IsA("BasePart") then
+			table.insert(spots, child)
+		end
+	end
+	if #spots == 0 then
+		return
+	end
+	-- 이름이 숫자면 숫자 순서(1, 2, 3 ...), 아니면 이름 순서로 채운다
+	table.sort(spots, function(a, b)
+		local na, nb = tonumber(a.Name), tonumber(b.Name)
+		if na and nb then
+			return na < nb
+		elseif na or nb then
+			return na ~= nil
+		end
+		return a.Name < b.Name
+	end)
+
+	plotPositions = {}
+	for _, spot in spots do
+		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
+		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
+		spot.Transparency = 1
+		spot.CanCollide = false
+		spot.CanQuery = false
+		spot.CanTouch = false
+	end
+	usingMapSpots = true
+	if #plotPositions < Config.SERVER_MAX_PLAYERS then
+		warn(string.format(
+			"[Tree] PlotSpots에 자리가 %d개뿐입니다. 서버 인원(%d명)보다 적으면 늦게 온 사람은 트리를 받지 못합니다.",
+			#plotPositions,
+			Config.SERVER_MAX_PLAYERS
+		))
+	end
+end
+
 local function buildPlot(index: number)
 	local cframe = plotPositions[index]
 
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
 
-	newPart({
-		Name = "Ground",
-		Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
-		CFrame = cframe * CFrame.new(0, 0.5, 0),
-		Color = Color3.fromRGB(235, 240, 245),
-		Material = Enum.Material.Snow,
-		Parent = model,
-	})
-
-	local base = cframe * CFrame.new(0, 1, 0)
+	-- 맵이 없을 때만 눈 바닥을 깐다 (맵이 있으면 맵 바닥을 그대로 쓴다)
+	local base = cframe
+	if not usingMapSpots then
+		newPart({
+			Name = "Ground",
+			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
+			CFrame = cframe * CFrame.new(0, 0.5, 0),
+			Color = Color3.fromRGB(235, 240, 245),
+			Material = Enum.Material.Snow,
+			Parent = model,
+		})
+		base = cframe * CFrame.new(0, 1, 0)
+	end
 	newPart({
 		Name = "Trunk",
 		Shape = Enum.PartType.Cylinder,
@@ -215,7 +265,7 @@ local function buildPlot(index: number)
 	model.Parent = plotsFolder
 	plots[index] = {
 		cframe = base, -- 트리 밑동 기준
-		spawn = cframe * CFrame.new(0, 4, -(PLOT_SIZE / 2 - 4)) * CFrame.Angles(0, math.pi, 0), -- 트리 앞, 트리를 바라봄
+		spawn = base * CFrame.new(0, 3, -14) * CFrame.Angles(0, math.pi, 0), -- 트리 앞 14스터드, 트리를 바라봄
 		model = model,
 		decorations = decorations,
 		signLabel = signLabel,
@@ -609,6 +659,7 @@ end
 ----------------------------------------------------------------
 
 function TreeService.Init()
+	loadMapSpots()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
