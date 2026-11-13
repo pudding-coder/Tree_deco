@@ -12,3 +12,7 @@ rojo serve
 ```
 
 Studio에서 Rojo 플러그인을 설치하고(`rojo plugin install`) 플러그인 창에서 **Connect**를 누르면 `src/` 코드가 반영됩니다.
+
+## 장식·특성 추가
+
+`src/shared/Catalog/Decorations.luau`, `src/shared/Catalog/Traits.luau`에 한 줄씩 추가하면 됩니다. 자세한 방법은 [docs/ADDING_ITEMS.md](docs/ADDING_ITEMS.md)를 보세요.
