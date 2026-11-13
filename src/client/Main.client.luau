@@ -1,4 +1,5 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Config = require(ReplicatedStorage.Shared.Config)
+local GachaUI = require(script.Parent.GachaUI)
 
-print(`[{Config.GameName}] 클라이언트 시작 (Rojo 연결 확인용)`)
+GachaUI.Start()
+
+print("[Tree_deco] 클라이언트 시작")
