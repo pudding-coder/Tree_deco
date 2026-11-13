@@ -1,5 +1,6 @@
 -- 트리 꾸미기·전시 (GAME_RULES.md '트리 꾸미기', '전시·수익')
--- 서버에 들어오면 빈 플롯 1개를 받는다. 플롯에는 트리가 서 있고, 정해진 자리에 장식을 건다.
+-- 서버는 빈 광장에서 시작한다. 플레이어가 들어오면 플롯(트리)이 생기고, 나가면 PLOT_KEEP_SECONDS 뒤에 사라진다.
+-- 플롯에는 트리가 서 있고, 정해진 자리에 장식을 건다.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -23,7 +24,12 @@ local AREA_CAPACITY = PlayerData.AREA_CAPACITY
 -- 모양 (스터드 단위)
 ----------------------------------------------------------------
 
-local PLOT_RING_RADIUS = 80 -- 광장 가운데에서 플롯까지 거리
+-- 플롯 자리: 광장을 둘러싼 원 여러 겹. 안쪽 원부터 채운다
+local PLOT_RINGS = {
+	{ radius = 70, count = 8 },
+	{ radius = 120, count = 12 },
+	{ radius = 170, count = 16 },
+}
 local PLOT_SIZE = 36
 local TRUNK_HEIGHT = 4
 -- 트리 몸통: 아래층부터 { 반지름, 높이 }
@@ -57,8 +63,37 @@ local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
 ----------------------------------------------------------------
 
 local plotsFolder = nil
-local plots = {} -- [번호] = { cframe, model, decorations(Folder), signLabel, owner }
-local plotOf = {} -- [Player] = 플롯 번호
+local plotPositions = {} -- [자리 번호] = 플롯 중심 CFrame (광장을 바라봄)
+local plots = {} -- [자리 번호] = { cframe, spawn, model, decorations, signLabel, owner, keptFor, keptName, keptUntil }
+local plotOf = {} -- [Player] = 자리 번호
+
+do
+	for _, ring in PLOT_RINGS do
+		for k = 1, ring.count do
+			if #plotPositions >= Config.SERVER_MAX_PLAYERS then
+				break
+			end
+			-- 겹마다 시작 각도를 조금 돌려서 안쪽 트리 뒤에 가리지 않게
+			local angle = (k - 1) / ring.count * math.pi * 2 + ring.radius * 0.01
+			local position = Vector3.new(math.cos(angle) * ring.radius, 0, math.sin(angle) * ring.radius)
+			table.insert(plotPositions, CFrame.lookAt(position, Vector3.new(0, 0, 0)))
+		end
+	end
+	-- 원이 모자라면 맨 바깥 원 밖으로 더 늘린다
+	local extraRadius = PLOT_RINGS[#PLOT_RINGS].radius
+	while #plotPositions < Config.SERVER_MAX_PLAYERS do
+		extraRadius += 50
+		local count = math.floor(2 * math.pi * extraRadius / 60)
+		for k = 1, count do
+			if #plotPositions >= Config.SERVER_MAX_PLAYERS then
+				break
+			end
+			local angle = (k - 1) / count * math.pi * 2
+			local position = Vector3.new(math.cos(angle) * extraRadius, 0, math.sin(angle) * extraRadius)
+			table.insert(plotPositions, CFrame.lookAt(position, Vector3.new(0, 0, 0)))
+		end
+	end
+end
 
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
@@ -111,9 +146,7 @@ local function newPart(props)
 end
 
 local function buildPlot(index: number)
-	local angle = (index - 1) / Config.SERVER_MAX_PLAYERS * math.pi * 2
-	local position = Vector3.new(math.cos(angle) * PLOT_RING_RADIUS, 0, math.sin(angle) * PLOT_RING_RADIUS)
-	local cframe = CFrame.lookAt(position, Vector3.new(0, 0, 0))
+	local cframe = plotPositions[index]
 
 	local model = Instance.new("Model")
 	model.Name = "Plot" .. index
@@ -314,14 +347,19 @@ end
 
 local function updateSign(plotIndex: number)
 	local plot = plots[plotIndex]
-	local owner = plot.owner
-	if not owner then
-		plot.signLabel.Text = "빈 자리"
+	if not plot then
 		return
 	end
-	local profile = PlayerData.Get(owner)
-	local value = if profile then Income.GetTreeValue(profile) else 0
-	plot.signLabel.Text = string.format("%s님의 트리\n가치 %s코인", owner.DisplayName, Gacha.FormatNumber(value))
+	local owner = plot.owner
+	if owner then
+		local profile = PlayerData.Get(owner)
+		local value = if profile then Income.GetTreeValue(profile) else 0
+		plot.signLabel.Text = string.format("%s님의 트리\n가치 %s코인", owner.DisplayName, Gacha.FormatNumber(value))
+	elseif plot.keptName then
+		plot.signLabel.Text = string.format("%s님의 트리\n(자리 비움)", plot.keptName)
+	else
+		plot.signLabel.Text = "빈 자리"
+	end
 end
 
 local function updateTreeValueStat(player: Player)
@@ -348,11 +386,13 @@ local function render(player: Player)
 	updateTreeValueStat(player)
 end
 
-local function clearPlot(plotIndex: number)
+-- 플롯을 없앤다 (자리를 비운다)
+local function destroyPlot(plotIndex: number)
 	local plot = plots[plotIndex]
-	plot.owner = nil
-	plot.decorations:ClearAllChildren()
-	updateSign(plotIndex)
+	if plot then
+		plot.model:Destroy()
+		plots[plotIndex] = nil
+	end
 end
 
 ----------------------------------------------------------------
@@ -367,13 +407,38 @@ local function teleportToPlot(player: Player)
 	end
 end
 
+-- 자리 배정: 5분 안에 돌아온 사람은 원래 자리 → 비어 있는 가장 안쪽 자리 → 남겨 둔 트리 중 가장 오래된 것을 치우고 그 자리
 local function assignPlot(player: Player)
 	for index, plot in plots do
-		if plot.owner == nil then
+		if plot.owner == nil and plot.keptFor == player.UserId then
 			plot.owner = player
+			plot.keptFor, plot.keptName, plot.keptUntil = nil, nil, nil
 			plotOf[player] = index
 			return index
 		end
+	end
+
+	for index = 1, #plotPositions do
+		if not plots[index] then
+			buildPlot(index)
+			plots[index].owner = player
+			plotOf[player] = index
+			return index
+		end
+	end
+
+	local oldestIndex, oldestUntil = nil, math.huge
+	for index, plot in plots do
+		if plot.owner == nil and (plot.keptUntil or 0) < oldestUntil then
+			oldestIndex, oldestUntil = index, plot.keptUntil or 0
+		end
+	end
+	if oldestIndex then
+		destroyPlot(oldestIndex)
+		buildPlot(oldestIndex)
+		plots[oldestIndex].owner = player
+		plotOf[player] = oldestIndex
+		return oldestIndex
 	end
 	return nil
 end
@@ -409,12 +474,28 @@ local function onPlayerAdded(player: Player)
 	teleportToPlot(player)
 end
 
+-- 나가면 트리를 PLOT_KEEP_SECONDS 동안 남겨 둔다 (수입은 없음)
 local function onPlayerRemoving(player: Player)
 	local plotIndex = plotOf[player]
 	plotOf[player] = nil
-	if plotIndex then
-		clearPlot(plotIndex)
+	local plot = plotIndex and plots[plotIndex]
+	if not plot then
+		return
 	end
+	plot.owner = nil
+	plot.keptFor = player.UserId
+	plot.keptName = player.DisplayName
+	plot.keptUntil = workspace:GetServerTimeNow() + Config.PLOT_KEEP_SECONDS
+	updateSign(plotIndex)
+
+	local model = plot.model
+	task.delay(Config.PLOT_KEEP_SECONDS, function()
+		local current = plots[plotIndex]
+		-- 그사이 돌아왔거나 다른 사람이 자리를 받았으면 그대로 둔다
+		if current and current.model == model and current.owner == nil and current.keptFor == player.UserId then
+			destroyPlot(plotIndex)
+		end
+	end)
 end
 
 ----------------------------------------------------------------
@@ -531,9 +612,6 @@ function TreeService.Init()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
-	for index = 1, Config.SERVER_MAX_PLAYERS do
-		buildPlot(index)
-	end
 
 	Remotes.PlaceDecoration.OnServerInvoke = onPlace
 	Remotes.RemoveDecoration.OnServerInvoke = onRemove
