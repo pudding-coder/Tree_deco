@@ -23,11 +23,11 @@ end
 local function getReadyProfile(player: Player)
 	local profile = PlayerData.Get(player)
 	if not profile then
-		return nil, "데이터를 불러오는 중이에요"
+		return nil, "데이터를 불러오는 중입니다"
 	end
 	-- 슬롯이 돌아가는 중에 가방을 바꾸면 결과가 미리 보이므로 막는다
 	if workspace:GetServerTimeNow() < profile.busyUntil then
-		return nil, "룰렛이 멈춘 뒤에 할 수 있어요"
+		return nil, "룰렛이 멈춘 뒤에 할 수 있습니다"
 	end
 	return profile, nil
 end
@@ -63,6 +63,7 @@ local function onSell(player: Player, key: any)
 	end
 
 	if sold == 0 then
+<<<<<<< HEAD
 		if key ~= nil then
 			local stack = PlayerData.FindStack(profile, key)
 			if stack and stack.l then
@@ -70,6 +71,9 @@ local function onSell(player: Player, key: any)
 			end
 		end
 		return fail("팔 장식이 없어요")
+=======
+		return fail("팔 장식이 없습니다")
+>>>>>>> 7f122a4 (말투 수정해떠욤)
 	end
 
 	PlayerData.RemoveEmptyStacks(profile)
@@ -83,13 +87,19 @@ local function onSell(player: Player, key: any)
 	}
 end
 
+<<<<<<< HEAD
 local function onSetLock(player: Player, key: any, locked: any)
 	if type(key) ~= "string" or type(locked) ~= "boolean" then
 		return fail("잘못된 요청이에요")
+=======
+local function onSetLock(player: Player, rarityIndex: any, locked: any)
+	if not isWholeNumber(rarityIndex, 1, Rarity.Count) or type(locked) ~= "boolean" then
+		return fail("잘못된 요청입니다")
+>>>>>>> 7f122a4 (말투 수정해떠욤)
 	end
 	local profile = PlayerData.Get(player)
 	if not profile then
-		return fail("데이터를 불러오는 중이에요")
+		return fail("데이터를 불러오는 중입니다")
 	end
 	local stack = PlayerData.FindStack(profile, key)
 	if not stack or not PlayerData.IsKnownStack(stack) then
@@ -102,11 +112,11 @@ end
 -- level: 0(끔) ~ AUTO_SELL_MAX_OPTION. 이 등급 이하를 자동 판매한다.
 local function onSetAutoSell(player: Player, level: any)
 	if not isWholeNumber(level, 0, Config.AUTO_SELL_MAX_OPTION) then
-		return fail("잘못된 요청이에요")
+		return fail("잘못된 요청입니다")
 	end
 	local profile = PlayerData.Get(player)
 	if not profile then
-		return fail("데이터를 불러오는 중이에요")
+		return fail("데이터를 불러오는 중입니다")
 	end
 	profile.autoSellMax = level
 	return { ok = true, state = GachaService.BuildState(player) }
