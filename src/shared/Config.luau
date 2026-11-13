@@ -26,6 +26,8 @@ Config.GLOBAL_ANNOUNCE_MIN_RARITY = 6 -- 미스틱 이상: 모든 서버 공지
 -- 가방
 Config.BAG_BASE_SLOTS = 50
 Config.BAG_MAX_SLOTS = 500
+Config.SELL_RATE = 0.25 -- 판매 가격 = 장식 가치 × SELL_RATE (소수점 버림, 최소 1)
+Config.AUTO_SELL_MAX_OPTION = 5 -- 자동 판매로 고를 수 있는 최고 등급 (레전더리)
 
 -- 업그레이드 (0 = 업그레이드 전)
 Config.LUCK_MULT = { [0] = 1.0, 1.2, 1.4, 1.6, 1.9, 2.2, 2.6, 3.0, 3.5, 4.2, 5.0 }

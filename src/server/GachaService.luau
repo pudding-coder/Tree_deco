@@ -55,6 +55,8 @@ function GachaService.BuildState(player: Player)
 		bag = table.clone(profile.bag),
 		bagUsed = PlayerData.GetBagSlotsUsed(profile),
 		bagCapacity = profile.bagCapacity,
+		locked = table.clone(profile.locked),
+		autoSellMax = profile.autoSellMax,
 	}
 end
 
@@ -137,7 +139,16 @@ local function onSpin(player: Player, kind: any)
 	profile.busyUntil = t + reelTime - 0.05
 
 	local rarityIndex = Gacha.Roll(luck, rng)
-	profile.bag[rarityIndex] += 1
+	local coinsAfterCost = profile.coins
+
+	-- 자동 판매: 지정한 등급 이하이고 잠기지 않았으면 가방에 넣지 않고 바로 판다
+	local saleCoins = 0
+	if rarityIndex <= profile.autoSellMax and not profile.locked[rarityIndex] then
+		saleCoins = Gacha.GetSellPrice(rarityIndex)
+		PlayerData.AddCoins(player, saleCoins)
+	else
+		profile.bag[rarityIndex] += 1
+	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)
 	if rarityIndex >= Config.SERVER_ANNOUNCE_MIN_RARITY then
@@ -155,6 +166,9 @@ local function onSpin(player: Player, kind: any)
 		ok = true,
 		rarity = rarityIndex,
 		reelTime = reelTime,
+		autoSold = saleCoins > 0,
+		saleCoins = saleCoins,
+		coinsAfterCost = coinsAfterCost, -- 결과가 드러나기 전에 보여줄 코인
 		state = GachaService.BuildState(player),
 	}
 end

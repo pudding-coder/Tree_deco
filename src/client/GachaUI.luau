@@ -167,6 +167,101 @@ local function rarityListPanel(name: string, title: string, anchor: Vector2, pos
 	return titleLabel, valueLabels
 end
 
+local function smallButton(text: string, size: UDim2, position: UDim2, parent)
+	local btn = create("TextButton", {
+		Text = text,
+		Size = size,
+		Position = position,
+		BackgroundColor3 = COLORS.panelLight,
+		AutoButtonColor = false,
+		BorderSizePixel = 0,
+		Font = Enum.Font.GothamBold,
+		TextSize = 13,
+		TextColor3 = COLORS.text,
+		Parent = parent,
+	})
+	corner(btn, 6)
+	return btn
+end
+
+-- 가방 패널: 등급별 개수 · 잠금 · 1개 팔기 · 전부 팔기 · 자동 판매
+local function bagPanel(parent)
+	local frame = panel({
+		Name = "Bag",
+		Size = UDim2.fromOffset(320, 54 + Rarity.Count * 28 + 40),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 16, 0.5, 0),
+		Parent = parent,
+	})
+	ui.bagTitle = label({
+		Name = "Title",
+		Text = "가방",
+		Size = UDim2.new(1, 0, 0, 24),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = frame,
+	})
+	local list = create("Frame", {
+		Name = "List",
+		BackgroundTransparency = 1,
+		Position = UDim2.fromOffset(0, 30),
+		Size = UDim2.new(1, 0, 0, Rarity.Count * 28),
+		Parent = frame,
+	})
+	create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+
+	ui.bagRows = {}
+	for i, r in Rarity.List do
+		local row = create("Frame", {
+			Name = r.id,
+			BackgroundTransparency = 1,
+			Size = UDim2.new(1, 0, 0, 24),
+			LayoutOrder = i,
+			Parent = list,
+		})
+		local dot = create("Frame", {
+			BackgroundColor3 = r.color,
+			BorderSizePixel = 0,
+			Size = UDim2.fromOffset(10, 10),
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, 0, 0.5, 0),
+			Parent = row,
+		})
+		corner(dot, 5)
+		label({
+			Text = r.name,
+			TextColor3 = r.color,
+			TextSize = 15,
+			Size = UDim2.fromOffset(76, 24),
+			Position = UDim2.fromOffset(16, 0),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = row,
+		})
+		ui.bagRows[i] = {
+			count = label({
+				Text = "×0",
+				Font = Enum.Font.Gotham,
+				TextSize = 15,
+				TextColor3 = COLORS.subText,
+				Size = UDim2.fromOffset(52, 24),
+				Position = UDim2.fromOffset(92, 0),
+				TextXAlignment = Enum.TextXAlignment.Right,
+				Parent = row,
+			}),
+			lock = smallButton("🔓", UDim2.fromOffset(28, 24), UDim2.fromOffset(152, 0), row),
+			sellOne = smallButton("1개 팔기", UDim2.fromOffset(56, 24), UDim2.fromOffset(184, 0), row),
+			sellAll = smallButton("전부", UDim2.fromOffset(52, 24), UDim2.fromOffset(244, 0), row),
+		}
+	end
+
+	ui.autoSellButton = smallButton(
+		"자동 판매: 끔",
+		UDim2.new(1, 0, 0, 30),
+		UDim2.fromOffset(0, 36 + Rarity.Count * 28),
+		frame
+	)
+	ui.autoSellButton.TextSize = 14
+end
+
 ----------------------------------------------------------------
 -- 화면 만들기
 ----------------------------------------------------------------
@@ -274,7 +369,7 @@ local function buildUI()
 	-- 확률표 (오른쪽), 가방 (왼쪽)
 	ui.oddsTitle, ui.oddsLabels =
 		rarityListPanel("Odds", "확률", Vector2.new(1, 0.5), UDim2.new(1, -16, 0.5, 0), gui)
-	ui.bagTitle, ui.bagLabels = rarityListPanel("Bag", "가방", Vector2.new(0, 0.5), UDim2.new(0, 16, 0.5, 0), gui)
+	bagPanel(gui)
 
 	-- 공지
 	ui.toast = create("CanvasGroup", {
@@ -330,13 +425,34 @@ local function refreshOdds()
 	ui.oddsTitle.Text = string.format("확률 · 행운 ×%.1f", state.luck)
 end
 
+local function setSmallButton(btn: TextButton, enabled: boolean)
+	btn.BackgroundColor3 = if enabled then COLORS.panelLight else COLORS.panel
+	btn.TextColor3 = if enabled then COLORS.text else COLORS.disabled
+end
+
 local function refreshBag()
-	for i, lbl in ui.bagLabels do
+	for i, row in ui.bagRows do
 		local count = state.bag[i] or 0
-		lbl.Text = "×" .. Gacha.FormatNumber(count)
-		lbl.TextColor3 = if count > 0 then COLORS.text else COLORS.subText
+		local locked = state.locked[i] == true
+		row.count.Text = "×" .. Gacha.FormatNumber(count)
+		row.count.TextColor3 = if count > 0 then COLORS.text else COLORS.subText
+		row.lock.Text = if locked then "🔒" else "🔓"
+		row.lock.BackgroundColor3 = if locked then COLORS.gold else COLORS.panelLight
+		local canSell = count > 0 and not locked
+		setSmallButton(row.sellOne, canSell)
+		setSmallButton(row.sellAll, canSell)
 	end
 	ui.bagTitle.Text = string.format("가방 %d/%d", state.bagUsed, state.bagCapacity)
+
+	local level = state.autoSellMax
+	if level <= 0 then
+		ui.autoSellButton.Text = "자동 판매: 끔"
+		ui.autoSellButton.TextColor3 = COLORS.subText
+	else
+		local r = Rarity.List[level]
+		ui.autoSellButton.Text = string.format("자동 판매: %s 이하", r.name)
+		ui.autoSellButton.TextColor3 = r.color
+	end
 end
 
 local function applyState(newState)
@@ -513,15 +629,64 @@ local function spin(kind: string)
 		return
 	end
 
-	-- 코인과 쿨타임은 바로, 가방은 슬롯이 멈춘 뒤에 반영
-	state.coins = result.state.coins
+	-- 쓴 코인과 쿨타임은 바로, 가방과 자동 판매 코인은 슬롯이 멈춘 뒤에 반영
+	state.coins = result.coinsAfterCost
 	state.nextFreeSpinAt = result.state.nextFreeSpinAt
 	refreshCoins()
 
 	playReel(result.rarity, result.reelTime)
 	applyState(result.state)
 	playResultEffect(result.rarity)
+	if result.autoSold then
+		ui.reelSub.Text = string.format("자동 판매 +💰%s", Gacha.FormatNumber(result.saleCoins))
+	end
 	spinning = false
+end
+
+-- 가방 요청 공통 처리
+local function bagRequest(remote: RemoteFunction, ...)
+	if spinning or not state then
+		setStatus("룰렛이 멈춘 뒤에 할 수 있어요")
+		return nil
+	end
+	local args = table.pack(...)
+	local ok, result = pcall(function()
+		return remote:InvokeServer(table.unpack(args, 1, args.n))
+	end)
+	if not ok or type(result) ~= "table" then
+		setStatus("서버와 연결이 불안정해요. 다시 눌러 주세요")
+		return nil
+	end
+	if not result.ok then
+		setStatus(result.reason or "지금은 할 수 없어요")
+		return nil
+	end
+	setStatus("")
+	applyState(result.state)
+	return result
+end
+
+local function sell(rarityIndex: number, amount)
+	if (state.bag[rarityIndex] or 0) <= 0 or state.locked[rarityIndex] then
+		return
+	end
+	local result = bagRequest(Remotes.Sell, rarityIndex, amount)
+	if result then
+		local r = Rarity.List[rarityIndex]
+		showToast(
+			string.format("%s %s개 판매 +💰%s", r.name, Gacha.FormatNumber(result.sold), Gacha.FormatNumber(result.gained)),
+			COLORS.gold
+		)
+	end
+end
+
+local function toggleLock(rarityIndex: number)
+	bagRequest(Remotes.SetLock, rarityIndex, not state.locked[rarityIndex])
+end
+
+local function cycleAutoSell()
+	local nextLevel = (state.autoSellMax + 1) % (Config.AUTO_SELL_MAX_OPTION + 1)
+	bagRequest(Remotes.SetAutoSell, nextLevel)
 end
 
 local function onAnnounce(data)
@@ -563,6 +728,18 @@ function GachaUI.Start()
 	ui.coinButton.Activated:Connect(function()
 		spin("coin")
 	end)
+	for i, row in ui.bagRows do
+		row.lock.Activated:Connect(function()
+			toggleLock(i)
+		end)
+		row.sellOne.Activated:Connect(function()
+			sell(i, 1)
+		end)
+		row.sellAll.Activated:Connect(function()
+			sell(i, "all")
+		end)
+	end
+	ui.autoSellButton.Activated:Connect(cycleAutoSell)
 	Remotes.Announce.OnClientEvent:Connect(onAnnounce)
 
 	-- 리더보드 코인이 바뀌면 화면에도 반영 (나중에 수입·판매가 생기면 필요)
@@ -570,7 +747,8 @@ function GachaUI.Start()
 		local leaderstats = player:WaitForChild("leaderstats")
 		local coinsValue = leaderstats:WaitForChild("Coins")
 		coinsValue.Changed:Connect(function(value)
-			if state then
+			-- 돌리는 중에는 자동 판매 코인이 결과를 미리 알려주지 않도록 무시한다
+			if state and not spinning then
 				state.coins = value
 				refreshCoins()
 			end

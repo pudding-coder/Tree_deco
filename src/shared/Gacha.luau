@@ -45,6 +45,11 @@ function Gacha.GetProbabilities(luckMult: number): { number }
 	return probs
 end
 
+-- 판매 가격 = 장식 가치 × SELL_RATE (소수점 버림, 최소 1코인)
+function Gacha.GetSellPrice(rarityIndex: number): number
+	return math.max(1, math.floor(Rarity.List[rarityIndex].value * Config.SELL_RATE))
+end
+
 -- 등급 번호(1~7)를 하나 뽑는다. 서버에서만 호출한다.
 function Gacha.Roll(luckMult: number, rng: Random): number
 	local probs = Gacha.GetProbabilities(luckMult)

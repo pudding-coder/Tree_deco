@@ -45,6 +45,8 @@ local function newProfile()
 		speedLevel = 0,
 		bag = table.create(Rarity.Count, 0), -- 등급 번호 -> 개수 (같은 등급끼리 1칸에 쌓임)
 		bagCapacity = Config.BAG_BASE_SLOTS,
+		locked = table.create(Rarity.Count, false), -- 등급 번호 -> 잠금 여부 (잠긴 등급은 판매·자동 판매 안 됨)
+		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
 
 		-- 아래는 저장하지 않는 값
 		nextFreeSpinAt = 0, -- 서버 시각(workspace:GetServerTimeNow())
@@ -62,6 +64,8 @@ local function serialize(profile)
 		speedLevel = profile.speedLevel,
 		bag = table.clone(profile.bag),
 		bagCapacity = profile.bagCapacity,
+		locked = table.clone(profile.locked),
+		autoSellMax = profile.autoSellMax,
 	}
 end
 
@@ -88,6 +92,12 @@ local function reconcile(saved)
 			profile.bag[i] = readInt(saved.bag[i], 0, math.huge, 0)
 		end
 	end
+	if type(saved.locked) == "table" then
+		for i = 1, Rarity.Count do
+			profile.locked[i] = saved.locked[i] == true
+		end
+	end
+	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
 	return profile
 end
 
