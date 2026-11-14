@@ -21,3 +21,4 @@
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |
 | 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
+| 맵 참고 자료·무료 에셋 | `docs/MAP_REFERENCES.md` |
