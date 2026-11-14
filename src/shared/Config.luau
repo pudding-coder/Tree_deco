@@ -69,7 +69,7 @@ Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙은 장식(반�
 ----------------------------------------------------------------
 -- 트리·서버
 ----------------------------------------------------------------
-Config.SERVER_MAX_PLAYERS = 8 -- [미구현] 서버당 최대 인원(= 플롯 수). 실제 인원 제한은 Roblox 게임 설정에서도 같이 바꿔야 한다
+Config.SERVER_MAX_PLAYERS = 10 -- [미구현] 서버당 최대 인원(= 플롯 수). 실제 인원 제한은 Roblox 게임 설정에서도 같이 바꿔야 한다
 Config.MAX_TOPPER = 1 -- [미구현] 토퍼 최대 개수
 Config.MAX_ORNAMENT = 10 -- [미구현] 오너먼트 최대 개수
 Config.MAX_GARLAND = 3 -- [미구현] 띠 최대 개수 (가정)
