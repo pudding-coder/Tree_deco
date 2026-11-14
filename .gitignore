@@ -1,3 +1,5 @@
 __pycache__/
 *.pyc
 sourcemap.json
+.DS_Store
+*.blend1

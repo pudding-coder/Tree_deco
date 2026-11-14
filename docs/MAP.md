@@ -39,6 +39,16 @@
 - 트리 앞 14스터드 안에 부스·벽이 있으면 사람이 그 안에 끼일 수 있다. 앞쪽은 비워 둔다.
 - 트리 모양·크기를 바꾸고 싶으면 Claude에게 말한다 (`src/server/TreeService.luau`의 `LAYERS`).
 
+### 트리 모델 (TreeTemplate)
+
+`ServerStorage`에 `TreeTemplate`이라는 **Model**이 있으면 원기둥 트리 대신 그 모델을 세운다. 없으면 원기둥 트리가 나온다.
+
+- 원본: `assets/models/ChristmasTree.fbx` (Blender 스크립트 `tools/blender/make_tree.py`로 만듦)
+- Studio에서 **Home → Import**로 불러온 뒤, 생긴 Model을 `ServerStorage`로 옮기고 이름을 `TreeTemplate`으로 바꾼다.
+- 트리는 **똑바로 선 모습**으로 두고, 피벗을 돌리지 않는다. 크기·위치는 아무래도 된다. 게임이 시작될 때 높이를 위 표의 트리 높이(토퍼 제외 24)에 맞추고 밑동을 자리 바닥 가운데에 세운다.
+- 오너먼트·띠 장식은 모델 겉면에 맞춰 자동으로 붙는다.
+- `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
+
 ---
 
 ## 2. 투명벽 (맵 밖으로 못 나가게)

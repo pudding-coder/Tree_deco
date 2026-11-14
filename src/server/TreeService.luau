@@ -95,6 +95,12 @@ do
 	end
 end
 
+-- ServerStorage.TreeTemplate(Studio에서 넣은 트리 모델)이 있으면 원기둥 대신 그 모델을 쓴다 (docs/MAP.md)
+local treeTemplate: Model? = nil
+local treeTemplatePivot = CFrame.identity -- 밑동 가운데가 (0, 0, 0)에 오게 하는 피벗
+local ornamentRadius = {} -- [오너먼트 자리] = 모델 겉면까지 거리
+local garlandRadii = {} -- [띠 자리] = 모델 겉면에 맞춘 반지름
+
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
 	for i = 1, layerIndex - 1 do
@@ -120,7 +126,8 @@ local function slotOffset(area: string, index: number): CFrame
 	elseif area == "Ornament" then
 		local spot = ORNAMENT_SPOTS[index]
 		local layer = LAYERS[spot.layer]
-		local pos = localPoint(spot.angle, layer.radius + 0.4, layerBottom(spot.layer) + 0.8)
+		local radius = ornamentRadius[index] or (layer.radius + 0.4)
+		local pos = localPoint(spot.angle, radius, layerBottom(spot.layer) + 0.8)
 		return CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0)) -- 트리 쪽을 바라보게
 	else -- Garland: 층과 층 사이에 두르는 원의 중심
 		return CFrame.new(0, layerBottom(index + 1) + 0.2, 0)
@@ -128,7 +135,80 @@ local function slotOffset(area: string, index: number): CFrame
 end
 
 local function garlandRadius(index: number): number
-	return LAYERS[index].radius * 0.85
+	return garlandRadii[index] or LAYERS[index].radius * 0.85
+end
+
+-- 트리 모델을 원기둥 트리와 같은 높이로 맞추고, 장식이 겉면에 붙도록 거리를 잰다
+local function loadTreeTemplate()
+	local source = game:GetService("ServerStorage"):FindFirstChild("TreeTemplate")
+	if not source then
+		warn("[Tree] ServerStorage에 TreeTemplate이 없어 원기둥 트리를 씁니다.")
+		return
+	end
+	if not source:IsA("Model") then
+		warn("[Tree] ServerStorage.TreeTemplate은 Model이어야 합니다. 지금은 " .. source.ClassName .. "입니다. 원기둥 트리를 씁니다.")
+		return
+	end
+	local model = source:Clone()
+	local parts = {}
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			table.insert(parts, descendant)
+		end
+	end
+	if #parts == 0 then
+		warn("[Tree] ServerStorage.TreeTemplate 안에 파츠가 없습니다. 원기둥 트리를 씁니다.")
+		return
+	end
+
+	local _, size = model:GetBoundingBox()
+	model:ScaleTo(model:GetScale() * treeTop() / size.Y)
+
+	-- 밑동 가운데를 원점에 맞춘다
+	model:PivotTo(CFrame.identity)
+	local box, boxSize = model:GetBoundingBox()
+	treeTemplatePivot = CFrame.new(-box.X, boxSize.Y / 2 - box.Y, -box.Z)
+	model:PivotTo(treeTemplatePivot)
+
+	-- 원점에 잠깐 놓고 이 모델만 맞히는 광선으로 겉면 거리를 잰다 (같은 프레임에 치워서 보이지 않는다)
+	model.Parent = workspace
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { model }
+	local function surfaceRadius(angleDeg: number, y: number): number?
+		local origin = localPoint(angleDeg, 100, y)
+		local target = Vector3.new(0, y, 0)
+		local hit = workspace:Raycast(origin, target - origin, params)
+		if hit then
+			return Vector3.new(hit.Position.X, 0, hit.Position.Z).Magnitude
+		end
+		return nil
+	end
+	for i, spot in ORNAMENT_SPOTS do
+		local r = surfaceRadius(spot.angle, layerBottom(spot.layer) + 0.8)
+		if r then
+			ornamentRadius[i] = r + 0.5
+		end
+	end
+	for i = 1, #LAYERS do
+		local y = layerBottom(i + 1) + 0.2
+		local total, count = 0, 0
+		for k = 0, 15 do
+			local r = surfaceRadius(k * 22.5, y)
+			if r then
+				total += r
+				count += 1
+			end
+		end
+		if count > 0 then
+			garlandRadii[i] = total / count + 0.2
+		end
+	end
+	model.Parent = nil
+
+	treeTemplate = model
+	print(string.format("[Tree] TreeTemplate을 씁니다 (파츠 %d개, 오너먼트 자리 %d곳 맞춤)", #parts, #ornamentRadius))
 end
 
 local function newPart(props)
@@ -193,25 +273,8 @@ local function loadMapSpots()
 	end
 end
 
-local function buildPlot(index: number)
-	local cframe = plotPositions[index]
-
-	local model = Instance.new("Model")
-	model.Name = "Plot" .. index
-
-	-- 맵이 없을 때만 눈 바닥을 깐다 (맵이 있으면 맵 바닥을 그대로 쓴다)
-	local base = cframe
-	if not usingMapSpots then
-		newPart({
-			Name = "Ground",
-			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
-			CFrame = cframe * CFrame.new(0, 0.5, 0),
-			Color = Color3.fromRGB(235, 240, 245),
-			Material = Enum.Material.Snow,
-			Parent = model,
-		})
-		base = cframe * CFrame.new(0, 1, 0)
-	end
+-- 트리 모델이 없을 때 쓰는 원기둥 트리
+local function buildCylinderTree(model: Model, base: CFrame)
 	newPart({
 		Name = "Trunk",
 		Shape = Enum.PartType.Cylinder,
@@ -232,6 +295,35 @@ local function buildPlot(index: number)
 			CanCollide = i == 1,
 			Parent = model,
 		})
+	end
+end
+
+local function buildPlot(index: number)
+	local cframe = plotPositions[index]
+
+	local model = Instance.new("Model")
+	model.Name = "Plot" .. index
+
+	-- 맵이 없을 때만 눈 바닥을 깐다 (맵이 있으면 맵 바닥을 그대로 쓴다)
+	local base = cframe
+	if not usingMapSpots then
+		newPart({
+			Name = "Ground",
+			Size = Vector3.new(PLOT_SIZE, 1, PLOT_SIZE),
+			CFrame = cframe * CFrame.new(0, 0.5, 0),
+			Color = Color3.fromRGB(235, 240, 245),
+			Material = Enum.Material.Snow,
+			Parent = model,
+		})
+		base = cframe * CFrame.new(0, 1, 0)
+	end
+	if treeTemplate then
+		local tree = treeTemplate:Clone()
+		tree.Name = "Tree"
+		tree:PivotTo(base * treeTemplatePivot)
+		tree.Parent = model
+	else
+		buildCylinderTree(model, base)
 	end
 
 	-- 이름표
@@ -661,6 +753,7 @@ end
 
 function TreeService.Init()
 	loadMapSpots()
+	loadTreeTemplate()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
