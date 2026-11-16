@@ -1,4 +1,4 @@
--- 특성 효과: Traits.luau의 effect 이름으로 장식 주변에 그라데이션 분위기를 피운다
+-- 특성 효과: Traits.luau의 effect 이름으로 장식 주변에 파티클(반짝임·연기·눈송이)을 피운다
 -- 장식 색·재질은 바꾸지 않는다. 장식 색은 뽑을 때 정해진 칠하기 색(Paints.luau)으로만 바뀐다 (TraitEffects.Paint)
 -- 빛 색이 계속 바뀌는 효과(무지개, 오로라)는 태그만 붙여 두고 클라이언트(src/client/TraitAnimator.luau)가 움직인다
 local CollectionService = game:GetService("CollectionService")
@@ -6,8 +6,81 @@ local CollectionService = game:GetService("CollectionService")
 local TraitEffects = {}
 
 -- Roblox 기본 파티클 그림 (따로 올린 에셋이 아니라 항상 있다)
-local GLOW_TEXTURE = "rbxasset://textures/particles/smoke_main.dds" -- 부드러운 안개
-local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds"
+local SMOKE_TEXTURE = "rbxasset://textures/particles/smoke_main.dds" -- 연기
+local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반짝임·눈송이
+
+--[[
+	특성별 효과. 하나의 특성에 파티클 종류(kind)를 하나 고른다
+	kind     "sparkle" 반짝이는 별가루 / "snow" 떨어지는 눈송이 / "smoke" 피어오르는 연기
+	colors   파티클 색 (여러 개면 피어올라 사라지는 동안 이 순서로 바뀐다)
+	glow     연기가 스스로 빛날지 (false면 탁한 연기)
+	rate     초당 나오는 개수
+	light    주변을 밝히는 빛 { 색, 거리, 밝기 } (없으면 빛 없음)
+	tag      빛 색을 클라이언트가 계속 바꿀 때 태그 (TraitAnimator와 같은 이름)
+]]
+local RAINBOW = {
+	Color3.fromRGB(255, 90, 90),
+	Color3.fromRGB(255, 170, 60),
+	Color3.fromRGB(255, 230, 80),
+	Color3.fromRGB(90, 255, 140),
+	Color3.fromRGB(90, 170, 255),
+	Color3.fromRGB(200, 100, 255),
+}
+local AURORA = {
+	Color3.fromRGB(120, 255, 200),
+	Color3.fromRGB(90, 200, 255),
+	Color3.fromRGB(120, 130, 255),
+	Color3.fromRGB(200, 120, 255),
+}
+
+local EFFECTS = {
+	-- 반짝이: 반짝이는 별가루
+	Sparkle = {
+		kind = "sparkle",
+		colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 240, 160) },
+		rate = 8,
+		light = { Color3.fromRGB(255, 245, 210), 5, 0.4 },
+	},
+	-- 눈꽃: 떨어지는 눈송이
+	Frost = {
+		kind = "snow",
+		colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(180, 225, 255) },
+		rate = 6,
+		light = { Color3.fromRGB(170, 220, 255), 5, 0.5 },
+	},
+	-- 황금: 금빛 별가루
+	Gold = {
+		kind = "sparkle",
+		colors = { Color3.fromRGB(255, 240, 160), Color3.fromRGB(255, 185, 40) },
+		rate = 10,
+		light = { Color3.fromRGB(255, 210, 120), 6, 0.7 },
+	},
+	-- 무지개: 무지개색 연기
+	Rainbow = {
+		kind = "smoke",
+		colors = RAINBOW,
+		glow = true,
+		rate = 5,
+		light = { Color3.fromRGB(255, 120, 200), 8, 0.8 },
+		tag = "TraitRainbow",
+	},
+	-- 오로라: 초록·파랑·보라 오로라색 연기
+	Aurora = {
+		kind = "smoke",
+		colors = AURORA,
+		glow = true,
+		rate = 5,
+		light = { Color3.fromRGB(120, 255, 200), 10, 1 },
+		tag = "TraitAurora",
+	},
+	-- 스모그: 회색 연기
+	Smoge = {
+		kind = "smoke",
+		colors = { Color3.fromRGB(165, 165, 170), Color3.fromRGB(85, 85, 90) },
+		glow = false,
+		rate = 4,
+	},
+}
 
 local function gradient(colors: { Color3 }): ColorSequence
 	if #colors == 1 then
@@ -20,55 +93,54 @@ local function gradient(colors: { Color3 }): ColorSequence
 	return ColorSequence.new(keypoints)
 end
 
---[[
-	특성별 분위기
-	colors   안개 색 그라데이션 (피어올라 사라지는 동안 이 순서로 바뀐다)
-	glow     true면 빛나는 안개, false면 연기처럼 탁한 안개
-	light    주변을 밝히는 빛 { 색, 거리, 밝기 } (없으면 빛 없음)
-	sparkle  반짝이 가루도 조금 섞을지
-	tag      빛 색을 클라이언트가 계속 바꿀 때 태그 (TraitAnimator와 같은 이름)
-]]
-local AURAS = {
-	Sparkle = {
-		colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 240, 170) },
-		glow = true,
-		light = { Color3.fromRGB(255, 245, 200), 5, 0.5 },
-		sparkle = true,
-	},
-	Frost = {
-		colors = { Color3.fromRGB(240, 250, 255), Color3.fromRGB(150, 210, 255) },
-		glow = true,
-		light = { Color3.fromRGB(170, 220, 255), 6, 0.6 },
-	},
-	Gold = {
-		colors = { Color3.fromRGB(255, 235, 150), Color3.fromRGB(255, 180, 40) },
-		glow = true,
-		light = { Color3.fromRGB(255, 210, 120), 7, 0.8 },
-		sparkle = true,
-	},
-	Rainbow = {
-		colors = {
-			Color3.fromRGB(255, 90, 90),
-			Color3.fromRGB(255, 220, 80),
-			Color3.fromRGB(90, 255, 140),
-			Color3.fromRGB(90, 170, 255),
-			Color3.fromRGB(200, 100, 255),
-		},
-		glow = true,
-		light = { Color3.fromRGB(255, 120, 200), 8, 0.9 },
-		tag = "TraitRainbow",
-	},
-	Aurora = {
-		colors = { Color3.fromRGB(120, 255, 200), Color3.fromRGB(90, 170, 255), Color3.fromRGB(190, 120, 255) },
-		glow = true,
-		light = { Color3.fromRGB(120, 255, 200), 10, 1 },
-		tag = "TraitAurora",
-	},
-	Smoge = {
-		colors = { Color3.fromRGB(160, 160, 165), Color3.fromRGB(80, 80, 85) },
-		glow = false,
-	},
-}
+-- radius: 장식 크기의 절반 (파티클 크기를 장식에 맞춘다)
+local function makeEmitter(spec, radius: number): ParticleEmitter
+	local e = Instance.new("ParticleEmitter")
+	e.Name = "TraitParticles"
+	e.Color = gradient(spec.colors)
+	e.Rate = spec.rate
+	e.Rotation = NumberRange.new(0, 360)
+	e.SpreadAngle = Vector2.new(180, 180)
+
+	if spec.kind == "sparkle" then
+		e.Texture = SPARKLE_TEXTURE
+		e.LightEmission = 1
+		e.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.3, radius * 0.45),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		e.Lifetime = NumberRange.new(0.5, 1)
+		e.Speed = NumberRange.new(radius * 0.6, radius * 1.4)
+		e.Drag = 3
+		e.RotSpeed = NumberRange.new(-90, 90)
+	elseif spec.kind == "snow" then
+		e.Texture = SPARKLE_TEXTURE
+		e.LightEmission = 0.5
+		e.Size = NumberSequence.new(radius * 0.25, radius * 0.15)
+		e.Transparency = NumberSequence.new(0, 1)
+		e.Lifetime = NumberRange.new(1.5, 2.5)
+		e.Speed = NumberRange.new(radius * 0.3, radius * 0.6)
+		e.Acceleration = Vector3.new(0, -radius * 1.2, 0)
+		e.Drag = 1
+		e.RotSpeed = NumberRange.new(-40, 40)
+	else -- smoke
+		e.Texture = SMOKE_TEXTURE
+		e.LightEmission = if spec.glow then 0.8 else 0
+		e.Size = NumberSequence.new(radius * 0.7, radius * 1.8)
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 1),
+			NumberSequenceKeypoint.new(0.2, if spec.glow then 0.45 else 0.4),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Lifetime = NumberRange.new(1.8, 2.6)
+		e.Speed = NumberRange.new(radius * 0.3, radius * 0.6)
+		e.Acceleration = Vector3.new(0, radius * 0.8, 0)
+		e.RotSpeed = NumberRange.new(-25, 25)
+		e.ZOffset = -0.5 -- 장식을 너무 가리지 않게 뒤쪽에
+	end
+	return e
+end
 
 local function partsOf(target: Instance): { BasePart }
 	local parts = {}
@@ -101,15 +173,15 @@ local function mainPart(target: Instance, parts: { BasePart }): BasePart?
 	return best
 end
 
--- target: 장식 파츠나 모델. 분위기는 장식마다 한 파츠에만 붙는다
+-- target: 장식 파츠나 모델. 효과는 장식마다 한 파츠에만 붙는다
 -- withAura가 false면 아무것도 붙이지 않는다 (띠 전구처럼 파츠가 많을 때 몇 개만 붙이려고)
 function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 	local effect = trait and trait.effect
 	if not effect or withAura == false then
 		return
 	end
-	local aura = AURAS[effect]
-	if not aura then
+	local spec = EFFECTS[effect]
+	if not spec then
 		warn("[TraitEffects] 모르는 특성 효과입니다:", effect)
 		return
 	end
@@ -118,7 +190,7 @@ function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 		return
 	end
 
-	-- 장식을 감싸는 크기: 모델이면 모델 전체 크기에 맞춘다
+	-- 장식 크기: 모델이면 모델 전체 크기에 맞춘다
 	local size = part.Size
 	if target:IsA("Model") then
 		local _, boxSize = target:GetBoundingBox()
@@ -126,53 +198,17 @@ function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 	end
 	local radius = math.max(size.X, size.Y, size.Z) / 2
 
-	local haze = Instance.new("ParticleEmitter")
-	haze.Name = "TraitAura"
-	haze.Texture = GLOW_TEXTURE
-	haze.Color = gradient(aura.colors)
-	haze.LightEmission = if aura.glow then 1 else 0
-	haze.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, radius * 1.2),
-		NumberSequenceKeypoint.new(1, radius * 2.2),
-	})
-	haze.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.3, if aura.glow then 0.7 else 0.55),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	haze.Lifetime = NumberRange.new(1.8, 2.6)
-	haze.Rate = 3
-	haze.Speed = NumberRange.new(0.2, 0.5)
-	haze.SpreadAngle = Vector2.new(180, 180)
-	haze.Acceleration = Vector3.new(0, 0.6, 0)
-	haze.Rotation = NumberRange.new(0, 360)
-	haze.RotSpeed = NumberRange.new(-20, 20)
-	haze.ZOffset = -1 -- 장식 뒤쪽에 깔리게
-	haze.Parent = part
+	makeEmitter(spec, radius).Parent = part
 
-	if aura.sparkle then
-		local sparkle = Instance.new("ParticleEmitter")
-		sparkle.Name = "TraitSparkle"
-		sparkle.Texture = SPARKLE_TEXTURE
-		sparkle.Color = gradient(aura.colors)
-		sparkle.LightEmission = 1
-		sparkle.Size = NumberSequence.new(radius * 0.25, 0)
-		sparkle.Lifetime = NumberRange.new(0.5, 0.9)
-		sparkle.Rate = 3
-		sparkle.Speed = NumberRange.new(0.4, 0.8)
-		sparkle.SpreadAngle = Vector2.new(180, 180)
-		sparkle.Parent = part
-	end
-
-	if aura.light then
+	if spec.light then
 		local light = Instance.new("PointLight")
 		light.Name = "TraitLight"
-		light.Color = aura.light[1]
-		light.Range = aura.light[2]
-		light.Brightness = aura.light[3]
+		light.Color = spec.light[1]
+		light.Range = spec.light[2]
+		light.Brightness = spec.light[3]
 		light.Parent = part
-		if aura.tag then
-			CollectionService:AddTag(light, aura.tag)
+		if spec.tag then
+			CollectionService:AddTag(light, spec.tag)
 		end
 	end
 end
