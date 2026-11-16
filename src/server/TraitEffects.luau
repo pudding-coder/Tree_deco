@@ -17,6 +17,7 @@ local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반
 	colors   파티클 색 (여러 개면 피어올라 사라지는 동안 이 순서로 바뀐다)
 	glow     연기가 스스로 빛날지 (false면 탁한 연기)
 	rate     초당 나오는 개수
+	spread   (선택) 퍼지는 범위·파티클 크기 배수. 기본 1, 2.5면 2.5배 넓고 크게
 	light    주변을 밝히는 빛 { 색, 거리, 밝기 } (없으면 빛 없음)
 	tag      빛 색을 클라이언트가 계속 바꿀 때 태그 (TraitAnimator와 같은 이름)
 ]]
@@ -40,8 +41,9 @@ local EFFECTS = {
 	Sparkle = {
 		kind = "sparkle",
 		colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 240, 160) },
-		rate = 8,
-		light = { Color3.fromRGB(255, 245, 210), 5, 0.4 },
+		rate = 16,
+		spread = 2.5,
+		light = { Color3.fromRGB(255, 245, 210), 9, 0.6 },
 	},
 	-- 눈꽃: 떨어지는 눈송이
 	Frost = {
@@ -54,8 +56,9 @@ local EFFECTS = {
 	Gold = {
 		kind = "sparkle",
 		colors = { Color3.fromRGB(255, 240, 160), Color3.fromRGB(255, 185, 40) },
-		rate = 10,
-		light = { Color3.fromRGB(255, 210, 120), 6, 0.7 },
+		rate = 20,
+		spread = 2.5,
+		light = { Color3.fromRGB(255, 210, 120), 10, 1 },
 	},
 	-- 무지개: 크게 반짝이는 Sparkles, 색이 무지개로 계속 바뀐다
 	Rainbow = {
@@ -78,7 +81,8 @@ local EFFECTS = {
 		kind = "smoke",
 		colors = { Color3.fromRGB(165, 165, 170), Color3.fromRGB(85, 85, 90) },
 		glow = false,
-		rate = 4,
+		rate = 7,
+		spread = 2.5,
 	},
 }
 
@@ -146,6 +150,7 @@ end
 
 -- radius: 장식 크기의 절반 (파티클 크기를 장식에 맞춘다)
 local function makeEmitter(spec, radius: number): ParticleEmitter
+	local k = spec.spread or 1 -- 범위 배수
 	local e = Instance.new("ParticleEmitter")
 	e.Name = "TraitParticles"
 	e.Color = gradient(spec.colors)
@@ -158,11 +163,11 @@ local function makeEmitter(spec, radius: number): ParticleEmitter
 		e.LightEmission = 1
 		e.Size = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0),
-			NumberSequenceKeypoint.new(0.3, radius * 0.45),
+			NumberSequenceKeypoint.new(0.3, radius * 0.45 * math.sqrt(k)),
 			NumberSequenceKeypoint.new(1, 0),
 		})
-		e.Lifetime = NumberRange.new(0.5, 1)
-		e.Speed = NumberRange.new(radius * 0.6, radius * 1.4)
+		e.Lifetime = NumberRange.new(0.6, 1.2)
+		e.Speed = NumberRange.new(radius * 0.6 * k, radius * 1.4 * k)
 		e.Drag = 3
 		e.RotSpeed = NumberRange.new(-90, 90)
 	elseif spec.kind == "snow" then
@@ -178,14 +183,14 @@ local function makeEmitter(spec, radius: number): ParticleEmitter
 	else -- smoke
 		e.Texture = SMOKE_TEXTURE
 		e.LightEmission = if spec.glow then 0.8 else 0
-		e.Size = NumberSequence.new(radius * 0.7, radius * 1.8)
+		e.Size = NumberSequence.new(radius * 0.7 * math.sqrt(k), radius * 1.8 * k)
 		e.Transparency = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 1),
 			NumberSequenceKeypoint.new(0.2, if spec.glow then 0.45 else 0.4),
 			NumberSequenceKeypoint.new(1, 1),
 		})
 		e.Lifetime = NumberRange.new(1.8, 2.6)
-		e.Speed = NumberRange.new(radius * 0.3, radius * 0.6)
+		e.Speed = NumberRange.new(radius * 0.3 * k, radius * 0.6 * k)
 		e.Acceleration = Vector3.new(0, radius * 0.8, 0)
 		e.RotSpeed = NumberRange.new(-25, 25)
 		e.ZOffset = -0.5 -- 장식을 너무 가리지 않게 뒤쪽에
