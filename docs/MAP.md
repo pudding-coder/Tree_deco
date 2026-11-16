@@ -29,13 +29,13 @@
 
 | 항목 | 크기 (스터드) |
 | --- | --- |
-| 트리 폭 (맨 아래층 지름) | 18 |
-| 트리 높이 (토퍼 포함) | 약 27 |
-| 이름표 높이 | 바닥에서 약 31 |
+| 트리 폭 (맨 아래층 지름) | 약 13 |
+| 트리 높이 (토퍼 포함) | 약 18 |
+| 이름표 높이 | 바닥에서 약 22 |
 | 띠 장식 | 트리 폭 안 |
 | 사람이 나타나는 곳 | 트리 앞 14 |
 
-- 트리끼리 **중심 간격 24 이상** 띄우면 겹치지 않는다. 사이로 사람이 지나가려면 30 이상.
+- 트리끼리 **중심 간격 18 이상** 띄우면 겹치지 않는다. 사이로 사람이 지나가려면 24 이상.
 - 트리 앞 14스터드 안에 부스·벽이 있으면 사람이 그 안에 끼일 수 있다. 앞쪽은 비워 둔다.
 - 트리 모양·크기를 바꾸고 싶으면 Claude에게 말한다 (`src/server/TreeService.luau`의 `LAYERS`).
 
@@ -45,12 +45,12 @@
 
 - 원본: `assets/models/ChristmasTree.fbx` (Blender 스크립트 `tools/blender/make_tree.py`로 만듦)
 - Studio에서 **Home → Import**로 불러온 뒤, 생긴 Model을 `ServerStorage`로 옮기고 이름을 `TreeTemplate`으로 바꾼다.
-- 트리는 **똑바로 선 모습**으로 두고, 피벗을 돌리지 않는다. 크기·위치는 아무래도 된다. 게임이 시작될 때 높이를 위 표의 트리 높이(토퍼 제외 24)에 맞추고 밑동을 자리 바닥 가운데에 세운다.
+- 트리는 **똑바로 선 모습**으로 두고, 피벗을 돌리지 않는다. 크기·위치는 아무래도 된다. 게임이 시작될 때 높이를 위 표의 트리 높이(토퍼 제외 16)에 맞추고 밑동을 자리 바닥 가운데에 세운다.
 - 장식은 모델 겉면에 맞춰 자동으로 붙는다. 위치를 직접 정하려면 아래 "장식 자리 직접 정하기"를 따른다.
   - 토퍼: 꼭대기 끝에 앉는다.
-  - 띠: 층마다 겉면을 **비스듬히** 한 바퀴 두르는 전구 줄이다 (`GARLAND_TIERS` 순서: 3층, 1층, 4층). 기울기는 `TreeService.luau`의 `GARLAND_TILT`.
-  - 오너먼트: 띠 3줄을 따라 매달려 사선으로 이어진다 (`ORNAMENT_SPOTS`에서 띠 번호와 각도). 띠를 안 걸어도 그 자리를 따른다.
-- 게임은 모델을 광선으로 재서 층을 찾는다. Play할 때 Output의 `[Tree] TreeTemplate을 씁니다 (... 층 N개 찾음 ...)`에서 N이 트리 층 수와 다르거나 띠가 떠 보이면, 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다.
+  - 띠: 층마다 겉면을 **비스듬히** 한 바퀴 두르는 전구 줄이다 (`GARLAND_TIERS` 순서: 4층, 2층, 5층). 기울기는 `TreeService.luau`의 `GARLAND_TILT`.
+  - 오너먼트: 띠 3줄을 따라 트리 둘레 360도에 고르게 매달려 사선으로 이어진다 (`ORNAMENT_SPOTS`에서 띠 번호와 각도). 띠를 안 걸어도 그 자리를 따른다.
+- 층마다 밖으로 보이는 경사면 높이는 `TreeService.luau`의 `TEMPLATE_TIER_BANDS`에 적혀 있다 (`assets/models/ChristmasTree.fbx`를 재서 정함). **트리 모델 모양을 바꾸면 Claude에게 다시 재 달라고 한다.** 띠가 떠 보이면 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다.
 - `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
 - 편집할 때는 `TreeTemplate`을 `Workspace`에 꺼내 둬도 된다. 게임이 시작되면 Workspace에 있는 원본은 자동으로 치워지고 트리 자리마다 복제된다.
 

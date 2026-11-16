@@ -31,35 +31,46 @@ local PLOT_RINGS = {
 	{ radius = 170, count = 16 },
 }
 local PLOT_SIZE = 36
-local TRUNK_HEIGHT = 4
--- 트리 몸통: 아래층부터 { 반지름, 높이 }
+local TRUNK_HEIGHT = 2.7
+-- 트리 몸통(원기둥 트리): 아래층부터 { 반지름, 높이 }. 트리 높이(토퍼 제외) = TRUNK_HEIGHT + 층 높이 합 = 16
+-- TreeTemplate도 이 높이에 맞춰 크기가 조절된다
 local LAYERS = {
-	{ radius = 9, height = 5 },
-	{ radius = 7.5, height = 4.5 },
-	{ radius = 6, height = 4 },
-	{ radius = 4.5, height = 3.5 },
-	{ radius = 3, height = 3 },
+	{ radius = 6, height = 3.3 },
+	{ radius = 5, height = 3 },
+	{ radius = 4, height = 2.7 },
+	{ radius = 3, height = 2.3 },
+	{ radius = 2, height = 2 },
+}
+-- TreeTemplate에서 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (트리 높이 대비 비율, 아래층부터)
+-- assets/models/ChristmasTree.fbx를 재서 정했다. 층이 서로 겹쳐서 아래층일수록 보이는 부분이 좁다
+-- 트리 모델을 바꾸면 다시 재야 한다
+local TEMPLATE_TIER_BANDS = {
+	{ 0.16, 0.24 },
+	{ 0.27, 0.38 },
+	{ 0.42, 0.52 },
+	{ 0.54, 0.66 },
+	{ 0.70, 0.86 },
 }
 -- 오너먼트 자리: 어느 띠를 따라 걸지(띠 번호)와 각도(0 = 광장 쪽 정면, 도 단위)
 -- 띠가 비스듬하므로 같은 띠의 오너먼트는 사선으로 이어진다. 띠를 안 걸어도 그 자리를 따른다
--- 장식은 1번 자리부터 채워지므로, 몇 개만 걸어도 트리 전체에 퍼지게 섞어 둔다
+-- 트리 둘레 360도에 고르게 퍼져 있고, 1번 자리부터 채워지므로 몇 개만 걸어도 퍼지게 순서를 섞어 둔다
 local ORNAMENT_SPOTS = {
 	{ garland = 1, angle = 0 },
-	{ garland = 2, angle = -40 },
-	{ garland = 3, angle = 30 },
-	{ garland = 2, angle = 40 },
-	{ garland = 1, angle = -60 },
-	{ garland = 1, angle = 60 },
-	{ garland = 3, angle = -45 },
-	{ garland = 2, angle = -85 },
-	{ garland = 2, angle = 85 },
-	{ garland = 2, angle = 0 },
+	{ garland = 2, angle = -45 },
+	{ garland = 3, angle = 60 },
+	{ garland = 2, angle = 45 },
+	{ garland = 1, angle = -90 },
+	{ garland = 1, angle = 90 },
+	{ garland = 2, angle = 135 },
+	{ garland = 2, angle = -135 },
+	{ garland = 1, angle = 180 },
+	{ garland = 3, angle = -120 },
 }
-local ORNAMENT_DROP = 0.5 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
--- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다
-local GARLAND_TIERS = { 3, 1, 4, 2 }
+local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
+-- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
+local GARLAND_TIERS = { 4, 2, 5, 3 }
 local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
-local GARLAND_TILT = 0.3 -- 띠 기울기: 층 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
+local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
@@ -154,22 +165,17 @@ local function slotOffset(area: string, index: number): CFrame
 end
 
 -- 띠 자리마다 트리 겉면을 비스듬히 한 바퀴 도는 점을 만들고, 오너먼트를 띠와 나란히 놓는다
--- rims: 층마다 가장 넓은 곳의 높이(아래층부터), topY: 꼭대기 높이
+-- bands: 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (스터드, 아래층부터)
 -- surfaceRadius(각도, 높이): 그 높이에서 트리 겉면까지 거리 (없으면 nil)
-local function buildSlotPositions(rims: { number }, topY: number, surfaceRadius: (number, number) -> number?)
+local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number, number) -> number?)
 	local count = AREA_CAPACITY.Garland
-	local tierCount = #rims
 	local garlandTilts = {} -- [띠 자리] = 기울기 (스터드)
-	local function tierRange(tier: number): (number, number)
-		local bottom = rims[tier]
-		local top = rims[tier + 1] or topY
-		return bottom, top - bottom
-	end
 	for i = 1, count do
-		-- GARLAND_TIERS 순서대로. 맨 위층은 작아서 띠를 걸지 않는다
-		local tier = math.clamp(GARLAND_TIERS[i] or i, 1, math.max(tierCount - 1, 1))
-		local bottom, gap = tierRange(tier)
-		local center = bottom + gap * 0.4
+		-- 보이는 경사면 가운데를 비스듬히 두른다
+		local tier = math.clamp(GARLAND_TIERS[i] or i, 1, #bands)
+		local bottom, top = bands[tier][1], bands[tier][2]
+		local gap = top - bottom
+		local center = (bottom + top) / 2
 		local custom = customSlots.Garland[i]
 		if custom then
 			center = custom.Y
@@ -302,61 +308,18 @@ local function loadTreeTemplate()
 	local topHit = workspace:Raycast(Vector3.new(0, treeTop() + 50, 0), Vector3.new(0, -(treeTop() + 60), 0), params)
 	topperY = if topHit then topHit.Position.Y else treeTop()
 
-	-- 층 찾기: 높이별 평균 겉면 거리가 볼록하게 가장 넓은 곳이 각 층의 아래 테두리다
-	local STEP = 0.2
-	local heights, widths = {}, {}
-	local y = STEP
-	while y < topperY do
-		local total, count = 0, 0
-		for k = 0, 7 do
-			local r = surfaceRadius(k * 45 + 10, y)
-			if r then
-				total += r
-				count += 1
-			end
-		end
-		table.insert(heights, y)
-		table.insert(widths, if count > 0 then total / count else 0)
-		y += STEP
+	local bands = {}
+	for _, band in TEMPLATE_TIER_BANDS do
+		table.insert(bands, { band[1] * treeTop(), band[2] * treeTop() })
 	end
-	-- 가장 넓은 층의 1/3보다 좁은 곳은 층이 아니다 (밑동 아래가 퍼진 부분을 층으로 착각하지 않게)
-	local widest = 0
-	for _, w in widths do
-		widest = math.max(widest, w)
-	end
-	local rims = {}
-	for j = 2, #widths - 1 do
-		if widths[j] < widest / 3 then
-			continue
-		end
-		-- 위로 1.4스터드 안에서 0.5 이상 좁아져야 진짜 테두리다 (경사면의 작은 울퉁불퉁은 뺀다)
-		local lowest = widths[j]
-		for m = j + 1, math.min(j + 7, #widths) do
-			lowest = math.min(lowest, widths[m])
-		end
-		local prominent = widths[j] - lowest > 0.5
-		if prominent and widths[j] > widths[j - 1] and widths[j] >= widths[j + 1] then
-			-- 물결 때문에 바로 붙어 생긴 봉우리는 하나로 친다
-			if #rims == 0 or heights[j] - rims[#rims] > 1 then
-				table.insert(rims, heights[j])
-			end
-		end
-	end
-	if #rims < 2 then
-		rims = {}
-		for i = 1, #LAYERS do
-			table.insert(rims, layerBottom(i))
-		end
-	end
-	buildSlotPositions(rims, topperY, surfaceRadius)
+	buildSlotPositions(bands, surfaceRadius)
 	model.Parent = nil
 
 	treeTemplate = model
 	print(string.format(
-		"[Tree] TreeTemplate을 씁니다 (파츠 %d개, 오너먼트 자리 %d곳 맞춤, 층 %d개 찾음, 꼭대기 높이 %.1f)",
+		"[Tree] TreeTemplate을 씁니다 (파츠 %d개, 오너먼트 자리 %d곳 맞춤, 꼭대기 높이 %.1f)",
 		#parts,
 		#ornamentPoints,
-		#rims,
 		topperY
 	))
 end
@@ -649,7 +612,7 @@ local function renderEntry(plot, entry)
 		end
 		holder.Parent = plot.decorations
 	else
-		local size = if entry.a == "Topper" then 3 else 1.8
+		local size = if entry.a == "Topper" then 2.4 else 1.4
 		local part = newPart({
 			Name = deco.id,
 			Shape = Enum.PartType.Ball,
@@ -933,11 +896,11 @@ function TreeService.Init()
 	loadMapSpots()
 	loadTreeTemplate()
 	if not treeTemplate then
-		local rims = {}
-		for i = 1, #LAYERS do
-			table.insert(rims, layerBottom(i))
+		local bands = {}
+		for i, layer in LAYERS do
+			table.insert(bands, { layerBottom(i), layerBottom(i) + layer.height })
 		end
-		buildSlotPositions(rims, treeTop(), cylinderSurfaceRadius)
+		buildSlotPositions(bands, cylinderSurfaceRadius)
 	end
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
