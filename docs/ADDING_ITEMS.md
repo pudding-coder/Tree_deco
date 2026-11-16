@@ -6,6 +6,7 @@
 | --- | --- |
 | 장식 (빨간 공, 키캡 키링 …) | `src/shared/Catalog/Decorations.luau` |
 | 특성 (반짝이, 황금 …) | `src/shared/Catalog/Traits.luau` |
+| 몸통 색 (빨간, 남색 …) | `src/shared/Catalog/Colors.luau` (`id`는 장식과 같은 규칙: 바꾸거나 지우지 말고 `retired`) |
 
 적은 내용은 게임이 시작될 때 자동으로 검사된다. 잘못 적으면 Studio Output에 **어느 줄이 왜 틀렸는지** 빨간 글씨로 나온다.
 

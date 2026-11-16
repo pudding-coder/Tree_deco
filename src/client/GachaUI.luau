@@ -52,20 +52,29 @@ local ui = {}
 -- 장식 정보 헬퍼
 ----------------------------------------------------------------
 
--- "반짝이 빨간 공" (기본 특성이면 장식 이름만)
-local function itemName(deco, trait): string
-	if trait == Catalog.BaseTrait then
+-- 몸통 색을 붙인 장식 이름: "남색 양말" (색을 모르면 장식 이름만)
+local function decoName(deco, color): string
+	if not color then
 		return deco.name
 	end
-	return trait.name .. " " .. deco.name
+	return color.name .. " " .. deco.name
+end
+
+-- "반짝이 남색 양말" (기본 특성이면 특성 이름은 빼고)
+local function itemName(deco, trait, color): string
+	if trait == Catalog.BaseTrait then
+		return decoName(deco, color)
+	end
+	return trait.name .. " " .. decoName(deco, color)
 end
 
 local function stackInfo(stack)
-	return Catalog.DecorationById[stack.d], Catalog.TraitById[stack.t]
+	return Catalog.DecorationById[stack.d], Catalog.TraitById[stack.t], Catalog.ColorById[stack.col]
 end
 
+-- 서버 PlayerData.StackKey와 같은 모양이어야 한다
 local function stackKey(stack): string
-	return stack.d .. ":" .. stack.t
+	return stack.d .. ":" .. stack.t .. ":" .. tostring(stack.col)
 end
 
 local function stackSellPrice(stack): number
@@ -933,8 +942,8 @@ end
 local function sortedStacks()
 	local list = table.clone(state.stacks)
 	table.sort(list, function(a, b)
-		local decoA, traitA = stackInfo(a)
-		local decoB, traitB = stackInfo(b)
+		local decoA, traitA, colorA = stackInfo(a)
+		local decoB, traitB, colorB = stackInfo(b)
 		if decoA.rarity ~= decoB.rarity then
 			return decoA.rarity > decoB.rarity
 		end
@@ -943,7 +952,7 @@ local function sortedStacks()
 		if valueA ~= valueB then
 			return valueA > valueB
 		end
-		return itemName(decoA, traitA) < itemName(decoB, traitB)
+		return itemName(decoA, traitA, colorA) < itemName(decoB, traitB, colorB)
 	end)
 	return list
 end
@@ -1023,10 +1032,10 @@ local function refreshSellButtons()
 		ui.detailPlace.Visible = false
 		return
 	end
-	local deco, trait = stackInfo(stack)
+	local deco, trait, color = stackInfo(stack)
 	local r = Rarity.List[deco.rarity]
 	local value = Gacha.GetItemValue(deco.rarity, trait.mult)
-	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait), Gacha.FormatNumber(stack.c))
+	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait, color), Gacha.FormatNumber(stack.c))
 	ui.detailName.TextColor3 = r.color
 	ui.detailInfo.Text = string.format(
 		"%s · %s · 가치 %s코인 · 1개 판매 %s코인",
@@ -1050,7 +1059,7 @@ local function refreshSellButtons()
 end
 
 local function makeCell(stack, order: number)
-	local deco, trait = stackInfo(stack)
+	local deco, trait, color = stackInfo(stack)
 	local r = Rarity.List[deco.rarity]
 	local key = stackKey(stack)
 	local selected = key == selectedKey
@@ -1094,7 +1103,7 @@ local function makeCell(stack, order: number)
 		})
 	end
 	scaledLabel({
-		Text = deco.name,
+		Text = decoName(deco, color),
 		TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
 		Size = UDim2.new(1, -10, 0, 44),
 		Position = UDim2.fromOffset(5, 24),
@@ -1267,10 +1276,11 @@ local function refreshTree()
 			local entry = treeEntry(area.id, index)
 			local deco = entry and Catalog.DecorationById[entry.d]
 			local trait = entry and Catalog.TraitById[entry.t]
+			local mainColor = entry and Catalog.ColorById[entry.col]
 			local selected = selectedSlot ~= nil and selectedSlot.area == area.id and selectedSlot.index == index
 			if deco and trait then
 				local color = Rarity.List[deco.rarity].color
-				cell.name.Text = deco.name
+				cell.name.Text = decoName(deco, mainColor)
 				cell.name.TextColor3 = color
 				cell.trait.Text = if trait == Catalog.BaseTrait then "" else trait.name
 				cell.trait.TextColor3 = traitColor(trait)
@@ -1294,7 +1304,7 @@ local function refreshTree()
 		local r = Rarity.List[deco.rarity]
 		ui.treeDetail.Text = string.format(
 			"%s [%s] 가치 %s코인",
-			itemName(deco, trait),
+			itemName(deco, trait, Catalog.ColorById[entry.col]),
 			r.name,
 			Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, trait.mult))
 		)
@@ -1483,7 +1493,7 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 	end
 end
 
-local function playResultEffect(rarityIndex: number, deco, trait)
+local function playResultEffect(rarityIndex: number, deco, trait, color)
 	local r = Rarity.List[rarityIndex]
 	local probs = Gacha.GetProbabilities(state.luck)
 	local value = Gacha.GetItemValue(rarityIndex, trait.mult)
@@ -1507,7 +1517,7 @@ local function playResultEffect(rarityIndex: number, deco, trait)
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
 	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait), r.name), r.color)
+		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait, color), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
@@ -1557,6 +1567,7 @@ local function spin(kind: string)
 
 	local deco = Catalog.DecorationById[result.decoId]
 	local trait = Catalog.TraitById[result.traitId]
+	local color = Catalog.ColorById[result.colorId]
 
 	-- 쓴 코인과 쿨타임은 바로, 가방과 자동 판매 코인은 슬롯이 멈춘 뒤에 반영
 	state.coins = result.coinsAfterCost
@@ -1565,7 +1576,7 @@ local function spin(kind: string)
 
 	playReel(result.rarity, deco, trait, result.reelTime)
 	applyState(result.state)
-	playResultEffect(result.rarity, deco, trait)
+	playResultEffect(result.rarity, deco, trait, color)
 	if result.autoSold then
 		ui.reelSub.Text = string.format("자동 판매 +%s코인", Gacha.FormatNumber(result.saleCoins))
 	end
@@ -1763,7 +1774,7 @@ local function onAnnounce(data)
 			"%s %s님이 뽑았습니다: %s [%s] (%s)",
 			prefix,
 			tostring(data.playerName),
-			itemName(deco, trait),
+			itemName(deco, trait, Catalog.ColorById[data.colorId]),
 			r.name,
 			Gacha.FormatOdds(1 / r.n)
 		),

@@ -7,7 +7,6 @@ local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
-local Rarity = require(Shared:WaitForChild("Rarity"))
 local Gacha = require(Shared:WaitForChild("Gacha"))
 local Catalog = require(Shared:WaitForChild("Catalog"))
 local Remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -486,44 +485,71 @@ end
 local rainbowParts = {} -- 무지개 특성 파츠 (색을 계속 바꾼다)
 
 -- 특성 효과: Traits.luau의 effect 이름으로 정한다
-local function applyTrait(part: BasePart, trait)
+-- extras가 false면 반짝임·빛은 붙이지 않고 색·재질만 바꾼다 (Main 파츠가 여러 개일 때 첫 파츠에만 붙이려고)
+local function applyTrait(part: BasePart, trait, extras: boolean)
 	local effect = trait.effect
 	if effect == "Sparkle" then
-		Instance.new("Sparkles").Parent = part
+		if extras then
+			Instance.new("Sparkles").Parent = part
+		end
 	elseif effect == "Frost" then
 		part.Material = Enum.Material.Ice
 		part.Color = part.Color:Lerp(Color3.new(1, 1, 1), 0.45)
 	elseif effect == "Gold" then
 		part.Color = Color3.fromRGB(255, 200, 40)
 		part.Material = Enum.Material.Metal
-		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
-		sparkles.Parent = part
+		if extras then
+			local sparkles = Instance.new("Sparkles")
+			sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
+			sparkles.Parent = part
+		end
 	elseif effect == "Rainbow" then
 		part.Material = Enum.Material.Neon
 		table.insert(rainbowParts, part)
 	elseif effect == "Aurora" then
 		part.Material = Enum.Material.Neon
 		part.Color = Color3.fromRGB(120, 255, 200)
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(120, 255, 200)
-		light.Range = 10
-		light.Parent = part
-		Instance.new("Sparkles").Parent = part
+		if extras then
+			local light = Instance.new("PointLight")
+			light.Color = Color3.fromRGB(120, 255, 200)
+			light.Range = 10
+			light.Parent = part
+			Instance.new("Sparkles").Parent = part
+		end
 	end
 end
 
-local function decorateLook(part: BasePart, deco, trait)
-	local r = Rarity.List[deco.rarity]
-	part.Color = r.color
-	part.Material = if deco.rarity >= 4 then Enum.Material.Neon else Enum.Material.SmoothPlastic
-	if deco.rarity >= 5 then
-		local light = Instance.new("PointLight")
-		light.Color = r.color
-		light.Range = 8
-		light.Parent = part
+-- 장식의 몸통 색 (Colors.luau). 모르는 색이면 첫 번째 색
+local function mainColor(entry): Color3
+	local color = Catalog.ColorById[entry.col]
+	return if color then color.color else Catalog.Colors[1].color
+end
+
+-- 임시 공 모양: 몸통 색 + 특성 효과
+local function decorateLook(part: BasePart, color: Color3, trait)
+	part.Color = color
+	part.Material = Enum.Material.SmoothPlastic
+	applyTrait(part, trait, true)
+end
+
+-- Studio 모델: 이름이 Main으로 시작하는 파츠에만 몸통 색 + 특성 효과를 입힌다.
+-- Trim·Accent 파츠는 Studio에서 칠한 그대로 둔다. (docs/ASSET_RULES.md)
+local warnedNoMain = {}
+local function paintModel(model: Instance, color: Color3, trait)
+	local parts = model:GetDescendants()
+	table.insert(parts, model)
+	local first = true
+	for _, part in parts do
+		if part:IsA("BasePart") and string.sub(part.Name, 1, 4) == "Main" then
+			part.Color = color
+			applyTrait(part, trait, first)
+			first = false
+		end
 	end
-	applyTrait(part, trait)
+	if first and not warnedNoMain[model.Name] then
+		warnedNoMain[model.Name] = true
+		warn("[Tree] 장식 모델에 Main 파츠가 없어 색과 특성을 입히지 못했습니다:", model.Name)
+	end
 end
 
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
@@ -559,8 +585,10 @@ local function renderEntry(plot, entry)
 	end
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
 
+	local color = mainColor(entry)
 	local model = cloneModel(deco)
 	if model then
+		paintModel(model, color, trait)
 		model:PivotTo(cf)
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
@@ -592,7 +620,7 @@ local function renderEntry(plot, entry)
 				CastShadow = false,
 				Parent = holder,
 			})
-			decorateLook(ball, deco, trait)
+			decorateLook(ball, color, trait)
 
 			local nextPoint = points[k % GARLAND_BALLS + 1]
 			if nextPoint then
@@ -622,7 +650,7 @@ local function renderEntry(plot, entry)
 			CanCollide = false,
 			Parent = plot.decorations,
 		})
-		decorateLook(part, deco, trait)
+		decorateLook(part, color, trait)
 		if entry.a == "Topper" then
 			part.Material = Enum.Material.Neon
 		end
@@ -846,7 +874,7 @@ local function onPlace(player: Player, key: any)
 
 	stack.c -= 1
 	PlayerData.RemoveEmptyStacks(profile)
-	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t })
+	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, col = stack.col })
 	render(player)
 
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
@@ -867,7 +895,7 @@ local function onRemove(player: Player, area: any, index: any)
 	end
 
 	-- 가방에 같은 칸이 없으면 새 칸이 필요하다
-	local key = PlayerData.StackKey(entry.d, entry.t)
+	local key = PlayerData.StackKey(entry.d, entry.t, entry.col)
 	local existing = PlayerData.FindStack(profile, key)
 	if not existing and PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
 		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주세요")
@@ -879,9 +907,9 @@ local function onRemove(player: Player, area: any, index: any)
 	if existing then
 		existing.c += 1
 	elseif deco and trait then
-		PlayerData.AddItem(profile, deco, trait, 1)
+		PlayerData.AddItem(profile, deco, trait, entry.col, 1)
 	else
-		table.insert(profile.stacks, { d = entry.d, t = entry.t, c = 1, l = false })
+		table.insert(profile.stacks, { d = entry.d, t = entry.t, col = entry.col, c = 1, l = false })
 	end
 	render(player)
 

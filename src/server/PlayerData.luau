@@ -13,7 +13,7 @@ local Gacha = require(Shared:WaitForChild("Gacha"))
 local PlayerData = {}
 
 local STORE_NAME = "PlayerData_v1"
-local DATA_VERSION = 2 -- 2: 가방이 등급별 개수에서 장식·특성 칸 목록으로 바뀜
+local DATA_VERSION = 3 -- 2: 가방이 등급별 개수에서 장식·특성 칸 목록으로 바뀜. 3: 칸과 트리에 몸통 색(col) 추가
 local AUTOSAVE_INTERVAL = 60 -- 초
 local MAX_RETRIES = 3
 local SHUTDOWN_SAVE_TIMEOUT = 25 -- 서버가 꺼질 때 저장을 기다리는 최대 시간(초)
@@ -33,6 +33,8 @@ do
 	end
 end
 
+local rng = Random.new()
+
 local profiles = {} -- [Player] = profile (불러오기가 끝난 플레이어만 들어 있다)
 local pendingSaves = 0
 
@@ -45,14 +47,14 @@ local function newProfile()
 		coins = if IS_STUDIO then Config.STUDIO_START_COINS else Config.START_COINS,
 		luckLevel = 0,
 		speedLevel = 0,
-		-- 가방 칸 목록. 장식과 특성이 같으면 한 칸에 쌓인다.
-		-- { d = 장식 id, t = 특성 id, c = 개수, l = 잠금 여부 }
+		-- 가방 칸 목록. 장식·특성·색이 모두 같으면 한 칸에 쌓인다.
+		-- { d = 장식 id, t = 특성 id, col = 색 id, c = 개수, l = 잠금 여부 }
 		-- 카탈로그에 없는 id(지워졌거나 바뀐 장식)는 지우지 않고 보관만 한다. 화면·칸 수·판매에서 빠진다.
 		stacks = {},
 		bagCapacity = Config.BAG_BASE_SLOTS,
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
 		potionEndsAt = 0, -- 물약이 끝나는 서버 시각. 저장할 때는 남은 시간(초)으로 바꾼다 (접속 중에만 줄어듦)
-		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id }
+		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id, col = 색 id }
 		tree = {},
 		votes = 0, -- 누적으로 받은 투표 수 (투표 기능 전까지 0)
 
@@ -68,7 +70,7 @@ end
 local function copyStacks(stacks)
 	local copy = table.create(#stacks)
 	for i, stack in stacks do
-		copy[i] = { d = stack.d, t = stack.t, c = stack.c, l = stack.l }
+		copy[i] = { d = stack.d, t = stack.t, col = stack.col, c = stack.c, l = stack.l }
 	end
 	return copy
 end
@@ -76,7 +78,7 @@ end
 local function copyTree(tree)
 	local copy = table.create(#tree)
 	for i, entry in tree do
-		copy[i] = { a = entry.a, i = entry.i, d = entry.d, t = entry.t }
+		copy[i] = { a = entry.a, i = entry.i, d = entry.d, t = entry.t, col = entry.col }
 	end
 	return copy
 end
@@ -112,8 +114,16 @@ local function readInt(value, min: number, max: number, default: number): number
 	return math.clamp(math.floor(value), min, max)
 end
 
-local function stackKey(decoId: string, traitId: string): string
-	return decoId .. ":" .. traitId
+local function stackKey(decoId: string, traitId: string, colorId: string): string
+	return decoId .. ":" .. traitId .. ":" .. colorId
+end
+
+-- 저장된 색 id를 읽는다. 버전 2 데이터처럼 색이 없으면 하나를 뽑아 준다 (한 번 저장되면 그대로 유지)
+local function readColorId(value): string
+	if type(value) == "string" and value ~= "" then
+		return value
+	end
+	return Catalog.RollColor(rng).id
 end
 
 -- 저장된 값을 검사해서 프로필로 만든다. 없는 값은 기본값으로 채운다.
@@ -143,9 +153,9 @@ local function reconcile(saved)
 			local slotKey = tostring(entry.a) .. ":" .. index
 			if capacity and index >= 1 and index <= capacity and not used[slotKey] then
 				used[slotKey] = true
-				table.insert(profile.tree, { a = entry.a, i = index, d = entry.d, t = entry.t })
+				table.insert(profile.tree, { a = entry.a, i = index, d = entry.d, t = entry.t, col = readColorId(entry.col) })
 			else
-				table.insert(overflow, entry)
+				table.insert(overflow, { d = entry.d, t = entry.t, col = readColorId(entry.col) })
 			end
 		end
 	end
@@ -165,12 +175,13 @@ local function reconcile(saved)
 			if count <= 0 then
 				continue
 			end
-			local key = stackKey(stack.d, stack.t)
+			local colorId = readColorId(stack.col)
+			local key = stackKey(stack.d, stack.t, colorId)
 			local existing = byKey[key]
 			if existing then
 				existing.c += count -- 같은 칸이 두 번 저장돼 있으면 합친다
 			else
-				local entry = { d = stack.d, t = stack.t, c = count, l = stack.l == true }
+				local entry = { d = stack.d, t = stack.t, col = colorId, c = count, l = stack.l == true }
 				byKey[key] = entry
 				table.insert(profile.stacks, entry)
 			end
@@ -185,17 +196,17 @@ local function reconcile(saved)
 
 	-- 트리 자리에서 넘친 장식을 가방에 넣는다 (가방 칸 수를 넘어도 넣어서 잃어버리지 않게)
 	for _, entry in overflow do
-		local key = stackKey(entry.d, entry.t)
+		local key = stackKey(entry.d, entry.t, entry.col)
 		local merged = false
 		for _, stack in profile.stacks do
-			if stackKey(stack.d, stack.t) == key then
+			if stackKey(stack.d, stack.t, stack.col) == key then
 				stack.c += 1
 				merged = true
 				break
 			end
 		end
 		if not merged then
-			table.insert(profile.stacks, { d = entry.d, t = entry.t, c = 1, l = false })
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, col = entry.col, c = 1, l = false })
 		end
 	end
 	return profile
@@ -268,9 +279,11 @@ end
 
 PlayerData.StackKey = stackKey
 
--- 카탈로그에 있는 장식·특성인지 (없으면 보관만 하고 화면·칸 수·판매에서 뺀다)
+-- 카탈로그에 있는 장식·특성·색인지 (없으면 보관만 하고 화면·칸 수·판매에서 뺀다)
 function PlayerData.IsKnownStack(stack): boolean
-	return Catalog.DecorationById[stack.d] ~= nil and Catalog.TraitById[stack.t] ~= nil
+	return Catalog.DecorationById[stack.d] ~= nil
+		and Catalog.TraitById[stack.t] ~= nil
+		and Catalog.ColorById[stack.col] ~= nil
 end
 
 -- 가방에서 쓰고 있는 칸 수
@@ -286,7 +299,7 @@ end
 
 function PlayerData.FindStack(profile, key: string)
 	for _, stack in profile.stacks do
-		if stackKey(stack.d, stack.t) == key then
+		if stackKey(stack.d, stack.t, stack.col) == key then
 			return stack
 		end
 	end
@@ -294,13 +307,13 @@ function PlayerData.FindStack(profile, key: string)
 end
 
 -- 장식을 가방에 넣는다. 새 칸이면 레전더리 이상은 처음부터 잠근다.
-function PlayerData.AddItem(profile, deco, trait, count: number)
-	local key = stackKey(deco.id, trait.id)
+function PlayerData.AddItem(profile, deco, trait, colorId: string, count: number)
+	local key = stackKey(deco.id, trait.id, colorId)
 	local stack = PlayerData.FindStack(profile, key)
 	if stack then
 		stack.c += count
 	else
-		stack = { d = deco.id, t = trait.id, c = count, l = deco.rarity >= Config.DEFAULT_LOCK_MIN_RARITY }
+		stack = { d = deco.id, t = trait.id, col = colorId, c = count, l = deco.rarity >= Config.DEFAULT_LOCK_MIN_RARITY }
 		table.insert(profile.stacks, stack)
 	end
 	return stack

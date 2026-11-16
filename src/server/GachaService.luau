@@ -1,5 +1,5 @@
 -- 룰렛(뽑기) 서버 처리. 결과는 항상 서버에서 정한다.
--- 한 번 돌리면 레어도 → 장식 → 특성 순서로 정해진다.
+-- 한 번 돌리면 레어도 → 장식 → 특성 → 몸통 색 순서로 정해진다.
 local MessagingService = game:GetService("MessagingService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -67,7 +67,7 @@ function GachaService.BuildState(player: Player)
 	local stacks = {}
 	for _, stack in profile.stacks do
 		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
-			table.insert(stacks, { d = stack.d, t = stack.t, c = stack.c, l = stack.l })
+			table.insert(stacks, { d = stack.d, t = stack.t, col = stack.col, c = stack.c, l = stack.l })
 		end
 	end
 
@@ -101,16 +101,17 @@ end
 -- 공지
 ----------------------------------------------------------------
 
-local function announceToServer(playerName: string, decoId: string, traitId: string, isGlobal: boolean)
+local function announceToServer(playerName: string, decoId: string, traitId: string, colorId: string?, isGlobal: boolean)
 	Remotes.Announce:FireAllClients({
 		playerName = playerName,
 		decoId = decoId,
 		traitId = traitId,
+		colorId = colorId,
 		global = isGlobal,
 	})
 end
 
-local function publishGlobal(playerName: string, decoId: string, traitId: string)
+local function publishGlobal(playerName: string, decoId: string, traitId: string, colorId: string)
 	task.spawn(function()
 		local ok, err = pcall(function()
 			MessagingService:PublishAsync(GLOBAL_TOPIC, {
@@ -118,6 +119,7 @@ local function publishGlobal(playerName: string, decoId: string, traitId: string
 				playerName = playerName,
 				decoId = decoId,
 				traitId = traitId,
+				colorId = colorId,
 			})
 		end)
 		if not ok then
@@ -138,7 +140,9 @@ local function onGlobalMessage(message)
 	if not Catalog.DecorationById[data.decoId] or not Catalog.TraitById[data.traitId] then
 		return
 	end
-	announceToServer(tostring(data.playerName), data.decoId, data.traitId, true)
+	-- 예전 서버가 보낸 공지에는 색이 없을 수 있다 (없으면 색 없이 이름만 보인다)
+	local colorId = if Catalog.ColorById[data.colorId] then data.colorId else nil
+	announceToServer(tostring(data.playerName), data.decoId, data.traitId, colorId, true)
 end
 
 ----------------------------------------------------------------
@@ -189,10 +193,11 @@ local function onSpin(player: Player, kind: any)
 	local rarityIndex = Gacha.Roll(luck, rng)
 	local deco = Catalog.RollDecoration(rarityIndex, rng)
 	local trait = Catalog.RollTrait(rng)
+	local color = Catalog.RollColor(rng)
 	local coinsAfterCost = profile.coins
 
 	-- 자동 판매: 지정한 등급 이하이고, 그 칸이 잠기지 않았고, (설정에 따라) 특성이 없을 때
-	local key = PlayerData.StackKey(deco.id, trait.id)
+	local key = PlayerData.StackKey(deco.id, trait.id, color.id)
 	local existing = PlayerData.FindStack(profile, key)
 	local isLocked = if existing
 		then existing.l
@@ -204,7 +209,7 @@ local function onSpin(player: Player, kind: any)
 		saleCoins = Gacha.GetSellPrice(rarityIndex, trait.mult)
 		PlayerData.AddCoins(player, saleCoins)
 	else
-		PlayerData.AddItem(profile, deco, trait, 1)
+		PlayerData.AddItem(profile, deco, trait, color.id, 1)
 	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)
@@ -212,9 +217,9 @@ local function onSpin(player: Player, kind: any)
 		local playerName = player.DisplayName
 		local isGlobal = rarityIndex >= Config.GLOBAL_ANNOUNCE_MIN_RARITY
 		task.delay(reelTime, function()
-			announceToServer(playerName, deco.id, trait.id, isGlobal)
+			announceToServer(playerName, deco.id, trait.id, color.id, isGlobal)
 			if isGlobal then
-				publishGlobal(playerName, deco.id, trait.id)
+				publishGlobal(playerName, deco.id, trait.id, color.id)
 			end
 		end)
 	end
@@ -224,6 +229,7 @@ local function onSpin(player: Player, kind: any)
 		rarity = rarityIndex,
 		decoId = deco.id,
 		traitId = trait.id,
+		colorId = color.id,
 		reelTime = reelTime,
 		autoSold = saleCoins > 0,
 		saleCoins = saleCoins,
