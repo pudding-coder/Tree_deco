@@ -31,29 +31,47 @@ local PLOT_RINGS = {
 	{ radius = 170, count = 16 },
 }
 local PLOT_SIZE = 36
-local TRUNK_HEIGHT = 4
--- 트리 몸통: 아래층부터 { 반지름, 높이 }
+local TRUNK_HEIGHT = 2.7
+-- 트리 몸통(원기둥 트리): 아래층부터 { 반지름, 높이 }. 트리 높이(토퍼 제외) = TRUNK_HEIGHT + 층 높이 합 = 16
+-- TreeTemplate도 이 높이에 맞춰 크기가 조절된다
 local LAYERS = {
-	{ radius = 9, height = 5 },
-	{ radius = 7.5, height = 4.5 },
-	{ radius = 6, height = 4 },
-	{ radius = 4.5, height = 3.5 },
-	{ radius = 3, height = 3 },
+	{ radius = 6, height = 3.3 },
+	{ radius = 5, height = 3 },
+	{ radius = 4, height = 2.7 },
+	{ radius = 3, height = 2.3 },
+	{ radius = 2, height = 2 },
 }
--- 오너먼트 자리: 층 번호와 각도(0 = 광장 쪽 정면, 도 단위)
+-- TreeTemplate에서 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (트리 높이 대비 비율, 아래층부터)
+-- assets/models/ChristmasTree.fbx를 재서 정했다. 층이 서로 겹쳐서 아래층일수록 보이는 부분이 좁다
+-- 트리 모델을 바꾸면 다시 재야 한다
+local TEMPLATE_TIER_BANDS = {
+	{ 0.16, 0.24 },
+	{ 0.27, 0.38 },
+	{ 0.42, 0.52 },
+	{ 0.54, 0.66 },
+	{ 0.70, 0.86 },
+}
+-- 오너먼트 자리: 어느 띠를 따라 걸지(띠 번호)와 각도(0 = 광장 쪽 정면, 도 단위)
+-- 띠가 비스듬하므로 같은 띠의 오너먼트는 사선으로 이어진다. 띠를 안 걸어도 그 자리를 따른다
+-- 트리 둘레 360도에 고르게 퍼져 있고, 1번 자리부터 채워지므로 몇 개만 걸어도 퍼지게 순서를 섞어 둔다
 local ORNAMENT_SPOTS = {
-	{ layer = 1, angle = -70 },
-	{ layer = 1, angle = 0 },
-	{ layer = 1, angle = 70 },
-	{ layer = 2, angle = -40 },
-	{ layer = 2, angle = 40 },
-	{ layer = 2, angle = 140 },
-	{ layer = 3, angle = -90 },
-	{ layer = 3, angle = 20 },
-	{ layer = 4, angle = -20 },
-	{ layer = 4, angle = 60 },
+	{ garland = 1, angle = 0 },
+	{ garland = 2, angle = -45 },
+	{ garland = 3, angle = 60 },
+	{ garland = 2, angle = 45 },
+	{ garland = 1, angle = -90 },
+	{ garland = 1, angle = 90 },
+	{ garland = 2, angle = 135 },
+	{ garland = 2, angle = -135 },
+	{ garland = 1, angle = 180 },
+	{ garland = 3, angle = -120 },
 }
-local GARLAND_BALLS = 16 -- 임시 띠 모양: 작은 공을 원으로 늘어놓는다
+local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
+-- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
+local GARLAND_TIERS = { 4, 2, 5, 3 }
+local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
+local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
+local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -98,8 +116,12 @@ end
 -- ServerStorage.TreeTemplate(Studio에서 넣은 트리 모델)이 있으면 원기둥 대신 그 모델을 쓴다 (docs/MAP.md)
 local treeTemplate: Model? = nil
 local treeTemplatePivot = CFrame.identity -- 밑동 가운데가 (0, 0, 0)에 오게 하는 피벗
-local ornamentRadius = {} -- [오너먼트 자리] = 모델 겉면까지 거리
-local garlandRadii = {} -- [띠 자리] = 모델 겉면에 맞춘 반지름
+local ornamentPoints = {} -- [오너먼트 자리] = 플롯 기준 점 (트리 겉면)
+local garlandPaths = {} -- [띠 자리] = { [k] = 플롯 기준 점 또는 nil } 트리 겉면을 비스듬히 한 바퀴 도는 전구 자리
+local garlandCenters = {} -- [띠 자리] = 띠 가운데 높이
+local topperY = nil -- 트리 꼭대기 끝 높이 (모델에서 잰 값)
+-- TreeTemplate 안 Slots 폴더에 직접 놓은 자리 표시 (docs/MAP.md). 있으면 자동 위치보다 먼저 쓴다
+local customSlots = { Topper = {}, Ornament = {}, Garland = {} } -- [영역][번호] = 플롯 기준 위치(Vector3)
 
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
@@ -121,35 +143,123 @@ end
 
 -- 자리별 위치 (플롯 기준)
 local function slotOffset(area: string, index: number): CFrame
+	local custom = customSlots[area] and customSlots[area][index]
+	if custom then
+		if area == "Ornament" then
+			return CFrame.lookAt(custom, Vector3.new(0, custom.Y, 0)) -- 트리 쪽을 바라보게
+		elseif area == "Garland" then
+			return CFrame.new(0, custom.Y, 0) -- 띠는 표시 높이에서 트리를 한 바퀴 두른다
+		end
+		return CFrame.new(custom)
+	end
 	if area == "Topper" then
-		return CFrame.new(0, treeTop() + 1.6, 0)
+		-- 토퍼 밑면이 앉을 자리 (꼭대기 끝)
+		return CFrame.new(0, topperY or treeTop(), 0)
 	elseif area == "Ornament" then
 		local spot = ORNAMENT_SPOTS[index]
-		local layer = LAYERS[spot.layer]
-		local radius = ornamentRadius[index] or (layer.radius + 0.4)
-		local pos = localPoint(spot.angle, radius, layerBottom(spot.layer) + 0.8)
+		local pos = ornamentPoints[index] or localPoint(spot.angle, LAYERS[1].radius + 0.4, layerBottom(1) + 0.8)
 		return CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0)) -- 트리 쪽을 바라보게
-	else -- Garland: 층과 층 사이에 두르는 원의 중심
-		return CFrame.new(0, layerBottom(index + 1) + 0.2, 0)
+	else -- Garland: 띠 가운데 높이의 트리 중심
+		return CFrame.new(0, garlandCenters[index] or (layerBottom(index + 1) + 0.2), 0)
 	end
 end
 
-local function garlandRadius(index: number): number
-	return garlandRadii[index] or LAYERS[index].radius * 0.85
+-- 띠 자리마다 트리 겉면을 비스듬히 한 바퀴 도는 점을 만들고, 오너먼트를 띠와 나란히 놓는다
+-- bands: 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (스터드, 아래층부터)
+-- surfaceRadius(각도, 높이): 그 높이에서 트리 겉면까지 거리 (없으면 nil)
+local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number, number) -> number?)
+	local count = AREA_CAPACITY.Garland
+	local garlandTilts = {} -- [띠 자리] = 기울기 (스터드)
+	for i = 1, count do
+		-- 보이는 경사면 가운데를 비스듬히 두른다
+		local tier = math.clamp(GARLAND_TIERS[i] or i, 1, #bands)
+		local bottom, top = bands[tier][1], bands[tier][2]
+		local gap = top - bottom
+		local center = (bottom + top) / 2
+		local custom = customSlots.Garland[i]
+		if custom then
+			center = custom.Y
+		end
+		local tilt = gap * GARLAND_TILT
+		garlandTilts[i] = tilt
+
+		local points = {}
+		for k = 1, GARLAND_BALLS do
+			local angle = (k - 1) / GARLAND_BALLS * 360
+			local y = center + tilt * math.sin(math.rad(angle))
+			local r = surfaceRadius(angle, y)
+			if r then
+				points[k] = localPoint(angle, r + 0.35, y)
+			end
+		end
+		garlandPaths[i] = points
+		garlandCenters[i] = center
+	end
+
+	-- 오너먼트: 띠를 따라 그 각도의 띠 높이에 매단다 (그래서 사선으로 이어진다)
+	for i, spot in ORNAMENT_SPOTS do
+		local g = math.clamp(spot.garland, 1, count)
+		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - ORNAMENT_DROP
+		local r = surfaceRadius(spot.angle, y)
+		if r then
+			ornamentPoints[i] = localPoint(spot.angle, r + 0.6, y)
+		end
+	end
+end
+
+-- 원기둥 트리의 겉면 거리
+local function cylinderSurfaceRadius(_angle: number, y: number): number?
+	for i, layer in LAYERS do
+		if y >= layerBottom(i) and y < layerBottom(i) + layer.height then
+			return layer.radius
+		end
+	end
+	return nil
 end
 
 -- 트리 모델을 원기둥 트리와 같은 높이로 맞추고, 장식이 겉면에 붙도록 거리를 잰다
 local function loadTreeTemplate()
-	local source = game:GetService("ServerStorage"):FindFirstChild("TreeTemplate")
+	-- 편집하기 편하게 Workspace에 둬도 된다. 게임이 시작되면 Workspace의 원본은 치운다
+	local source = game:GetService("ServerStorage"):FindFirstChild("TreeTemplate") or workspace:FindFirstChild("TreeTemplate")
 	if not source then
 		warn("[Tree] ServerStorage에 TreeTemplate이 없어 원기둥 트리를 씁니다.")
 		return
 	end
 	if not source:IsA("Model") then
-		warn("[Tree] ServerStorage.TreeTemplate은 Model이어야 합니다. 지금은 " .. source.ClassName .. "입니다. 원기둥 트리를 씁니다.")
+		warn("[Tree] TreeTemplate은 Model이어야 합니다. 지금은 " .. source.ClassName .. "입니다. 원기둥 트리를 씁니다.")
 		return
 	end
 	local model = source:Clone()
+	if source.Parent == workspace then
+		source.Parent = nil
+	end
+
+	-- 자리 표시(Slots 폴더)는 크기 재기 전에 빼 두고, 모델 피벗 기준 위치만 기억한다
+	local markers = {} -- { area, index, name, point }
+	local slotsFolder = model:FindFirstChild("Slots")
+	if slotsFolder then
+		local pivot = model:GetPivot()
+		for _, marker in slotsFolder:GetChildren() do
+			if not marker:IsA("BasePart") then
+				continue
+			end
+			local area, number = string.match(marker.Name, "^(%a+)(%d*)$")
+			local index = tonumber(number) or 1
+			local capacity = area and AREA_CAPACITY[area]
+			if not capacity or index < 1 or index > capacity then
+				warn(string.format(
+					"[Tree] TreeTemplate.Slots의 '%s'는 쓸 수 없는 이름입니다. Topper, Ornament1~%d, Garland1~%d 중 하나로 지어 주세요.",
+					marker.Name,
+					AREA_CAPACITY.Ornament,
+					AREA_CAPACITY.Garland
+				))
+				continue
+			end
+			table.insert(markers, { area = area, index = index, point = pivot:PointToObjectSpace(marker.Position) })
+		end
+		slotsFolder:Destroy()
+	end
+
 	local parts = {}
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -163,13 +273,21 @@ local function loadTreeTemplate()
 	end
 
 	local _, size = model:GetBoundingBox()
-	model:ScaleTo(model:GetScale() * treeTop() / size.Y)
+	local scale = treeTop() / size.Y
+	model:ScaleTo(model:GetScale() * scale) -- 피벗을 중심으로 커지거나 작아진다
 
 	-- 밑동 가운데를 원점에 맞춘다
 	model:PivotTo(CFrame.identity)
 	local box, boxSize = model:GetBoundingBox()
 	treeTemplatePivot = CFrame.new(-box.X, boxSize.Y / 2 - box.Y, -box.Z)
 	model:PivotTo(treeTemplatePivot)
+
+	for _, marker in markers do
+		customSlots[marker.area][marker.index] = treeTemplatePivot:PointToWorldSpace(marker.point * scale)
+	end
+	if #markers > 0 then
+		print(string.format("[Tree] TreeTemplate.Slots에서 장식 자리 %d곳을 읽었습니다", #markers))
+	end
 
 	-- 원점에 잠깐 놓고 이 모델만 맞히는 광선으로 겉면 거리를 잰다 (같은 프레임에 치워서 보이지 않는다)
 	model.Parent = workspace
@@ -185,30 +303,25 @@ local function loadTreeTemplate()
 		end
 		return nil
 	end
-	for i, spot in ORNAMENT_SPOTS do
-		local r = surfaceRadius(spot.angle, layerBottom(spot.layer) + 0.8)
-		if r then
-			ornamentRadius[i] = r + 0.5
-		end
+
+	-- 꼭대기 끝: 위에서 아래로 쏜 광선이 처음 맞는 높이
+	local topHit = workspace:Raycast(Vector3.new(0, treeTop() + 50, 0), Vector3.new(0, -(treeTop() + 60), 0), params)
+	topperY = if topHit then topHit.Position.Y else treeTop()
+
+	local bands = {}
+	for _, band in TEMPLATE_TIER_BANDS do
+		table.insert(bands, { band[1] * treeTop(), band[2] * treeTop() })
 	end
-	for i = 1, #LAYERS do
-		local y = layerBottom(i + 1) + 0.2
-		local total, count = 0, 0
-		for k = 0, 15 do
-			local r = surfaceRadius(k * 22.5, y)
-			if r then
-				total += r
-				count += 1
-			end
-		end
-		if count > 0 then
-			garlandRadii[i] = total / count + 0.2
-		end
-	end
+	buildSlotPositions(bands, surfaceRadius)
 	model.Parent = nil
 
 	treeTemplate = model
-	print(string.format("[Tree] TreeTemplate을 씁니다 (파츠 %d개, 오너먼트 자리 %d곳 맞춤)", #parts, #ornamentRadius))
+	print(string.format(
+		"[Tree] TreeTemplate을 씁니다 (파츠 %d개, 오너먼트 자리 %d곳 맞춤, 꼭대기 높이 %.1f)",
+		#parts,
+		#ornamentPoints,
+		topperY
+	))
 end
 
 local function newPart(props)
@@ -449,35 +562,63 @@ local function renderEntry(plot, entry)
 	local model = cloneModel(deco)
 	if model then
 		model:PivotTo(cf)
+		if entry.a == "Topper" then
+			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
+			local box, boxSize = model:GetBoundingBox()
+			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
+			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
+		end
 		model.Parent = plot.decorations
 		return
 	end
 
 	-- 임시 모양
 	if entry.a == "Garland" then
+		-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
 		local holder = Instance.new("Model")
 		holder.Name = deco.id
-		local radius = garlandRadius(entry.i)
+		local points = garlandPaths[entry.i] or {}
 		for k = 1, GARLAND_BALLS do
-			local angle = (k - 1) / GARLAND_BALLS * 360
+			local point = points[k]
+			if not point then
+				continue
+			end
 			local ball = newPart({
 				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.7, 0.7, 0.7),
-				CFrame = cf * CFrame.new(localPoint(angle, radius, 0)),
+				Size = Vector3.new(0.6, 0.6, 0.6),
+				CFrame = plot.cframe * CFrame.new(point),
 				CanCollide = false,
+				CanQuery = false,
 				CastShadow = false,
 				Parent = holder,
 			})
 			decorateLook(ball, deco, trait)
+
+			local nextPoint = points[k % GARLAND_BALLS + 1]
+			if nextPoint then
+				local a = plot.cframe:PointToWorldSpace(point)
+				local b = plot.cframe:PointToWorldSpace(nextPoint)
+				newPart({
+					Name = "Wire",
+					Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
+					CFrame = CFrame.lookAt((a + b) / 2, b),
+					Color = GARLAND_WIRE_COLOR,
+					CanCollide = false,
+					CanQuery = false,
+					CastShadow = false,
+					Parent = holder,
+				})
+			end
 		end
 		holder.Parent = plot.decorations
 	else
-		local size = if entry.a == "Topper" then 3 else 1.8
+		local size = if entry.a == "Topper" then 2.4 else 1.4
 		local part = newPart({
 			Name = deco.id,
 			Shape = Enum.PartType.Ball,
 			Size = Vector3.new(size, size, size),
-			CFrame = cf,
+			-- 토퍼는 공 밑면이 꼭대기 끝에 살짝 걸치게
+			CFrame = if entry.a == "Topper" then cf * CFrame.new(0, size / 2 - 0.3, 0) else cf,
 			CanCollide = false,
 			Parent = plot.decorations,
 		})
@@ -754,6 +895,13 @@ end
 function TreeService.Init()
 	loadMapSpots()
 	loadTreeTemplate()
+	if not treeTemplate then
+		local bands = {}
+		for i, layer in LAYERS do
+			table.insert(bands, { layerBottom(i), layerBottom(i) + layer.height })
+		end
+		buildSlotPositions(bands, cylinderSurfaceRadius)
+	end
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace

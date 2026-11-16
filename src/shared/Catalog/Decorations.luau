@@ -20,10 +20,14 @@ return {
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
+	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
 	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
+	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
+	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
+	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
 
 	-- 언커먼
 	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper" },
@@ -31,6 +35,7 @@ return {
 	{ id = "Snowman", name = "눈사람", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Stocking", name = "크리스마스 양말", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
+	{ id = "LuckyFish", name = "액막이 명태", rarity = "Uncommon", area = "Ornament" },
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
@@ -38,15 +43,17 @@ return {
 	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
+	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
 
 	-- 에픽
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
 	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" }, 
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
+	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
+	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
-	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "TralaleroKeyring", name = "트랄랄레로 트랄랄라 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "BallerinaKeyring", name = "발레리나 카푸치나 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "AuroraRibbon", name = "오로라 리본", rarity = "Legendary", area = "Garland" },

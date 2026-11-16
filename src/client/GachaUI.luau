@@ -36,6 +36,7 @@ local TRAIT_COLORS = {
 	Golden = Color3.fromRGB(255, 200, 40),
 	Rainbow = Color3.fromRGB(255, 120, 200),
 	Aurora = Color3.fromRGB(120, 255, 200),
+	Smoge = Color3.fromRGB(150, 150, 150),
 }
 
 local function traitColor(trait): Color3
@@ -175,8 +176,10 @@ local function buildSlot(gui)
 		Size = UDim2.fromOffset(520, 280),
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
+		Visible = false, -- 룰렛 버튼으로 열고 닫는다
 		Parent = gui,
 	})
+	ui.slot = slot
 	label({
 		Text = "장식 룰렛",
 		TextSize = 20,
@@ -191,15 +194,6 @@ local function buildSlot(gui)
 		Size = UDim2.new(0.2, 0, 0, 28),
 		Position = UDim2.fromScale(0.28, 0),
 		Visible = false,
-		Parent = slot,
-	})
-	ui.coins = label({
-		Text = "코인 0",
-		TextSize = 16,
-		TextColor3 = COLORS.gold,
-		Size = UDim2.new(0.52, 0, 0, 28),
-		Position = UDim2.fromScale(0.48, 0),
-		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = slot,
 	})
 
@@ -302,9 +296,11 @@ local function buildOdds(gui)
 		Name = "Odds",
 		Size = UDim2.fromOffset(220, height),
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -20),
+		Position = UDim2.new(1, -16, 1, -84), -- 코인 표시 위
+		Visible = false, -- 룰렛과 같이 열고 닫는다
 		Parent = gui,
 	})
+	ui.odds = frame
 	local list = create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = frame })
 	create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
 
@@ -364,6 +360,24 @@ local function buildOdds(gui)
 		local valueLabel = row(trait.name, traitColor(trait))
 		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
 	end
+end
+
+-- 코인 표시 (오른쪽 아래 구석, 항상 보임)
+local function buildCoins(gui)
+	local frame = panel({
+		Name = "Coins",
+		Size = UDim2.fromOffset(220, 56),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -16, 1, -20),
+		Parent = gui,
+	})
+	ui.coins = scaledLabel({
+		Text = "코인 0",
+		TextColor3 = COLORS.gold,
+		Size = UDim2.fromScale(1, 1),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = frame,
+	}, 18, 10)
 end
 
 -- 가방 버튼 (왼쪽 아래)
@@ -626,6 +640,27 @@ local TREE_AREAS = {
 	{ id = "Garland", name = "띠", count = Config.MAX_GARLAND },
 }
 
+-- 룰렛 버튼 (트리 버튼 위): 룰렛 창과 확률표를 열고 닫는다
+local function buildRouletteButton(gui)
+	ui.rouletteButton = button({
+		Name = "RouletteButton",
+		Text = "룰렛",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -212),
+		Radius = 14,
+		Parent = gui,
+	})
+	ui.rouletteStroke = create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.rouletteButton,
+	})
+end
+
 -- 트리 버튼 (업그레이드 버튼 위)
 local function buildTreeButton(gui)
 	ui.treeButton = button({
@@ -803,9 +838,11 @@ local function buildUI()
 
 	buildSlot(gui)
 	buildOdds(gui)
+	buildCoins(gui)
 	buildBagButton(gui)
 	buildUpgradeButton(gui)
 	buildTreeButton(gui)
+	buildRouletteButton(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
@@ -1666,6 +1703,14 @@ local function removeSelectedSlot()
 	end
 end
 
+-- 룰렛 창과 확률표. 열려 있으면 버튼 테두리를 금색으로 표시한다
+local function setRouletteOpen(open: boolean)
+	ui.slot.Visible = open
+	ui.odds.Visible = open
+	ui.rouletteStroke.Color = if open then COLORS.gold else Color3.new(1, 1, 1)
+	ui.rouletteStroke.Transparency = if open then 0 else 0.85
+end
+
 local function setTreeOpen(open: boolean)
 	ui.treeWindow.Visible = open
 	selectedSlot = nil
@@ -1749,6 +1794,9 @@ function GachaUI.Start()
 	end)
 	ui.coinButton.Activated:Connect(function()
 		spin("coin")
+	end)
+	ui.rouletteButton.Activated:Connect(function()
+		setRouletteOpen(not ui.slot.Visible)
 	end)
 	ui.bagButton.Activated:Connect(function()
 		setInventoryOpen(not ui.inventory.Visible)
