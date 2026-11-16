@@ -129,6 +129,18 @@ for index, trait in rawTraits do
 	if trait.n ~= nil and (type(trait.n) ~= "number" or trait.n <= 1) then
 		problem(where, "n은 1보다 큰 숫자여야 해요 (10이면 1/10 확률)")
 	end
+	local paintOk = trait.paint == nil
+	if type(trait.paint) == "table" and #trait.paint == 3 then
+		paintOk = true
+		for _, channel in trait.paint do
+			if type(channel) ~= "number" or channel < 0 or channel > 255 then
+				paintOk = false
+			end
+		end
+	end
+	if not paintOk then
+		problem(where, "paint는 { 빨강, 초록, 파랑 } 숫자 3개(0~255)여야 해요. 예: paint = { 255, 190, 215 }")
+	end
 
 	if #problems == before then
 		local entry = {
@@ -137,6 +149,7 @@ for index, trait in rawTraits do
 			n = trait.n,
 			mult = trait.mult,
 			effect = trait.effect,
+			paint = if trait.paint then Color3.fromRGB(trait.paint[1], trait.paint[2], trait.paint[3]) else nil,
 			retired = trait.retired == true,
 		}
 		table.insert(Catalog.Traits, entry)

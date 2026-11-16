@@ -146,7 +146,7 @@
 
 - **배치 방식 (1단계)**: 트리에 정해진 자리가 있다. 가방에서 장식을 고르고 '트리에 걸기'를 누르면 그 장식 영역의 첫 빈자리에 걸린다. 영역이 다 찼으면 하나를 빼야 한다. 자유 배치는 나중에 추가한다.
 - **빼기**: '내 트리' 창에서 걸린 칸을 누르고 '빼기'. 빼면 가방으로 돌아간다. 가방이 가득 차 있으면(같은 칸이 없을 때) 뺄 수 없다.
-- **모양**: `Decorations.luau`의 `model`에 적은 모델이 `ReplicatedStorage.DecorationModels`에 있으면 그 모델을 쓴다. 없으면 등급 색 공(띠는 트리를 비스듬히 두른 전구 줄)으로 보인다. 에픽 이상은 빛나고, 레전더리 이상은 주변을 밝힌다. 특성은 `Traits.luau`의 `effect`로 보이고, 모델에도 똑같이 적용된다(`src/server/TraitEffects.luau`).
+- **모양**: `Decorations.luau`의 `model`에 적은 모델이 `ReplicatedStorage.DecorationModels`에 있으면 그 모델을 쓴다. 없으면 등급 색 공(띠는 트리를 비스듬히 두른 전구 줄)으로 보인다. 에픽 이상은 빛나고, 레전더리 이상은 주변을 밝힌다. 특성은 `Traits.luau`의 `effect`로 보이고, 모델에도 똑같이 적용된다(`src/server/TraitEffects.luau`). 모델은 장식마다 하나만 만들고, 이름이 `Paint`로 시작하는 파트만 특성의 `paint` 색으로 다시 칠한다(없으면 전체). 만드는 법은 `docs/ADDING_ITEMS.md` 6번.
 
   | 특성 (`effect`) | 모습 |
   | --- | --- |

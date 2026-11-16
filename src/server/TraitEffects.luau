@@ -1,4 +1,6 @@
 -- 특성 효과: Traits.luau의 effect 이름으로 트리에 걸린 장식의 겉모습을 바꾼다
+-- 칠하는 곳: 모델 안에 이름이 Paint로 시작하는 파츠(PaintHair 등)가 있으면 그 파츠만, 없으면 모델 전체
+--           그 파츠에 재질을 바꾸고 Traits.luau의 paint 색을 칠한다
 -- 재질·색·빛·파티클은 서버가 붙이고, 색이 계속 바뀌는 효과(무지개, 오로라)는
 -- 태그만 붙여 두고 클라이언트(src/client/TraitAnimator.luau)가 움직인다
 local CollectionService = game:GetService("CollectionService")
@@ -176,6 +178,17 @@ local function partsOf(target: Instance): { BasePart }
 	return parts
 end
 
+-- 특성 색을 칠할 파츠: 이름이 Paint로 시작하는 파츠. 하나도 없으면 전부
+local function paintPartsOf(parts: { BasePart }): { BasePart }
+	local painted = {}
+	for _, part in parts do
+		if string.sub(part.Name, 1, 5) == "Paint" then
+			table.insert(painted, part)
+		end
+	end
+	return if #painted > 0 then painted else parts
+end
+
 -- 파티클·빛을 붙일 파츠: 모델이면 PrimaryPart, 없으면 가장 큰 파츠
 local function mainPart(target: Instance, parts: { BasePart }): BasePart?
 	if target:IsA("BasePart") then
@@ -207,9 +220,13 @@ function TraitEffects.Apply(target: Instance, trait, withExtras: boolean?)
 		return
 	end
 	local parts = partsOf(target)
-	if look then
-		for _, part in parts do
+	local animated = effect == "Rainbow" or effect == "Aurora" -- 색은 클라이언트가 계속 바꾼다
+	for _, part in paintPartsOf(parts) do
+		if look then
 			look(part)
+		end
+		if trait.paint and not animated then
+			part.Color = trait.paint
 		end
 	end
 	if extra and withExtras ~= false then
