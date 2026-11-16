@@ -568,8 +568,8 @@ local function renderEntry(plot, entry)
 				CastShadow = false,
 				Parent = holder,
 			})
-			-- 파티클은 전구 몇 개에만 붙인다 (모두 붙이면 무거워진다)
-			decorateLook(ball, deco, trait, k % 7 == 1)
+			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
+			decorateLook(ball, deco, trait, false)
 
 			local nextPoint = points[k % GARLAND_BALLS + 1]
 			if nextPoint then
@@ -585,6 +585,34 @@ local function renderEntry(plot, entry)
 					CastShadow = false,
 					Parent = holder,
 				})
+			end
+		end
+
+		-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+		if trait.effect then
+			local carrier = 0
+			for k = 1, GARLAND_BALLS, 2 do
+				local from = points[k]
+				local to = points[(k + 1) % GARLAND_BALLS + 1]
+				if not from or not to then
+					continue
+				end
+				local a = plot.cframe:PointToWorldSpace(from)
+				local b = plot.cframe:PointToWorldSpace(to)
+				carrier += 1
+				local band = newPart({
+					Name = "TraitBand",
+					Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
+					CFrame = CFrame.lookAt((a + b) / 2, b),
+					Transparency = 1,
+					CanCollide = false,
+					CanQuery = false,
+					CanTouch = false,
+					CastShadow = false,
+					Parent = holder,
+				})
+				-- 빛은 몇 곳에만 (많으면 무거워진다)
+				TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
 			end
 		end
 		holder.Parent = plot.decorations

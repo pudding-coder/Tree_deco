@@ -265,15 +265,24 @@ end
 
 -- target: 장식 파츠나 모델. 효과는 장식마다 한 파츠에만 붙는다
 -- withAura가 false면 아무것도 붙이지 않는다 (띠 전구처럼 파츠가 많을 때 몇 개만 붙이려고)
-function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
+-- opts (선택): false면 아무것도 붙이지 않는다. 표면 아래 값을 바꿀 수 있다
+--   radius     효과 크기 기준 (기본: 장식 크기의 절반)
+--   rateScale  파티클 개수 배수 (기본 1. 띠처럼 효과를 여러 곳에 나눠 붙일 때 줄인다)
+--   light      false면 빛을 붙이지 않는다
+function TraitEffects.Apply(target: Instance, trait, opts: any)
 	local effect = trait and trait.effect
-	if not effect or withAura == false then
+	if not effect or opts == false then
 		return
 	end
+	local options = if type(opts) == "table" then opts else {}
 	local spec = EFFECTS[effect]
 	if not spec then
 		warn("[TraitEffects] 모르는 특성 효과입니다:", effect)
 		return
+	end
+	if options.rateScale then
+		spec = table.clone(spec)
+		spec.rate = spec.rate * options.rateScale
 	end
 	local part = mainPart(target, partsOf(target))
 	if not part then
@@ -286,7 +295,7 @@ function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 		local _, boxSize = target:GetBoundingBox()
 		size = boxSize
 	end
-	local radius = math.max(size.X, size.Y, size.Z) / 2
+	local radius = options.radius or math.max(size.X, size.Y, size.Z) / 2
 
 	if spec.kind == "sparkles" then
 		local sparkles = Instance.new("Sparkles")
@@ -302,7 +311,7 @@ function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 		makeEmitter(spec, radius).Parent = part
 	end
 
-	if spec.light then
+	if spec.light and options.light ~= false then
 		local light = Instance.new("PointLight")
 		light.Name = "TraitLight"
 		light.Color = spec.light[1]
