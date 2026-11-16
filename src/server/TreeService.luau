@@ -42,18 +42,21 @@ local LAYERS = {
 }
 -- 오너먼트 자리: 층 번호(아래층부터)와 각도(0 = 광장 쪽 정면, 도 단위)
 -- 높이는 그 층의 띠와 나란히(띠 바로 위나 아래) 비스듬히 정해진다
+-- 장식은 1번 자리부터 채워지므로, 몇 개만 걸어도 트리 전체에 퍼지게 층과 방향을 섞어 둔다
 local ORNAMENT_SPOTS = {
-	{ layer = 1, angle = -70 },
-	{ layer = 1, angle = 0 },
-	{ layer = 1, angle = 70 },
-	{ layer = 2, angle = -40 },
-	{ layer = 2, angle = 40 },
-	{ layer = 2, angle = 140 },
-	{ layer = 3, angle = -90 },
-	{ layer = 3, angle = 20 },
-	{ layer = 4, angle = -20 },
-	{ layer = 4, angle = 60 },
+	{ layer = 2, angle = 0 },
+	{ layer = 3, angle = -50 },
+	{ layer = 1, angle = 45 },
+	{ layer = 4, angle = 20 },
+	{ layer = 1, angle = -60 },
+	{ layer = 2, angle = 70 },
+	{ layer = 3, angle = 60 },
+	{ layer = 2, angle = -80 },
+	{ layer = 1, angle = 150 },
+	{ layer = 3, angle = 180 },
 }
+-- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다
+local GARLAND_TIERS = { 3, 1, 4, 2 }
 local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
 local GARLAND_TILT = 0.3 -- 띠 기울기: 층 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
@@ -163,13 +166,8 @@ local function buildSlotPositions(rims: { number }, topY: number, surfaceRadius:
 		return bottom, top - bottom
 	end
 	for i = 1, count do
-		-- 맨 위층은 작아서 빼고, 아래층부터 고르게 나눠 고른다 (층 5개, 띠 3개면 1·3·4층)
-		local tier
-		if tierCount - 1 >= count and count > 1 then
-			tier = 1 + math.round((i - 1) * (tierCount - 2) / (count - 1))
-		else
-			tier = math.min(i, tierCount)
-		end
+		-- GARLAND_TIERS 순서대로. 맨 위층은 작아서 띠를 걸지 않는다
+		local tier = math.clamp(GARLAND_TIERS[i] or i, 1, math.max(tierCount - 1, 1))
 		local bottom, gap = tierRange(tier)
 		local center = bottom + gap * 0.4
 		local custom = customSlots.Garland[i]
