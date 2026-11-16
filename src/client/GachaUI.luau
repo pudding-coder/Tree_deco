@@ -195,15 +195,6 @@ local function buildSlot(gui)
 		Visible = false,
 		Parent = slot,
 	})
-	ui.coins = label({
-		Text = "코인 0",
-		TextSize = 16,
-		TextColor3 = COLORS.gold,
-		Size = UDim2.new(0.52, 0, 0, 28),
-		Position = UDim2.fromScale(0.48, 0),
-		TextXAlignment = Enum.TextXAlignment.Right,
-		Parent = slot,
-	})
 
 	-- 슬롯 3칸: 등급 · 장식 · 특성
 	local reels = create("Frame", {
@@ -304,7 +295,7 @@ local function buildOdds(gui)
 		Name = "Odds",
 		Size = UDim2.fromOffset(220, height),
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -20),
+		Position = UDim2.new(1, -16, 1, -84), -- 코인 표시 위
 		Visible = false, -- 룰렛과 같이 열고 닫는다
 		Parent = gui,
 	})
@@ -368,6 +359,24 @@ local function buildOdds(gui)
 		local valueLabel = row(trait.name, traitColor(trait))
 		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
 	end
+end
+
+-- 코인 표시 (오른쪽 아래 구석, 항상 보임)
+local function buildCoins(gui)
+	local frame = panel({
+		Name = "Coins",
+		Size = UDim2.fromOffset(220, 56),
+		AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -16, 1, -20),
+		Parent = gui,
+	})
+	ui.coins = scaledLabel({
+		Text = "코인 0",
+		TextColor3 = COLORS.gold,
+		Size = UDim2.fromScale(1, 1),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = frame,
+	}, 18, 10)
 end
 
 -- 가방 버튼 (왼쪽 아래)
@@ -828,6 +837,7 @@ local function buildUI()
 
 	buildSlot(gui)
 	buildOdds(gui)
+	buildCoins(gui)
 	buildBagButton(gui)
 	buildUpgradeButton(gui)
 	buildTreeButton(gui)
