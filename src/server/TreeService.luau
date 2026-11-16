@@ -329,8 +329,16 @@ local function loadTreeTemplate()
 		table.insert(widths, if count > 0 then total / count else 0)
 		y += STEP
 	end
+	-- 가장 넓은 층의 1/3보다 좁은 곳은 층이 아니다 (밑동 아래가 퍼진 부분을 층으로 착각하지 않게)
+	local widest = 0
+	for _, w in widths do
+		widest = math.max(widest, w)
+	end
 	local rims = {}
 	for j = 2, #widths - 1 do
+		if widths[j] < widest / 3 then
+			continue
+		end
 		-- 위로 1.4스터드 안에서 0.5 이상 좁아져야 진짜 테두리다 (경사면의 작은 울퉁불퉁은 뺀다)
 		local lowest = widths[j]
 		for m = j + 1, math.min(j + 7, #widths) do
