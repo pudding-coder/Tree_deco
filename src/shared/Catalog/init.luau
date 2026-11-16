@@ -4,7 +4,6 @@ local Rarity = require(script.Parent.Rarity)
 
 local rawDecorations = require(script.Decorations)
 local rawTraits = require(script.Traits)
-local rawColors = require(script.Colors)
 
 local Catalog = {}
 
@@ -158,53 +157,6 @@ if probabilitySum >= 1 then
 	problem("Traits.luau", "특성 확률(1/n)을 모두 더하면 100%를 넘어요. n을 키워 주세요")
 end
 
-----------------------------------------------------------------
--- 몸통 색
-----------------------------------------------------------------
-
-Catalog.Colors = {} -- 파일에 적힌 순서
-Catalog.ColorById = {}
-Catalog.ColorPool = {} -- 뽑힐 수 있는 색 (retired 제외)
-
-for index, color in rawColors do
-	local where = string.format("Colors.luau %d번째 줄(id=%s)", index, tostring(type(color) == "table" and color.id))
-	if type(color) ~= "table" then
-		problem(where, "{ id = ..., name = ..., color = ... } 형태가 아니에요")
-		continue
-	end
-
-	local before = #problems
-	if not isValidId(color.id) then
-		problem(where, "id는 영문으로 시작하고 영문·숫자·_만 쓸 수 있어요")
-	elseif Catalog.ColorById[color.id] then
-		problem(where, "id가 다른 색과 겹쳐요")
-	end
-	if not isNonEmptyString(color.name) then
-		problem(where, "name(화면에 보이는 이름)이 비어 있어요")
-	end
-	if typeof(color.color) ~= "Color3" then
-		problem(where, "color는 Color3.fromRGB(...)여야 해요")
-	end
-
-	if #problems == before then
-		local entry = {
-			id = color.id,
-			name = color.name,
-			color = color.color,
-			retired = color.retired == true,
-		}
-		table.insert(Catalog.Colors, entry)
-		Catalog.ColorById[entry.id] = entry
-		if not entry.retired then
-			table.insert(Catalog.ColorPool, entry)
-		end
-	end
-end
-
-if #Catalog.ColorPool == 0 then
-	problem("Colors.luau", "뽑힐 수 있는 색이 하나도 없어요")
-end
-
 if #problems > 0 then
 	error("\n[카탈로그 오류] 아래를 고쳐 주세요\n- " .. table.concat(problems, "\n- "), 0)
 end
@@ -243,11 +195,6 @@ function Catalog.RollTrait(rng: Random)
 		end
 	end
 	return Catalog.BaseTrait
-end
-
--- 몸통 색 하나를 같은 확률로 뽑는다
-function Catalog.RollColor(rng: Random)
-	return Catalog.ColorPool[rng:NextInteger(1, #Catalog.ColorPool)]
 end
 
 return Catalog
