@@ -12,7 +12,7 @@ local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반
 -- 눈꽃 모양 그림. Roblox 기본 그림에는 눈꽃이 없어서, 눈꽃 이미지를 올리고 그 이미지 id를 넣으면 그 모양으로 나온다
 -- 예: "rbxassetid://1234567890" (데칼 id가 아니라 이미지 id. Studio의 Asset Manager에서 올리면 이미지 id가 나온다)
 -- 비워 두면 별 모양으로 나온다
-local SNOWFLAKE_TEXTURE = ""
+local SNOWFLAKE_TEXTURE = "rbxassetid://79692390333016" -- assets/textures/snowflake.png
 
 --[[
 	특성별 효과. 하나의 특성에 파티클 종류(kind)를 하나 고른다
