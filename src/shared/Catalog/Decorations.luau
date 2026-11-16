@@ -26,7 +26,7 @@ return {
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
 	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
-	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
+	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
@@ -66,6 +66,7 @@ return {
 	{ id = "SantaSleigh", name = "산타 썰매", rarity = "Mystic", area = "Topper" },
 	{ id = "CrystalSnowflake", name = "크리스탈 눈꽃", rarity = "Mystic", area = "Ornament" },
 	{ id = "GoldenKeyboard", name = "황금 키보드 줄", rarity = "Mystic", area = "Garland" },
+	{ id = "HeartPresentBox", name = "하트무늬 선물상자", rarity = "Mystic", area = "Ornament" },
 
 	-- 시크릿
 	{ id = "GiantTungSahur", name = "거대 퉁퉁퉁 사후르", rarity = "Secret", area = "Topper" },
