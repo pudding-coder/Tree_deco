@@ -3,7 +3,6 @@
 -- 플롯에는 트리가 서 있고, 정해진 자리에 장식을 건다.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -15,6 +14,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local Income = require(script.Parent.Income)
+local TraitEffects = require(script.Parent.TraitEffects)
 
 local TreeService = {}
 
@@ -483,37 +483,8 @@ end
 -- 장식 모양
 ----------------------------------------------------------------
 
-local rainbowParts = {} -- 무지개 특성 파츠 (색을 계속 바꾼다)
-
--- 특성 효과: Traits.luau의 effect 이름으로 정한다
-local function applyTrait(part: BasePart, trait)
-	local effect = trait.effect
-	if effect == "Sparkle" then
-		Instance.new("Sparkles").Parent = part
-	elseif effect == "Frost" then
-		part.Material = Enum.Material.Ice
-		part.Color = part.Color:Lerp(Color3.new(1, 1, 1), 0.45)
-	elseif effect == "Gold" then
-		part.Color = Color3.fromRGB(255, 200, 40)
-		part.Material = Enum.Material.Metal
-		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
-		sparkles.Parent = part
-	elseif effect == "Rainbow" then
-		part.Material = Enum.Material.Neon
-		table.insert(rainbowParts, part)
-	elseif effect == "Aurora" then
-		part.Material = Enum.Material.Neon
-		part.Color = Color3.fromRGB(120, 255, 200)
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(120, 255, 200)
-		light.Range = 10
-		light.Parent = part
-		Instance.new("Sparkles").Parent = part
-	end
-end
-
-local function decorateLook(part: BasePart, deco, trait)
+-- 임시 모양(등급 색 공)의 겉모습. withExtras가 false면 특성 파티클·빛은 붙이지 않는다
+local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 	local r = Rarity.List[deco.rarity]
 	part.Color = r.color
 	part.Material = if deco.rarity >= 4 then Enum.Material.Neon else Enum.Material.SmoothPlastic
@@ -523,7 +494,7 @@ local function decorateLook(part: BasePart, deco, trait)
 		light.Range = 8
 		light.Parent = part
 	end
-	applyTrait(part, trait)
+	TraitEffects.Apply(part, trait, withExtras)
 end
 
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
@@ -559,6 +530,7 @@ local function renderEntry(plot, entry)
 	end
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
 
+	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local model = cloneModel(deco)
 	if model then
 		model:PivotTo(cf)
@@ -568,6 +540,10 @@ local function renderEntry(plot, entry)
 			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
+		if paint then
+			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
+		end
+		TraitEffects.Apply(model, trait)
 		model.Parent = plot.decorations
 		return
 	end
@@ -592,7 +568,8 @@ local function renderEntry(plot, entry)
 				CastShadow = false,
 				Parent = holder,
 			})
-			decorateLook(ball, deco, trait)
+			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
+			decorateLook(ball, deco, trait, false)
 
 			local nextPoint = points[k % GARLAND_BALLS + 1]
 			if nextPoint then
@@ -610,6 +587,34 @@ local function renderEntry(plot, entry)
 				})
 			end
 		end
+
+		-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+		if trait.effect then
+			local carrier = 0
+			for k = 1, GARLAND_BALLS, 2 do
+				local from = points[k]
+				local to = points[(k + 1) % GARLAND_BALLS + 1]
+				if not from or not to then
+					continue
+				end
+				local a = plot.cframe:PointToWorldSpace(from)
+				local b = plot.cframe:PointToWorldSpace(to)
+				carrier += 1
+				local band = newPart({
+					Name = "TraitBand",
+					Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
+					CFrame = CFrame.lookAt((a + b) / 2, b),
+					Transparency = 1,
+					CanCollide = false,
+					CanQuery = false,
+					CanTouch = false,
+					CastShadow = false,
+					Parent = holder,
+				})
+				-- 빛은 몇 곳에만 (많으면 무거워진다)
+				TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
+			end
+		end
 		holder.Parent = plot.decorations
 	else
 		local size = if entry.a == "Topper" then 2.4 else 1.4
@@ -623,6 +628,9 @@ local function renderEntry(plot, entry)
 			Parent = plot.decorations,
 		})
 		decorateLook(part, deco, trait)
+		if paint then
+			TraitEffects.Paint(part, paint.color)
+		end
 		if entry.a == "Topper" then
 			part.Material = Enum.Material.Neon
 		end
@@ -818,8 +826,8 @@ local function findEntry(profile, area: string, index: number)
 	return nil, nil
 end
 
--- 가방의 장식 1개를 그 장식 영역의 첫 빈자리에 건다
-local function onPlace(player: Player, key: any)
+-- 가방의 장식 1개를 트리에 건다. index가 있으면 그 자리에, 없으면 그 장식 영역의 첫 빈자리에
+local function onPlace(player: Player, key: any, index: any)
 	if type(key) ~= "string" then
 		return fail("잘못된 요청입니다")
 	end
@@ -832,12 +840,23 @@ local function onPlace(player: Player, key: any)
 		return fail("가방에 없는 장식입니다")
 	end
 	local deco = Catalog.DecorationById[stack.d]
+	local capacity = AREA_CAPACITY[deco.area]
 
 	local freeIndex = nil
-	for index = 1, AREA_CAPACITY[deco.area] do
-		if not findEntry(profile, deco.area, index) then
-			freeIndex = index
-			break
+	if index ~= nil then
+		if not isWholeNumber(index, 1, capacity) then
+			return fail("잘못된 요청입니다")
+		end
+		if findEntry(profile, deco.area, index) then
+			return fail("이미 장식이 걸린 자리입니다")
+		end
+		freeIndex = index
+	else
+		for i = 1, capacity do
+			if not findEntry(profile, deco.area, i) then
+				freeIndex = i
+				break
+			end
 		end
 	end
 	if not freeIndex then
@@ -846,46 +865,83 @@ local function onPlace(player: Player, key: any)
 
 	stack.c -= 1
 	PlayerData.RemoveEmptyStacks(profile)
-	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t })
+	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, p = stack.p })
 	render(player)
 
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
 end
 
--- 트리에서 장식을 빼서 가방에 넣는다
-local function onRemove(player: Player, area: any, index: any)
-	if type(area) ~= "string" or not AREA_CAPACITY[area] or not isWholeNumber(index, 1, AREA_CAPACITY[area]) then
+-- 트리에서 장식을 빼서 가방에 넣는다. slots = { { a = 영역, i = 자리 번호 }, ... } (여러 개를 한 번에)
+-- 가방 칸이 모자라면 하나도 빼지 않는다
+local function onRemove(player: Player, slots: any)
+	local totalCapacity = 0
+	for _, capacity in AREA_CAPACITY do
+		totalCapacity += capacity
+	end
+	if type(slots) ~= "table" or #slots < 1 or #slots > totalCapacity then
 		return fail("잘못된 요청입니다")
 	end
 	local profile, reason = getReadyProfile(player)
 	if not profile then
 		return fail(reason)
 	end
-	local entry, position = findEntry(profile, area, index)
-	if not entry then
-		return fail("빈 자리입니다")
+
+	local entries = {}
+	local seen = {}
+	for _, slot in slots do
+		if type(slot) ~= "table" then
+			return fail("잘못된 요청입니다")
+		end
+		local area, index = slot.a, slot.i
+		if type(area) ~= "string" or not AREA_CAPACITY[area] or not isWholeNumber(index, 1, AREA_CAPACITY[area]) then
+			return fail("잘못된 요청입니다")
+		end
+		local slotKey = area .. ":" .. index
+		if seen[slotKey] then
+			return fail("잘못된 요청입니다")
+		end
+		seen[slotKey] = true
+		local entry = findEntry(profile, area, index)
+		if not entry then
+			return fail("빈 자리는 뺄 수 없습니다")
+		end
+		table.insert(entries, entry)
 	end
 
 	-- 가방에 같은 칸이 없으면 새 칸이 필요하다
-	local key = PlayerData.StackKey(entry.d, entry.t)
-	local existing = PlayerData.FindStack(profile, key)
-	if not existing and PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
-		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주세요")
+	local newKeys = {}
+	local needed = 0
+	for _, entry in entries do
+		local key = PlayerData.StackKey(entry.d, entry.t, entry.p)
+		if not PlayerData.FindStack(profile, key) and not newKeys[key] then
+			newKeys[key] = true
+			needed += 1
+		end
+	end
+	local free = profile.bagCapacity - PlayerData.GetBagSlotsUsed(profile)
+	if needed > free then
+		return fail(string.format("가방 칸이 %d칸 모자랍니다. 판매하거나 확장해 주세요", needed - free))
 	end
 
-	table.remove(profile.tree, position)
-	local deco = Catalog.DecorationById[entry.d]
-	local trait = Catalog.TraitById[entry.t]
-	if existing then
-		existing.c += 1
-	elseif deco and trait then
-		PlayerData.AddItem(profile, deco, trait, 1)
-	else
-		table.insert(profile.stacks, { d = entry.d, t = entry.t, c = 1, l = false })
+	for _, entry in entries do
+		local _, position = findEntry(profile, entry.a, entry.i)
+		if position then
+			table.remove(profile.tree, position)
+		end
+		local deco = Catalog.DecorationById[entry.d]
+		local trait = Catalog.TraitById[entry.t]
+		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.p))
+		if existing then
+			existing.c += 1
+		elseif deco and trait then
+			PlayerData.AddItem(profile, deco, trait, 1, entry.p)
+		else
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, c = 1, l = false })
+		end
 	end
 	render(player)
 
-	return { ok = true, state = GachaService.BuildState(player) }
+	return { ok = true, removed = #entries, state = GachaService.BuildState(player) }
 end
 
 ----------------------------------------------------------------
@@ -932,27 +988,6 @@ function TreeService.Init()
 			end
 			-- 이름표의 트리 가치는 그대로지만, 주인이 바뀐 경우를 위해 가끔 갱신
 		end
-	end)
-
-	-- 무지개 특성: 색을 천천히 바꾼다
-	local hue = 0
-	local elapsed = 0
-	RunService.Heartbeat:Connect(function(dt)
-		elapsed += dt
-		if elapsed < 0.15 then
-			return
-		end
-		hue = (hue + elapsed * 0.25) % 1
-		elapsed = 0
-		local alive = {}
-		local color = Color3.fromHSV(hue, 0.8, 1)
-		for _, part in rainbowParts do
-			if part.Parent then
-				part.Color = color
-				table.insert(alive, part)
-			end
-		end
-		rainbowParts = alive
 	end)
 end
 

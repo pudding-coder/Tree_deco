@@ -55,6 +55,7 @@
 | `area` | 트리 어디에 거는지 | `"Topper"`(꼭대기) `"Ornament"`(가지) `"Garland"`(띠) |
 | `weight` | (선택) 같은 등급 안에서 나오는 비율 | 안 쓰면 1. `weight = 2`면 2배 잘 나옴, `0.5`면 절반 |
 | `model` | (선택) 3D 모델 이름 | 트리 꾸미기 작업 후 사용 (아래 6번) |
+| `paintable` | (선택) 랜덤 색 칠하기 | `paintable = true`면 뽑을 때 색이 정해져 모델의 `Paint` 파트에 칠해진다 (아래 6번) |
 
 **주의**
 - 줄 끝 쉼표 `,`를 빼먹지 않기. 글자는 큰따옴표 `" "`로 감싸기.
@@ -76,7 +77,7 @@
 | `name` | 화면 이름 | 아무 때나 바꿔도 됨 |
 | `n` | 확률 분모 | `50`이면 1/50. **기본 특성(`None`) 하나만 비워 둔다** |
 | `mult` | 가치 배수 | `3`이면 장식 가치 ×3 |
-| `effect` | (선택) 보이는 효과 | 트리 꾸미기 작업 후 연결 |
+| `effect` | (선택) 장식 주변 분위기 | `Sparkle` `Frost` `Gold` `Rainbow` `Aurora` `Smoge` 중 하나 (`src/server/TraitEffects.luau`). 장식 색은 바꾸지 않는다 |
 
 특성 확률(1/n)을 모두 더한 값이 100%를 넘으면 오류가 난다.
 
@@ -112,6 +113,19 @@ Candy = Color3.fromRGB(255, 150, 200),
 2. Explorer의 `ReplicatedStorage` 안에 `DecorationModels` 폴더를 만들고 모델을 넣는다. (Rojo는 이 폴더를 건드리지 않는다)
 3. 모델 이름을 장식 줄의 `model`에 적는다. 예: `model = "SnowflakeKeyring"`
 4. 플레이스를 저장(Publish)한다. 모델은 GitHub가 아니라 플레이스 파일에 저장된다.
+
+### 랜덤 색이 칠해지는 곳 (Paint 파트)
+
+모델은 **장식마다 하나만** 만든다. 색별로 따로 만들 필요 없다.
+
+1. 색을 바꿀 부분(머리, 리본 등)은 **파트 이름을 `Paint`로 시작**하게 짓는다. 예: `PaintHair`, `PaintRibbon`. 여러 개여도 된다.
+2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., model = "MikuKeyring", paintable = true },`
+3. 뽑을 때 `src/shared/Catalog/Paints.luau`의 색 중 하나가 랜덤으로 정해지고, `Paint` 파트만 그 색으로 칠해진다. 나머지 파트(눈, 고리 등)는 원래 색 그대로다.
+
+- 색이 다르면 가방 칸이 따로 생긴다. 그래서 `Paint` 파트가 있는 모델에만 `paintable`을 켠다.
+- `Paint` 파트는 **그림(TextureID) 없이 단색**으로 만든다. 그림이 있으면 색을 바꿔도 거의 안 바뀐다. Blender에서는 칠할 부분을 따로 떼어 단색 재질로 두면 된다.
+- 색 목록은 `Paints.luau`에서 추가·수정한다(`id`는 바꾸지 않기, 그만 쓸 색은 `retired = true`).
+- 특성 분위기(빛 안개)는 모델의 `PrimaryPart`(없으면 가장 큰 파트)에 붙는다.
 
 ---
 
