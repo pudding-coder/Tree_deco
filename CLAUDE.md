@@ -21,4 +21,5 @@
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |
 | 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
+| 장식 3D 에셋 규칙·색 팔레트 | `docs/ASSET_RULES.md` (시안 `docs/asset_rules/style_sheet.png`) |
 | 맵·트리 자리·투명벽 | `docs/MAP.md` (맵은 플레이스 파일에 있고 Rojo는 Workspace를 건드리지 않음) |
