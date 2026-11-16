@@ -46,7 +46,11 @@
 - 원본: `assets/models/ChristmasTree.fbx` (Blender 스크립트 `tools/blender/make_tree.py`로 만듦)
 - Studio에서 **Home → Import**로 불러온 뒤, 생긴 Model을 `ServerStorage`로 옮기고 이름을 `TreeTemplate`으로 바꾼다.
 - 트리는 **똑바로 선 모습**으로 두고, 피벗을 돌리지 않는다. 크기·위치는 아무래도 된다. 게임이 시작될 때 높이를 위 표의 트리 높이(토퍼 제외 24)에 맞추고 밑동을 자리 바닥 가운데에 세운다.
-- 오너먼트·띠 장식은 모델 겉면에 맞춰 자동으로 붙는다. 위치를 직접 정하려면 아래 "장식 자리 직접 정하기"를 따른다.
+- 장식은 모델 겉면에 맞춰 자동으로 붙는다. 위치를 직접 정하려면 아래 "장식 자리 직접 정하기"를 따른다.
+  - 토퍼: 꼭대기 끝에 앉는다.
+  - 띠: 층마다 겉면을 **비스듬히** 한 바퀴 두르는 전구 줄이다 (층 5개, 띠 3개면 1·3·4층). 기울기는 `TreeService.luau`의 `GARLAND_TILT`.
+  - 오너먼트: 같은 층 띠와 나란히(띠 바로 위나 아래) 사선으로 걸린다.
+- 게임은 모델을 광선으로 재서 층을 찾는다. Play할 때 Output의 `[Tree] TreeTemplate을 씁니다 (... 층 N개 찾음 ...)`에서 N이 트리 층 수와 다르거나 띠가 떠 보이면, 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다.
 - `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
 - 편집할 때는 `TreeTemplate`을 `Workspace`에 꺼내 둬도 된다. 게임이 시작되면 Workspace에 있는 원본은 자동으로 치워지고 트리 자리마다 복제된다.
 
@@ -60,9 +64,9 @@
 
    | 이름 | 뜻 |
    | --- | --- |
-   | `Topper` | 꼭대기 장식 위치 (파트 가운데) |
+   | `Topper` | 꼭대기 장식이 앉을 자리 (파트 가운데가 토퍼 밑면) |
    | `Ornament1` ~ `Ornament10` | 오너먼트 위치 (파트 가운데. 트리 겉면에 반쯤 걸치게) |
-   | `Garland1` ~ `Garland3` | 띠 위치. 파트 하나를 띠가 지나갈 **겉면 한 곳**에 둔다. 그 높이에서 그 거리로 트리를 한 바퀴 두른다 |
+   | `Garland1` ~ `Garland3` | 띠 높이. 파트 높이가 비스듬한 띠의 가운데 높이가 된다 (앞뒤 위치는 상관없음) |
 
    - 번호 개수는 `Config.luau`의 `MAX_ORNAMENT`, `MAX_GARLAND`를 따른다. 표시가 없는 번호는 자동 위치를 쓴다.
    - 이름이 틀리면 Play할 때 Output에 노란 경고가 나온다.
