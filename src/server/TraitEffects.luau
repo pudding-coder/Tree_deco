@@ -12,8 +12,9 @@ local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반
 --[[
 	특성별 효과. 하나의 특성에 파티클 종류(kind)를 하나 고른다
 	kind     "sparkle" 반짝이는 별가루 / "snow" 떨어지는 눈송이 / "smoke" 피어오르는 연기
-	         "aura" 장식 둘레에서 빛 입자와 작은 별이 위로 피어오른다 (지금은 안 씀)
-	         "sparkles" 로블록스 기본 반짝이(Sparkles). 크고 진하게 보인다. 색은 tag가 있으면 클라이언트가 계속 바꾼다
+	         "aura" 장식에 딱 붙은 빛무리와 반짝이는 별 (멀리 퍼지지 않는다)
+	         "sparkles" 로블록스 기본 반짝이(Sparkles). 크고 넓게 퍼진다 (지금은 안 씀)
+	         색은 tag가 있으면 클라이언트가 계속 바꾼다
 	colors   파티클 색 (여러 개면 피어올라 사라지는 동안 이 순서로 바뀐다)
 	glow     연기가 스스로 빛날지 (false면 탁한 연기)
 	rate     초당 나오는 개수
@@ -60,19 +61,19 @@ local EFFECTS = {
 		spread = 2.5,
 		light = { Color3.fromRGB(255, 210, 120), 10, 1 },
 	},
-	-- 무지개: 크게 반짝이는 Sparkles, 색이 무지개로 계속 바뀐다
+	-- 무지개: 장식에 붙은 아우라, 색이 무지개로 계속 바뀐다
 	Rainbow = {
-		kind = "sparkles",
+		kind = "aura",
 		colors = RAINBOW,
-		rate = 10,
+		rate = 14,
 		light = { Color3.fromRGB(255, 120, 200), 8, 0.8 },
 		tag = "TraitRainbow",
 	},
-	-- 오로라: 크게 반짝이는 Sparkles, 색이 초록·파랑·보라로 천천히 바뀐다
+	-- 오로라: 장식에 붙은 아우라, 색이 초록·파랑·보라로 천천히 바뀐다
 	Aurora = {
-		kind = "sparkles",
+		kind = "aura",
 		colors = AURORA,
-		rate = 10,
+		rate = 14,
 		light = { Color3.fromRGB(120, 255, 200), 10, 1 },
 		tag = "TraitAurora",
 	},
@@ -97,55 +98,60 @@ local function gradient(colors: { Color3 }): ColorSequence
 	return ColorSequence.new(keypoints)
 end
 
--- 빛 입자 오라: 장식 겉면 둘레에서 빛 방울(부드러운 점)과 작은 별이 위로 피어오른다
+-- 아우라: 장식에 딱 붙어서 은은한 빛무리와 별이 반짝인다 (멀리 퍼지지 않는다)
+-- tag가 있으면 클라이언트가 파티클 색을 계속 바꾼다
 local function makeAura(spec, radius: number, parent: BasePart)
-	local function base(name: string): ParticleEmitter
-		local e = Instance.new("ParticleEmitter")
-		e.Name = name
-		e.Color = gradient(spec.colors) -- 떠오르는 동안 색이 차례로 바뀐다
-		e.LightEmission = 1
-		e.Brightness = 2
-		e.Shape = Enum.ParticleEmitterShape.Sphere
-		e.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
-		e.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
-		e.SpreadAngle = Vector2.new(20, 20)
-		e.Acceleration = Vector3.new(0, radius * 1.6, 0)
-		e.Drag = 2
-		e.Rotation = NumberRange.new(0, 360)
-		return e
-	end
-
-	-- 빛 방울: 작고 부드럽게 빛나는 점 (작은 연기 그림을 빛나게 써서 둥근 빛처럼 보인다)
-	local motes = base("TraitAuraMotes")
-	motes.Texture = SMOKE_TEXTURE
-	motes.Rate = spec.rate
-	motes.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.2, radius * 0.35),
-		NumberSequenceKeypoint.new(1, 0),
+	-- 빛무리: 장식을 감싸는 부드러운 빛
+	local halo = Instance.new("ParticleEmitter")
+	halo.Name = "TraitAuraHalo"
+	halo.Texture = SMOKE_TEXTURE
+	halo.Color = ColorSequence.new(spec.colors[1])
+	halo.LightEmission = 1
+	halo.LockedToPart = true -- 장식을 따라다니며 제자리에 머문다
+	halo.Rate = 3
+	halo.Lifetime = NumberRange.new(1.2, 1.6)
+	halo.Speed = NumberRange.new(0)
+	halo.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, radius * 2.2),
+		NumberSequenceKeypoint.new(1, radius * 2.8),
 	})
-	motes.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.6),
-		NumberSequenceKeypoint.new(0.3, 0.1),
+	halo.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 1),
+		NumberSequenceKeypoint.new(0.4, 0.55),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	motes.Lifetime = NumberRange.new(1, 1.6)
-	motes.Speed = NumberRange.new(radius * 0.2, radius * 0.5)
-	motes.Parent = parent
+	halo.Rotation = NumberRange.new(0, 360)
+	halo.RotSpeed = NumberRange.new(-30, 30)
+	halo.ZOffset = -0.5
+	halo.Parent = parent
 
-	-- 작은 별: 빛 방울 사이로 반짝인다
-	local stars = base("TraitAuraStars")
+	-- 별: 장식 겉면에서 반짝이고 바로 근처에서 사라진다
+	local stars = Instance.new("ParticleEmitter")
+	stars.Name = "TraitAuraStars"
 	stars.Texture = SPARKLE_TEXTURE
-	stars.Rate = spec.rate * 0.6
+	stars.Color = ColorSequence.new(spec.colors[1])
+	stars.LightEmission = 1
+	stars.LockedToPart = true
+	stars.Shape = Enum.ParticleEmitterShape.Sphere
+	stars.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	stars.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+	stars.Rate = spec.rate
+	stars.Lifetime = NumberRange.new(0.5, 0.9)
+	stars.Speed = NumberRange.new(radius * 0.2, radius * 0.5)
+	stars.Drag = 6
 	stars.Size = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.3, radius * 0.3),
+		NumberSequenceKeypoint.new(0.35, radius * 0.6),
 		NumberSequenceKeypoint.new(1, 0),
 	})
-	stars.Lifetime = NumberRange.new(0.6, 1.1)
-	stars.Speed = NumberRange.new(radius * 0.3, radius * 0.7)
+	stars.Rotation = NumberRange.new(0, 360)
 	stars.RotSpeed = NumberRange.new(-120, 120)
 	stars.Parent = parent
+
+	if spec.tag then
+		CollectionService:AddTag(halo, spec.tag)
+		CollectionService:AddTag(stars, spec.tag)
+	end
 end
 
 -- radius: 장식 크기의 절반 (파티클 크기를 장식에 맞춘다)

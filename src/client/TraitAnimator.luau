@@ -1,4 +1,4 @@
--- 색이 계속 바뀌는 특성 효과(무지개·오로라 빛)를 움직인다 (서버 src/server/TraitEffects.luau가 태그를 붙인다)
+-- 색이 계속 바뀌는 특성 효과(무지개·오로라의 아우라와 빛)를 움직인다 (서버 src/server/TraitEffects.luau가 태그를 붙인다)
 -- 화면에서만 바뀌는 색이라 서버와 주고받지 않는다
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
@@ -49,6 +49,8 @@ function TraitAnimator.Start()
 				inst.Color = color
 			elseif inst:IsA("Sparkles") then
 				inst.SparkleColor = color
+			elseif inst:IsA("ParticleEmitter") then
+				inst.Color = ColorSequence.new(color)
 			end
 		end
 		for _, inst in CollectionService:GetTagged(AURORA_TAG) do
@@ -59,6 +61,8 @@ function TraitAnimator.Start()
 				inst.Color = color
 			elseif inst:IsA("Sparkles") then
 				inst.SparkleColor = color
+			elseif inst:IsA("ParticleEmitter") then
+				inst.Color = ColorSequence.new(color)
 			end
 		end
 	end)
