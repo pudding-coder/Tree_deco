@@ -798,8 +798,8 @@ local function findEntry(profile, area: string, index: number)
 	return nil, nil
 end
 
--- 가방의 장식 1개를 그 장식 영역의 첫 빈자리에 건다
-local function onPlace(player: Player, key: any)
+-- 가방의 장식 1개를 트리에 건다. index가 있으면 그 자리에, 없으면 그 장식 영역의 첫 빈자리에
+local function onPlace(player: Player, key: any, index: any)
 	if type(key) ~= "string" then
 		return fail("잘못된 요청입니다")
 	end
@@ -812,12 +812,23 @@ local function onPlace(player: Player, key: any)
 		return fail("가방에 없는 장식입니다")
 	end
 	local deco = Catalog.DecorationById[stack.d]
+	local capacity = AREA_CAPACITY[deco.area]
 
 	local freeIndex = nil
-	for index = 1, AREA_CAPACITY[deco.area] do
-		if not findEntry(profile, deco.area, index) then
-			freeIndex = index
-			break
+	if index ~= nil then
+		if not isWholeNumber(index, 1, capacity) then
+			return fail("잘못된 요청입니다")
+		end
+		if findEntry(profile, deco.area, index) then
+			return fail("이미 장식이 걸린 자리입니다")
+		end
+		freeIndex = index
+	else
+		for i = 1, capacity do
+			if not findEntry(profile, deco.area, i) then
+				freeIndex = i
+				break
+			end
 		end
 	end
 	if not freeIndex then
@@ -832,40 +843,77 @@ local function onPlace(player: Player, key: any)
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
 end
 
--- 트리에서 장식을 빼서 가방에 넣는다
-local function onRemove(player: Player, area: any, index: any)
-	if type(area) ~= "string" or not AREA_CAPACITY[area] or not isWholeNumber(index, 1, AREA_CAPACITY[area]) then
+-- 트리에서 장식을 빼서 가방에 넣는다. slots = { { a = 영역, i = 자리 번호 }, ... } (여러 개를 한 번에)
+-- 가방 칸이 모자라면 하나도 빼지 않는다
+local function onRemove(player: Player, slots: any)
+	local totalCapacity = 0
+	for _, capacity in AREA_CAPACITY do
+		totalCapacity += capacity
+	end
+	if type(slots) ~= "table" or #slots < 1 or #slots > totalCapacity then
 		return fail("잘못된 요청입니다")
 	end
 	local profile, reason = getReadyProfile(player)
 	if not profile then
 		return fail(reason)
 	end
-	local entry, position = findEntry(profile, area, index)
-	if not entry then
-		return fail("빈 자리입니다")
+
+	local entries = {}
+	local seen = {}
+	for _, slot in slots do
+		if type(slot) ~= "table" then
+			return fail("잘못된 요청입니다")
+		end
+		local area, index = slot.a, slot.i
+		if type(area) ~= "string" or not AREA_CAPACITY[area] or not isWholeNumber(index, 1, AREA_CAPACITY[area]) then
+			return fail("잘못된 요청입니다")
+		end
+		local slotKey = area .. ":" .. index
+		if seen[slotKey] then
+			return fail("잘못된 요청입니다")
+		end
+		seen[slotKey] = true
+		local entry = findEntry(profile, area, index)
+		if not entry then
+			return fail("빈 자리는 뺄 수 없습니다")
+		end
+		table.insert(entries, entry)
 	end
 
 	-- 가방에 같은 칸이 없으면 새 칸이 필요하다
-	local key = PlayerData.StackKey(entry.d, entry.t, entry.p)
-	local existing = PlayerData.FindStack(profile, key)
-	if not existing and PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
-		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주세요")
+	local newKeys = {}
+	local needed = 0
+	for _, entry in entries do
+		local key = PlayerData.StackKey(entry.d, entry.t, entry.p)
+		if not PlayerData.FindStack(profile, key) and not newKeys[key] then
+			newKeys[key] = true
+			needed += 1
+		end
+	end
+	local free = profile.bagCapacity - PlayerData.GetBagSlotsUsed(profile)
+	if needed > free then
+		return fail(string.format("가방 칸이 %d칸 모자랍니다. 판매하거나 확장해 주세요", needed - free))
 	end
 
-	table.remove(profile.tree, position)
-	local deco = Catalog.DecorationById[entry.d]
-	local trait = Catalog.TraitById[entry.t]
-	if existing then
-		existing.c += 1
-	elseif deco and trait then
-		PlayerData.AddItem(profile, deco, trait, 1, entry.p)
-	else
-		table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, c = 1, l = false })
+	for _, entry in entries do
+		local _, position = findEntry(profile, entry.a, entry.i)
+		if position then
+			table.remove(profile.tree, position)
+		end
+		local deco = Catalog.DecorationById[entry.d]
+		local trait = Catalog.TraitById[entry.t]
+		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.p))
+		if existing then
+			existing.c += 1
+		elseif deco and trait then
+			PlayerData.AddItem(profile, deco, trait, 1, entry.p)
+		else
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, c = 1, l = false })
+		end
 	end
 	render(player)
 
-	return { ok = true, state = GachaService.BuildState(player) }
+	return { ok = true, removed = #entries, state = GachaService.BuildState(player) }
 end
 
 ----------------------------------------------------------------

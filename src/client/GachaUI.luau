@@ -794,6 +794,63 @@ local function buildTreeWindow(gui)
 		end
 	end
 
+	-- 빈 자리를 누르면 뜨는 장식 고르기 (자리 칸 위를 덮는다)
+	local picker = create("Frame", {
+		Name = "Picker",
+		BackgroundColor3 = COLORS.panel,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 58),
+		Size = UDim2.new(1, 0, 1, -58 - 62),
+		Visible = false,
+		ZIndex = 3,
+		Parent = window,
+	})
+	corner(picker, 10)
+	create("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.8, Thickness = 1.5, Parent = picker })
+	padding(picker, 8)
+	ui.treePicker = picker
+	ui.treePickerTitle = label({
+		Text = "",
+		TextSize = 15,
+		Size = UDim2.new(1, -90, 0, 30),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 3,
+		Parent = picker,
+	})
+	ui.treePickerClose = button({
+		Text = "닫기",
+		TextSize = 14,
+		Size = UDim2.fromOffset(80, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Parent = picker,
+	})
+	ui.treePickerClose.ZIndex = 3
+	ui.treePickerList = create("ScrollingFrame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 38),
+		Size = UDim2.new(1, 0, 1, -38),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 6,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		ZIndex = 3,
+		Parent = picker,
+	})
+	create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = ui.treePickerList })
+	ui.treePickerEmpty = label({
+		Text = "가방에 이 자리에 걸 수 있는 장식이 없습니다",
+		TextSize = 14,
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(1, 0, 0, 40),
+		Visible = false,
+		ZIndex = 3,
+		LayoutOrder = 0,
+		Parent = ui.treePickerList,
+	})
+
 	local footer = create("Frame", {
 		BackgroundColor3 = COLORS.panelLight,
 		BorderSizePixel = 0,
@@ -1236,7 +1293,13 @@ local function refreshUpgrades()
 	refreshPotionTimer()
 end
 
-local selectedSlot = nil -- { area = 영역 id, index = 자리 번호 }
+local selectedSlots = {} -- ["영역:자리 번호"] = { area, index } 빼려고 고른 자리들 (여러 개)
+local pickingSlot = nil -- { area, index } 장식을 고르는 중인 빈 자리
+local placeIntoSlot -- (stack, area, index) 아래에서 정한다
+
+local function slotKey(area: string, index: number): string
+	return area .. ":" .. index
+end
 
 local function treeEntry(area: string, index: number)
 	for _, entry in state.tree do
@@ -1260,16 +1323,93 @@ local function refreshTreeIncome()
 	)
 end
 
+-- 빈 자리에 걸 장식 목록 (그 영역 장식만)
+local function refreshPicker()
+	for _, child in ui.treePickerList:GetChildren() do
+		if child:IsA("TextButton") then
+			child:Destroy()
+		end
+	end
+	if not pickingSlot then
+		ui.treePicker.Visible = false
+		return
+	end
+	ui.treePicker.Visible = true
+	ui.treePickerTitle.Text = string.format(
+		"%s %d번 자리에 걸 장식을 골라 주세요",
+		Catalog.AREAS[pickingSlot.area],
+		pickingSlot.index
+	)
+
+	local count = 0
+	for _, stack in sortedStacks() do
+		local deco, trait = stackInfo(stack)
+		if deco.area ~= pickingSlot.area or stack.c <= 0 then
+			continue
+		end
+		count += 1
+		local r = Rarity.List[deco.rarity]
+		local row = create("TextButton", {
+			Text = "",
+			AutoButtonColor = true,
+			BackgroundColor3 = COLORS.panelLight,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, -8, 0, 40),
+			LayoutOrder = count,
+			ZIndex = 3,
+			Parent = ui.treePickerList,
+		})
+		corner(row, 8)
+		create("UIStroke", { Color = r.color, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = row })
+		scaledLabel({
+			Text = string.format("%s ×%s", itemName(deco, trait, stack.p), Gacha.FormatNumber(stack.c)),
+			TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
+			Size = UDim2.new(1, -110, 1, 0),
+			Position = UDim2.fromOffset(10, 0),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			ZIndex = 3,
+			Parent = row,
+		}, 15, 9)
+		label({
+			Text = r.name,
+			TextSize = 13,
+			TextColor3 = r.color,
+			Size = UDim2.new(0, 90, 1, 0),
+			AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -10, 0, 0),
+			TextXAlignment = Enum.TextXAlignment.Right,
+			ZIndex = 3,
+			Parent = row,
+		})
+		local slot = pickingSlot
+		row.Activated:Connect(function()
+			placeIntoSlot(stack, slot.area, slot.index)
+		end)
+	end
+	ui.treePickerEmpty.Visible = count == 0
+end
+
 local function refreshTree()
 	ui.treeTitle.Text = "내 트리 · 가치 " .. Gacha.FormatNumber(state.treeValue) .. "코인"
 	refreshTreeIncome()
+
+	-- 고른 자리 중 이제 비어 있는 곳은 빼고, 고르는 중인 자리가 채워졌으면 닫는다
+	for key, slot in selectedSlots do
+		if not treeEntry(slot.area, slot.index) then
+			selectedSlots[key] = nil
+		end
+	end
+	if pickingSlot and treeEntry(pickingSlot.area, pickingSlot.index) then
+		pickingSlot = nil
+	end
 
 	for _, area in TREE_AREAS do
 		for index, cell in ui.treeCells[area.id] do
 			local entry = treeEntry(area.id, index)
 			local deco = entry and Catalog.DecorationById[entry.d]
 			local trait = entry and Catalog.TraitById[entry.t]
-			local selected = selectedSlot ~= nil and selectedSlot.area == area.id and selectedSlot.index == index
+			local selected = selectedSlots[slotKey(area.id, index)] ~= nil
+				or (pickingSlot ~= nil and pickingSlot.area == area.id and pickingSlot.index == index)
 			if deco and trait then
 				local color = Rarity.List[deco.rarity].color
 				cell.name.Text = paintedName(deco, entry.p)
@@ -1288,23 +1428,45 @@ local function refreshTree()
 		end
 	end
 
-	-- 선택한 자리
-	local entry = selectedSlot and treeEntry(selectedSlot.area, selectedSlot.index)
-	local deco = entry and Catalog.DecorationById[entry.d]
-	local trait = entry and Catalog.TraitById[entry.t]
-	if deco and trait then
-		local r = Rarity.List[deco.rarity]
-		ui.treeDetail.Text = string.format(
-			"%s [%s] 가치 %s코인",
-			itemName(deco, trait, entry.p),
-			r.name,
-			Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, trait.mult))
-		)
-		ui.treeDetail.TextColor3 = r.color
+	refreshPicker()
+
+	-- 고른 자리들
+	local chosen = {}
+	for _, slot in selectedSlots do
+		table.insert(chosen, slot)
+	end
+	if #chosen == 1 then
+		local entry = treeEntry(chosen[1].area, chosen[1].index)
+		local deco = entry and Catalog.DecorationById[entry.d]
+		local trait = entry and Catalog.TraitById[entry.t]
+		if deco and trait then
+			local r = Rarity.List[deco.rarity]
+			ui.treeDetail.Text = string.format(
+				"%s [%s] 가치 %s코인",
+				itemName(deco, trait, entry.p),
+				r.name,
+				Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, trait.mult))
+			)
+			ui.treeDetail.TextColor3 = r.color
+		end
+	elseif #chosen > 1 then
+		local total = 0
+		for _, slot in chosen do
+			local entry = treeEntry(slot.area, slot.index)
+			local deco = entry and Catalog.DecorationById[entry.d]
+			local trait = entry and Catalog.TraitById[entry.t]
+			if deco and trait then
+				total += Gacha.GetItemValue(deco.rarity, trait.mult)
+			end
+		end
+		ui.treeDetail.Text = string.format("%d개를 골랐습니다 · 가치 합 %s코인", #chosen, Gacha.FormatNumber(total))
+		ui.treeDetail.TextColor3 = COLORS.text
+	end
+	if #chosen > 0 then
 		ui.treeRemove.Visible = true
-		setButton(ui.treeRemove, "빼기", true, COLORS.panelHover)
+		setButton(ui.treeRemove, if #chosen == 1 then "빼기" else string.format("%d개 빼기", #chosen), true, COLORS.panelHover)
 	else
-		ui.treeDetail.Text = "가방에서 장식을 골라 '트리에 걸기'를 눌러 주세요. 걸린 칸을 누르면 뺄 수 있습니다."
+		ui.treeDetail.Text = "빈 자리를 누르면 장식을 걸 수 있습니다. 걸린 칸을 여러 개 눌러 한 번에 뺄 수 있습니다."
 		ui.treeDetail.TextColor3 = COLORS.subText
 		ui.treeRemove.Visible = false
 	end
@@ -1590,6 +1752,10 @@ local function bagRequest(remote: RemoteFunction, ...)
 	end
 	if not result.ok then
 		setStatus(result.reason or "지금은 할 수 없습니다")
+		if not ui.slot.Visible then
+			-- 룰렛 창이 닫혀 있으면 안내 글이 안 보이므로 공지로 띄운다
+			showToast(result.reason or "지금은 할 수 없습니다", COLORS.error)
+		end
 		return nil
 	end
 	setStatus("")
@@ -1693,15 +1859,29 @@ local function placeSelected()
 	end
 end
 
-local function removeSelectedSlot()
-	if not selectedSlot then
+local function removeSelectedSlots()
+	local slots = {}
+	for _, slot in selectedSlots do
+		table.insert(slots, { a = slot.area, i = slot.index })
+	end
+	if #slots == 0 then
 		return
 	end
-	local result = bagRequest(Remotes.RemoveDecoration, selectedSlot.area, selectedSlot.index)
+	local result = bagRequest(Remotes.RemoveDecoration, slots)
 	if result then
-		selectedSlot = nil
+		selectedSlots = {}
 		refreshTree()
-		showToast("장식을 가방에 넣었습니다", COLORS.gold)
+		showToast(string.format("장식 %d개를 가방에 넣었습니다", result.removed or #slots), COLORS.gold)
+	end
+end
+
+-- 고른 빈 자리에 가방의 장식을 건다
+placeIntoSlot = function(stack, area: string, index: number)
+	local result = bagRequest(Remotes.PlaceDecoration, stackKey(stack), index)
+	if result then
+		pickingSlot = nil
+		refreshTree()
+		showToast(string.format("트리의 %s %d번 자리에 걸었습니다", Catalog.AREAS[area], index), COLORS.green)
 	end
 end
 
@@ -1715,7 +1895,8 @@ end
 
 local function setTreeOpen(open: boolean)
 	ui.treeWindow.Visible = open
-	selectedSlot = nil
+	selectedSlots = {}
+	pickingSlot = nil
 	if open then
 		ui.inventory.Visible = false
 		ui.upgradeWindow.Visible = false
@@ -1830,12 +2011,24 @@ function GachaUI.Start()
 	ui.treeClose.Activated:Connect(function()
 		setTreeOpen(false)
 	end)
-	ui.treeRemove.Activated:Connect(removeSelectedSlot)
+	ui.treeRemove.Activated:Connect(removeSelectedSlots)
+	ui.treePickerClose.Activated:Connect(function()
+		pickingSlot = nil
+		refreshTree()
+	end)
 	for _, area in TREE_AREAS do
 		for index, cell in ui.treeCells[area.id] do
 			cell.button.Activated:Connect(function()
-				local same = selectedSlot and selectedSlot.area == area.id and selectedSlot.index == index
-				selectedSlot = if same then nil else { area = area.id, index = index }
+				if treeEntry(area.id, index) then
+					-- 걸린 칸: 빼기 목록에 넣거나 뺀다 (여러 개 고를 수 있다)
+					local key = slotKey(area.id, index)
+					selectedSlots[key] = if selectedSlots[key] then nil else { area = area.id, index = index }
+					pickingSlot = nil
+				else
+					-- 빈 칸: 그 자리에 걸 장식 고르기를 연다 (같은 칸을 다시 누르면 닫는다)
+					local same = pickingSlot and pickingSlot.area == area.id and pickingSlot.index == index
+					pickingSlot = if same then nil else { area = area.id, index = index }
+				end
 				refreshTree()
 			end)
 		end
