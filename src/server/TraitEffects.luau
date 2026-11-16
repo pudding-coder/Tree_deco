@@ -7,7 +7,12 @@ local TraitEffects = {}
 
 -- Roblox 기본 파티클 그림 (따로 올린 에셋이 아니라 항상 있다)
 local SMOKE_TEXTURE = "rbxasset://textures/particles/smoke_main.dds" -- 연기
-local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반짝임·눈송이
+local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반짝임
+
+-- 눈꽃 모양 그림. Roblox 기본 그림에는 눈꽃이 없어서, 눈꽃 이미지를 올리고 그 이미지 id를 넣으면 그 모양으로 나온다
+-- 예: "rbxassetid://1234567890" (데칼 id가 아니라 이미지 id. Studio의 Asset Manager에서 올리면 이미지 id가 나온다)
+-- 비워 두면 별 모양으로 나온다
+local SNOWFLAKE_TEXTURE = ""
 
 --[[
 	특성별 효과. 하나의 특성에 파티클 종류(kind)를 하나 고른다
@@ -16,6 +21,8 @@ local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반
 	         "sparkles" 로블록스 기본 반짝이(Sparkles). 크고 넓게 퍼진다 (지금은 안 씀)
 	         색은 tag가 있으면 클라이언트가 계속 바꾼다
 	colors   파티클 색 (여러 개면 피어올라 사라지는 동안 이 순서로 바뀐다)
+	emission (선택, sparkle) 스스로 빛나는 정도 0~1. 낮을수록 흰색으로 바래지 않고 제 색이 보인다
+	haloColor, texture, bitEmission, fall (선택, aura) 빛무리 색, 조각 그림, 조각 빛 정도, 떨어지게 할지
 	glow     연기가 스스로 빛날지 (false면 탁한 연기)
 	rate     초당 나오는 개수
 	spread   (선택) 퍼지는 범위·파티클 크기 배수. 기본 1, 2.5면 2.5배 넓고 크게
@@ -46,22 +53,27 @@ local EFFECTS = {
 		spread = 2.5,
 		light = { Color3.fromRGB(255, 245, 210), 9, 0.6 },
 	},
-	-- 눈꽃: 떨어지는 눈송이
+	-- 눈꽃: 하늘색 빛무리 속에서 하얀 눈송이가 떨어진다 (눈꽃 모양은 위 SNOWFLAKE_TEXTURE)
 	Frost = {
-		kind = "snow",
-		colors = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(180, 225, 255) },
-		rate = 6,
+		kind = "aura",
+		colors = { Color3.fromRGB(255, 255, 255) },
+		haloColor = Color3.fromRGB(150, 210, 255),
+		texture = if SNOWFLAKE_TEXTURE ~= "" then SNOWFLAKE_TEXTURE else nil,
+		bitEmission = 0.6,
+		fall = true,
+		rate = 8,
 		light = { Color3.fromRGB(170, 220, 255), 5, 0.5 },
 	},
-	-- 황금: 금빛 별가루
+	-- 황금: 노란 별가루 (빛을 조금만 섞어 흰색이 아니라 노란색으로 보이게)
 	Gold = {
 		kind = "sparkle",
-		colors = { Color3.fromRGB(255, 240, 160), Color3.fromRGB(255, 185, 40) },
+		colors = { Color3.fromRGB(255, 220, 30), Color3.fromRGB(255, 170, 0) },
+		emission = 0.25,
 		rate = 20,
 		spread = 2.5,
 		light = { Color3.fromRGB(255, 210, 120), 10, 1 },
 	},
-	-- 무지개: 장식에 붙은 아우라, 색이 무지개로 계속 바뀐다
+	-- 무지개: 장식에 붙은 무지개색 빛무리와 별, 색이 계속 바뀐다
 	Rainbow = {
 		kind = "aura",
 		colors = RAINBOW,
@@ -69,7 +81,7 @@ local EFFECTS = {
 		light = { Color3.fromRGB(255, 120, 200), 8, 0.8 },
 		tag = "TraitRainbow",
 	},
-	-- 오로라: 장식에 붙은 아우라, 색이 초록·파랑·보라로 천천히 바뀐다
+	-- 오로라: 장식에 붙은 오로라색 빛무리와 별, 색이 초록·파랑·보라로 천천히 바뀐다
 	Aurora = {
 		kind = "aura",
 		colors = AURORA,
@@ -98,26 +110,27 @@ local function gradient(colors: { Color3 }): ColorSequence
 	return ColorSequence.new(keypoints)
 end
 
--- 아우라: 장식에 딱 붙어서 은은한 빛무리와 별이 반짝인다 (멀리 퍼지지 않는다)
+-- 아우라: 장식에 딱 붙은 색 빛무리 + 반짝이는 조각 (멀리 퍼지지 않는다)
+-- spec.fall이 true면 조각(눈송이)이 장식 둘레에서 천천히 떨어진다
 -- tag가 있으면 클라이언트가 파티클 색을 계속 바꾼다
 local function makeAura(spec, radius: number, parent: BasePart)
-	-- 빛무리: 장식을 감싸는 부드러운 빛
+	-- 빛무리: 장식을 감싸는 진한 색 빛. 빛을 조금만 섞어야(LightEmission 낮게) 흰색으로 바래지 않고 색이 잘 보인다
 	local halo = Instance.new("ParticleEmitter")
 	halo.Name = "TraitAuraHalo"
 	halo.Texture = SMOKE_TEXTURE
-	halo.Color = ColorSequence.new(spec.colors[1])
-	halo.LightEmission = 1
+	halo.Color = ColorSequence.new(spec.haloColor or spec.colors[1])
+	halo.LightEmission = 0.35
 	halo.LockedToPart = true -- 장식을 따라다니며 제자리에 머문다
-	halo.Rate = 3
+	halo.Rate = 5
 	halo.Lifetime = NumberRange.new(1.2, 1.6)
 	halo.Speed = NumberRange.new(0)
 	halo.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, radius * 2.2),
-		NumberSequenceKeypoint.new(1, radius * 2.8),
+		NumberSequenceKeypoint.new(0, radius * 2.4),
+		NumberSequenceKeypoint.new(1, radius * 3.2),
 	})
 	halo.Transparency = NumberSequence.new({
 		NumberSequenceKeypoint.new(0, 1),
-		NumberSequenceKeypoint.new(0.4, 0.55),
+		NumberSequenceKeypoint.new(0.35, 0.25),
 		NumberSequenceKeypoint.new(1, 1),
 	})
 	halo.Rotation = NumberRange.new(0, 360)
@@ -125,32 +138,47 @@ local function makeAura(spec, radius: number, parent: BasePart)
 	halo.ZOffset = -0.5
 	halo.Parent = parent
 
-	-- 별: 장식 겉면에서 반짝이고 바로 근처에서 사라진다
-	local stars = Instance.new("ParticleEmitter")
-	stars.Name = "TraitAuraStars"
-	stars.Texture = SPARKLE_TEXTURE
-	stars.Color = ColorSequence.new(spec.colors[1])
-	stars.LightEmission = 1
-	stars.LockedToPart = true
-	stars.Shape = Enum.ParticleEmitterShape.Sphere
-	stars.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
-	stars.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
-	stars.Rate = spec.rate
-	stars.Lifetime = NumberRange.new(0.5, 0.9)
-	stars.Speed = NumberRange.new(radius * 0.2, radius * 0.5)
-	stars.Drag = 6
-	stars.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0),
-		NumberSequenceKeypoint.new(0.35, radius * 0.6),
-		NumberSequenceKeypoint.new(1, 0),
-	})
-	stars.Rotation = NumberRange.new(0, 360)
-	stars.RotSpeed = NumberRange.new(-120, 120)
-	stars.Parent = parent
+	-- 조각: 별(또는 눈송이)이 장식 겉면에서 반짝인다
+	local bits = Instance.new("ParticleEmitter")
+	bits.Name = "TraitAuraBits"
+	bits.Texture = spec.texture or SPARKLE_TEXTURE
+	bits.Color = ColorSequence.new(spec.colors[1])
+	bits.LightEmission = spec.bitEmission or 0.3 -- 낮을수록 흰색 대신 제 색으로 보인다
+	bits.Shape = Enum.ParticleEmitterShape.Sphere
+	bits.ShapeStyle = Enum.ParticleEmitterShapeStyle.Surface
+	bits.ShapeInOut = Enum.ParticleEmitterShapeInOut.Outward
+	bits.Rate = spec.rate
+	bits.Rotation = NumberRange.new(0, 360)
+	if spec.fall then
+		-- 눈송이: 장식 둘레에서 천천히 돌며 떨어진다
+		bits.Lifetime = NumberRange.new(1.4, 2)
+		bits.Speed = NumberRange.new(radius * 0.1, radius * 0.3)
+		bits.Acceleration = Vector3.new(0, -radius * 0.8, 0)
+		bits.Drag = 2
+		bits.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.15, radius * 0.45),
+			NumberSequenceKeypoint.new(0.8, radius * 0.4),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		bits.RotSpeed = NumberRange.new(-60, 60)
+	else
+		bits.LockedToPart = true
+		bits.Lifetime = NumberRange.new(0.5, 0.9)
+		bits.Speed = NumberRange.new(radius * 0.2, radius * 0.5)
+		bits.Drag = 6
+		bits.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0),
+			NumberSequenceKeypoint.new(0.35, radius * 0.5),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		bits.RotSpeed = NumberRange.new(-120, 120)
+	end
+	bits.Parent = parent
 
 	if spec.tag then
 		CollectionService:AddTag(halo, spec.tag)
-		CollectionService:AddTag(stars, spec.tag)
+		CollectionService:AddTag(bits, spec.tag)
 	end
 end
 
@@ -166,7 +194,7 @@ local function makeEmitter(spec, radius: number): ParticleEmitter
 
 	if spec.kind == "sparkle" then
 		e.Texture = SPARKLE_TEXTURE
-		e.LightEmission = 1
+		e.LightEmission = spec.emission or 1
 		e.Size = NumberSequence.new({
 			NumberSequenceKeypoint.new(0, 0),
 			NumberSequenceKeypoint.new(0.3, radius * 0.45 * math.sqrt(k)),
