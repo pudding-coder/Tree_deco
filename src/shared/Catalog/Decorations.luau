@@ -8,8 +8,6 @@
 	area    "Topper"(꼭대기) "Ornament"(가지에 거는 것) "Garland"(띠)
 	weight  (선택) 같은 등급 안에서 나오는 비율. 안 쓰면 1. 2면 다른 장식보다 2배 잘 나온다.
 	model   (선택) ReplicatedStorage.DecorationModels 안의 3D 모델 이름. 트리 꾸미기 작업 때 연결.
-	paintable (선택) true면 뽑을 때 Paints.luau에서 색이 랜덤으로 정해져 모델의 Paint 파트에 칠해진다.
-	        색이 다르면 가방 칸이 따로 생기므로, Paint 파트가 있는 모델에만 켠다.
 	retired (선택) true면 더 이상 뽑히지 않는다. 이미 가진 사람은 그대로 갖는다. (삭제 대신 이걸 쓸 것)
 
 	※ 초안: GAME_RULES.md에 확정되기 전 목록이다.
@@ -18,7 +16,7 @@
 return {
 	-- 커먼
 	{ id = "Star", name = "별", rarity = "Common", area = "Topper" },
-	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament", paintable = true },
+	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
@@ -30,6 +28,7 @@ return {
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
+	{ id = "ChristmasSock", name = "크리스마스 양말", rarity = "Common", area = "Ornament" },
 
 	-- 언커먼
 	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper" },
@@ -38,6 +37,7 @@ return {
 	{ id = "Stocking", name = "크리스마스 양말", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 	{ id = "LuckyFish", name = "액막이 명태", rarity = "Uncommon", area = "Ornament" },
+	{ id = "NoEntrySign", name = "관계자 외 출입금지 표지판", rarity = "Uncommon", area = "Ornament" },
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
@@ -53,6 +53,7 @@ return {
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
+	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
