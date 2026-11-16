@@ -12,7 +12,8 @@ local SPARKLE_TEXTURE = "rbxasset://textures/particles/sparkles_main.dds" -- 반
 --[[
 	특성별 효과. 하나의 특성에 파티클 종류(kind)를 하나 고른다
 	kind     "sparkle" 반짝이는 별가루 / "snow" 떨어지는 눈송이 / "smoke" 피어오르는 연기
-	         "aura" 장식 둘레에서 빛 입자와 작은 별이 위로 피어오른다
+	         "aura" 장식 둘레에서 빛 입자와 작은 별이 위로 피어오른다 (지금은 안 씀)
+	         "sparkles" 로블록스 기본 반짝이(Sparkles). 크고 진하게 보인다. 색은 tag가 있으면 클라이언트가 계속 바꾼다
 	colors   파티클 색 (여러 개면 피어올라 사라지는 동안 이 순서로 바뀐다)
 	glow     연기가 스스로 빛날지 (false면 탁한 연기)
 	rate     초당 나오는 개수
@@ -56,17 +57,17 @@ local EFFECTS = {
 		rate = 10,
 		light = { Color3.fromRGB(255, 210, 120), 6, 0.7 },
 	},
-	-- 무지개: 무지개색 빛 입자가 피어오른다
+	-- 무지개: 크게 반짝이는 Sparkles, 색이 무지개로 계속 바뀐다
 	Rainbow = {
-		kind = "aura",
+		kind = "sparkles",
 		colors = RAINBOW,
 		rate = 10,
 		light = { Color3.fromRGB(255, 120, 200), 8, 0.8 },
 		tag = "TraitRainbow",
 	},
-	-- 오로라: 초록·파랑·보라 오로라색 빛 입자가 피어오른다
+	-- 오로라: 크게 반짝이는 Sparkles, 색이 초록·파랑·보라로 천천히 바뀐다
 	Aurora = {
-		kind = "aura",
+		kind = "sparkles",
 		colors = AURORA,
 		rate = 10,
 		light = { Color3.fromRGB(120, 255, 200), 10, 1 },
@@ -248,7 +249,15 @@ function TraitEffects.Apply(target: Instance, trait, withAura: boolean?)
 	end
 	local radius = math.max(size.X, size.Y, size.Z) / 2
 
-	if spec.kind == "aura" then
+	if spec.kind == "sparkles" then
+		local sparkles = Instance.new("Sparkles")
+		sparkles.Name = "TraitSparkles"
+		sparkles.SparkleColor = spec.colors[1]
+		sparkles.Parent = part
+		if spec.tag then
+			CollectionService:AddTag(sparkles, spec.tag) -- 색을 클라이언트가 계속 바꾼다
+		end
+	elseif spec.kind == "aura" then
 		makeAura(spec, radius, part)
 	else
 		makeEmitter(spec, radius).Parent = part

@@ -47,6 +47,8 @@ function TraitAnimator.Start()
 				inst.Color = color
 			elseif inst:IsA("Light") then
 				inst.Color = color
+			elseif inst:IsA("Sparkles") then
+				inst.SparkleColor = color
 			end
 		end
 		for _, inst in CollectionService:GetTagged(AURORA_TAG) do
@@ -55,6 +57,8 @@ function TraitAnimator.Start()
 				inst.Color = color
 			elseif inst:IsA("Light") then
 				inst.Color = color
+			elseif inst:IsA("Sparkles") then
+				inst.SparkleColor = color
 			end
 		end
 	end)
