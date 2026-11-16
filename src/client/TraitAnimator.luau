@@ -1,4 +1,4 @@
--- 색이 계속 바뀌는 특성 효과를 움직인다 (서버 src/server/TraitEffects.luau가 태그를 붙인다)
+-- 색이 계속 바뀌는 특성 효과(무지개·오로라 빛)를 움직인다 (서버 src/server/TraitEffects.luau가 태그를 붙인다)
 -- 화면에서만 바뀌는 색이라 서버와 주고받지 않는다
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
@@ -41,9 +41,12 @@ function TraitAnimator.Start()
 		end
 		elapsed = 0
 
-		for _, part in CollectionService:GetTagged(RAINBOW_TAG) do
-			if part:IsA("BasePart") then
-				part.Color = Color3.fromHSV((clock * 0.25 + offsetOf(part)) % 1, 0.8, 1)
+		for _, inst in CollectionService:GetTagged(RAINBOW_TAG) do
+			local color = Color3.fromHSV((clock * 0.25 + offsetOf(inst)) % 1, 0.8, 1)
+			if inst:IsA("BasePart") then
+				inst.Color = color
+			elseif inst:IsA("Light") then
+				inst.Color = color
 			end
 		end
 		for _, inst in CollectionService:GetTagged(AURORA_TAG) do

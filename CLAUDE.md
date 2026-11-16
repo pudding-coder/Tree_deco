@@ -16,7 +16,7 @@
 | --- | --- |
 | 게임 규칙 | `GAME_RULES.md` |
 | 밸런스 값 | `src/shared/Config.luau` |
-| 장식·특성 목록 | `src/shared/Catalog/Decorations.luau`, `Traits.luau` (추가 방법: `docs/ADDING_ITEMS.md`) |
+| 장식·특성·칠하기 색 목록 | `src/shared/Catalog/Decorations.luau`, `Traits.luau`, `Paints.luau` (추가 방법: `docs/ADDING_ITEMS.md`) |
 | 등급 이름·색 | `src/shared/Rarity.luau` (확률·가치는 `Config.luau`) |
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |

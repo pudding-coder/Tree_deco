@@ -530,6 +530,7 @@ local function renderEntry(plot, entry)
 	end
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
 
+	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local model = cloneModel(deco)
 	if model then
 		model:PivotTo(cf)
@@ -538,6 +539,9 @@ local function renderEntry(plot, entry)
 			local box, boxSize = model:GetBoundingBox()
 			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
+		end
+		if paint then
+			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
 		end
 		TraitEffects.Apply(model, trait)
 		model.Parent = plot.decorations
@@ -596,6 +600,9 @@ local function renderEntry(plot, entry)
 			Parent = plot.decorations,
 		})
 		decorateLook(part, deco, trait)
+		if paint then
+			TraitEffects.Paint(part, paint.color)
+		end
 		if entry.a == "Topper" then
 			part.Material = Enum.Material.Neon
 		end
@@ -819,7 +826,7 @@ local function onPlace(player: Player, key: any)
 
 	stack.c -= 1
 	PlayerData.RemoveEmptyStacks(profile)
-	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t })
+	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, p = stack.p })
 	render(player)
 
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
@@ -840,7 +847,7 @@ local function onRemove(player: Player, area: any, index: any)
 	end
 
 	-- 가방에 같은 칸이 없으면 새 칸이 필요하다
-	local key = PlayerData.StackKey(entry.d, entry.t)
+	local key = PlayerData.StackKey(entry.d, entry.t, entry.p)
 	local existing = PlayerData.FindStack(profile, key)
 	if not existing and PlayerData.GetBagSlotsUsed(profile) >= profile.bagCapacity then
 		return fail("가방이 가득 찼습니다. 판매하거나 확장해 주세요")
@@ -852,9 +859,9 @@ local function onRemove(player: Player, area: any, index: any)
 	if existing then
 		existing.c += 1
 	elseif deco and trait then
-		PlayerData.AddItem(profile, deco, trait, 1)
+		PlayerData.AddItem(profile, deco, trait, 1, entry.p)
 	else
-		table.insert(profile.stacks, { d = entry.d, t = entry.t, c = 1, l = false })
+		table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, c = 1, l = false })
 	end
 	render(player)
 

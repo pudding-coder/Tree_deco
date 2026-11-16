@@ -67,7 +67,7 @@ function GachaService.BuildState(player: Player)
 	local stacks = {}
 	for _, stack in profile.stacks do
 		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
-			table.insert(stacks, { d = stack.d, t = stack.t, c = stack.c, l = stack.l })
+			table.insert(stacks, { d = stack.d, t = stack.t, p = stack.p, c = stack.c, l = stack.l })
 		end
 	end
 
@@ -189,10 +189,12 @@ local function onSpin(player: Player, kind: any)
 	local rarityIndex = Gacha.Roll(luck, rng)
 	local deco = Catalog.RollDecoration(rarityIndex, rng)
 	local trait = Catalog.RollTrait(rng)
+	local paint = if deco.paintable then Catalog.RollPaint(rng) else nil
+	local paintId = paint and paint.id
 	local coinsAfterCost = profile.coins
 
 	-- 자동 판매: 지정한 등급 이하이고, 그 칸이 잠기지 않았고, (설정에 따라) 특성이 없을 때
-	local key = PlayerData.StackKey(deco.id, trait.id)
+	local key = PlayerData.StackKey(deco.id, trait.id, paintId)
 	local existing = PlayerData.FindStack(profile, key)
 	local isLocked = if existing
 		then existing.l
@@ -204,7 +206,7 @@ local function onSpin(player: Player, kind: any)
 		saleCoins = Gacha.GetSellPrice(rarityIndex, trait.mult)
 		PlayerData.AddCoins(player, saleCoins)
 	else
-		PlayerData.AddItem(profile, deco, trait, 1)
+		PlayerData.AddItem(profile, deco, trait, 1, paintId)
 	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)
@@ -224,6 +226,7 @@ local function onSpin(player: Player, kind: any)
 		rarity = rarityIndex,
 		decoId = deco.id,
 		traitId = trait.id,
+		paintId = paintId,
 		reelTime = reelTime,
 		autoSold = saleCoins > 0,
 		saleCoins = saleCoins,
