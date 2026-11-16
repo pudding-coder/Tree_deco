@@ -40,21 +40,22 @@ local LAYERS = {
 	{ radius = 4.5, height = 3.5 },
 	{ radius = 3, height = 3 },
 }
--- 오너먼트 자리: 층 번호(아래층부터)와 각도(0 = 광장 쪽 정면, 도 단위)
--- 높이는 그 층의 띠와 나란히(띠 바로 위나 아래) 비스듬히 정해진다
--- 장식은 1번 자리부터 채워지므로, 몇 개만 걸어도 트리 전체에 퍼지게 층과 방향을 섞어 둔다
+-- 오너먼트 자리: 어느 띠를 따라 걸지(띠 번호)와 각도(0 = 광장 쪽 정면, 도 단위)
+-- 띠가 비스듬하므로 같은 띠의 오너먼트는 사선으로 이어진다. 띠를 안 걸어도 그 자리를 따른다
+-- 장식은 1번 자리부터 채워지므로, 몇 개만 걸어도 트리 전체에 퍼지게 섞어 둔다
 local ORNAMENT_SPOTS = {
-	{ layer = 2, angle = 0 },
-	{ layer = 3, angle = -50 },
-	{ layer = 1, angle = 45 },
-	{ layer = 4, angle = 20 },
-	{ layer = 1, angle = -60 },
-	{ layer = 2, angle = 70 },
-	{ layer = 3, angle = 60 },
-	{ layer = 2, angle = -80 },
-	{ layer = 1, angle = 150 },
-	{ layer = 3, angle = 180 },
+	{ garland = 1, angle = 0 },
+	{ garland = 2, angle = -40 },
+	{ garland = 3, angle = 30 },
+	{ garland = 2, angle = 40 },
+	{ garland = 1, angle = -60 },
+	{ garland = 1, angle = 60 },
+	{ garland = 3, angle = -45 },
+	{ garland = 2, angle = -85 },
+	{ garland = 2, angle = 85 },
+	{ garland = 2, angle = 0 },
 }
+local ORNAMENT_DROP = 0.5 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
 -- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다
 local GARLAND_TIERS = { 3, 1, 4, 2 }
 local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
@@ -145,8 +146,7 @@ local function slotOffset(area: string, index: number): CFrame
 		return CFrame.new(0, topperY or treeTop(), 0)
 	elseif area == "Ornament" then
 		local spot = ORNAMENT_SPOTS[index]
-		local layer = LAYERS[spot.layer]
-		local pos = ornamentPoints[index] or localPoint(spot.angle, layer.radius + 0.4, layerBottom(spot.layer) + 0.8)
+		local pos = ornamentPoints[index] or localPoint(spot.angle, LAYERS[1].radius + 0.4, layerBottom(1) + 0.8)
 		return CFrame.lookAt(pos, Vector3.new(0, pos.Y, 0)) -- 트리 쪽을 바라보게
 	else -- Garland: 띠 가운데 높이의 트리 중심
 		return CFrame.new(0, garlandCenters[index] or (layerBottom(index + 1) + 0.2), 0)
@@ -159,7 +159,7 @@ end
 local function buildSlotPositions(rims: { number }, topY: number, surfaceRadius: (number, number) -> number?)
 	local count = AREA_CAPACITY.Garland
 	local tierCount = #rims
-	local garlandOnTier = {} -- [층] = 띠 가운데 비율 (층 높이 대비)
+	local garlandTilts = {} -- [띠 자리] = 기울기 (스터드)
 	local function tierRange(tier: number): (number, number)
 		local bottom = rims[tier]
 		local top = rims[tier + 1] or topY
@@ -174,8 +174,8 @@ local function buildSlotPositions(rims: { number }, topY: number, surfaceRadius:
 		if custom then
 			center = custom.Y
 		end
-		garlandOnTier[tier] = (center - bottom) / gap
 		local tilt = gap * GARLAND_TILT
+		garlandTilts[i] = tilt
 
 		local points = {}
 		for k = 1, GARLAND_BALLS do
@@ -190,21 +190,13 @@ local function buildSlotPositions(rims: { number }, topY: number, surfaceRadius:
 		garlandCenters[i] = center
 	end
 
-	-- 오너먼트: 띠가 있는 층이면 그 각도에서 띠 높이보다 조금 위나 아래(띠와 나란한 사선), 없으면 층 아래쪽
+	-- 오너먼트: 띠를 따라 그 각도의 띠 높이에 매단다 (그래서 사선으로 이어진다)
 	for i, spot in ORNAMENT_SPOTS do
-		local tier = math.min(spot.layer, tierCount)
-		local bottom, gap = tierRange(tier)
-		local frac = 0.3
-		local garlandCenter = garlandOnTier[tier]
-		if garlandCenter then
-			local g = garlandCenter + GARLAND_TILT * math.sin(math.rad(spot.angle))
-			frac = if g > 0.45 then g - 0.28 else g + 0.28
-		end
-		frac = math.clamp(frac, 0.08, 0.8)
-		local y = bottom + gap * frac
+		local g = math.clamp(spot.garland, 1, count)
+		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - ORNAMENT_DROP
 		local r = surfaceRadius(spot.angle, y)
 		if r then
-			ornamentPoints[i] = localPoint(spot.angle, r + 0.5, y)
+			ornamentPoints[i] = localPoint(spot.angle, r + 0.6, y)
 		end
 	end
 end

@@ -49,7 +49,7 @@
 - 장식은 모델 겉면에 맞춰 자동으로 붙는다. 위치를 직접 정하려면 아래 "장식 자리 직접 정하기"를 따른다.
   - 토퍼: 꼭대기 끝에 앉는다.
   - 띠: 층마다 겉면을 **비스듬히** 한 바퀴 두르는 전구 줄이다 (`GARLAND_TIERS` 순서: 3층, 1층, 4층). 기울기는 `TreeService.luau`의 `GARLAND_TILT`.
-  - 오너먼트: 같은 층 띠와 나란히(띠 바로 위나 아래) 사선으로 걸린다.
+  - 오너먼트: 띠 3줄을 따라 매달려 사선으로 이어진다 (`ORNAMENT_SPOTS`에서 띠 번호와 각도). 띠를 안 걸어도 그 자리를 따른다.
 - 게임은 모델을 광선으로 재서 층을 찾는다. Play할 때 Output의 `[Tree] TreeTemplate을 씁니다 (... 층 N개 찾음 ...)`에서 N이 트리 층 수와 다르거나 띠가 떠 보이면, 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다.
 - `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
 - 편집할 때는 `TreeTemplate`을 `Workspace`에 꺼내 둬도 된다. 게임이 시작되면 Workspace에 있는 원본은 자동으로 치워지고 트리 자리마다 복제된다.
