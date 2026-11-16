@@ -23,4 +23,5 @@
 | 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
 | 장식 3D 에셋 규칙·색 팔레트 | `docs/ASSET_RULES.md` (시안 `docs/asset_rules/style_sheet.png`) |
 | 맵 구상·분위기 초안 | `docs/MAP_CONCEPT.md` (그림 `docs/map_concept.png`) |
+| 맵 에셋 목록·크기 | `docs/MAP_ASSETS.md` (파일 `assets/models/map/`, 스크립트 `tools/blender/make_map_assets.py`) |
 | 맵·트리 자리·투명벽 | `docs/MAP.md` (맵은 플레이스 파일에 있고 Rojo는 Workspace를 건드리지 않음) |
