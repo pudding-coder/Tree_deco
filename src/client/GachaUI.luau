@@ -175,8 +175,10 @@ local function buildSlot(gui)
 		Size = UDim2.fromOffset(520, 280),
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
+		Visible = false, -- 룰렛 버튼으로 열고 닫는다
 		Parent = gui,
 	})
+	ui.slot = slot
 	label({
 		Text = "장식 룰렛",
 		TextSize = 20,
@@ -303,8 +305,10 @@ local function buildOdds(gui)
 		Size = UDim2.fromOffset(220, height),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -16, 1, -20),
+		Visible = false, -- 룰렛과 같이 열고 닫는다
 		Parent = gui,
 	})
+	ui.odds = frame
 	local list = create("Frame", { BackgroundTransparency = 1, Size = UDim2.fromScale(1, 1), Parent = frame })
 	create("UIListLayout", { SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
 
@@ -626,6 +630,27 @@ local TREE_AREAS = {
 	{ id = "Garland", name = "띠", count = Config.MAX_GARLAND },
 }
 
+-- 룰렛 버튼 (트리 버튼 위): 룰렛 창과 확률표를 열고 닫는다
+local function buildRouletteButton(gui)
+	ui.rouletteButton = button({
+		Name = "RouletteButton",
+		Text = "룰렛",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -212),
+		Radius = 14,
+		Parent = gui,
+	})
+	ui.rouletteStroke = create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.rouletteButton,
+	})
+end
+
 -- 트리 버튼 (업그레이드 버튼 위)
 local function buildTreeButton(gui)
 	ui.treeButton = button({
@@ -806,6 +831,7 @@ local function buildUI()
 	buildBagButton(gui)
 	buildUpgradeButton(gui)
 	buildTreeButton(gui)
+	buildRouletteButton(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
@@ -1666,6 +1692,14 @@ local function removeSelectedSlot()
 	end
 end
 
+-- 룰렛 창과 확률표. 열려 있으면 버튼 테두리를 금색으로 표시한다
+local function setRouletteOpen(open: boolean)
+	ui.slot.Visible = open
+	ui.odds.Visible = open
+	ui.rouletteStroke.Color = if open then COLORS.gold else Color3.new(1, 1, 1)
+	ui.rouletteStroke.Transparency = if open then 0 else 0.85
+end
+
 local function setTreeOpen(open: boolean)
 	ui.treeWindow.Visible = open
 	selectedSlot = nil
@@ -1749,6 +1783,9 @@ function GachaUI.Start()
 	end)
 	ui.coinButton.Activated:Connect(function()
 		spin("coin")
+	end)
+	ui.rouletteButton.Activated:Connect(function()
+		setRouletteOpen(not ui.slot.Visible)
 	end)
 	ui.bagButton.Activated:Connect(function()
 		setInventoryOpen(not ui.inventory.Visible)
