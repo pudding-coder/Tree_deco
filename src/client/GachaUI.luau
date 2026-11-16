@@ -36,6 +36,7 @@ local TRAIT_COLORS = {
 	Golden = Color3.fromRGB(255, 200, 40),
 	Rainbow = Color3.fromRGB(255, 120, 200),
 	Aurora = Color3.fromRGB(120, 255, 200),
+	Smoge = Color3.fromRGB(150, 150, 150),
 }
 
 local function traitColor(trait): Color3
