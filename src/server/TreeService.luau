@@ -100,6 +100,8 @@ local treeTemplate: Model? = nil
 local treeTemplatePivot = CFrame.identity -- 밑동 가운데가 (0, 0, 0)에 오게 하는 피벗
 local ornamentRadius = {} -- [오너먼트 자리] = 모델 겉면까지 거리
 local garlandRadii = {} -- [띠 자리] = 모델 겉면에 맞춘 반지름
+-- TreeTemplate 안 Slots 폴더에 직접 놓은 자리 표시 (docs/MAP.md). 있으면 자동 위치보다 먼저 쓴다
+local customSlots = { Topper = {}, Ornament = {}, Garland = {} } -- [영역][번호] = 플롯 기준 위치(Vector3)
 
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
@@ -121,6 +123,15 @@ end
 
 -- 자리별 위치 (플롯 기준)
 local function slotOffset(area: string, index: number): CFrame
+	local custom = customSlots[area] and customSlots[area][index]
+	if custom then
+		if area == "Ornament" then
+			return CFrame.lookAt(custom, Vector3.new(0, custom.Y, 0)) -- 트리 쪽을 바라보게
+		elseif area == "Garland" then
+			return CFrame.new(0, custom.Y, 0) -- 띠는 표시 높이에서 트리를 한 바퀴 두른다
+		end
+		return CFrame.new(custom)
+	end
 	if area == "Topper" then
 		return CFrame.new(0, treeTop() + 1.6, 0)
 	elseif area == "Ornament" then
@@ -135,21 +146,56 @@ local function slotOffset(area: string, index: number): CFrame
 end
 
 local function garlandRadius(index: number): number
+	local custom = customSlots.Garland[index]
+	if custom then
+		return Vector3.new(custom.X, 0, custom.Z).Magnitude -- 트리 가운데에서 표시까지 거리
+	end
 	return garlandRadii[index] or LAYERS[index].radius * 0.85
 end
 
 -- 트리 모델을 원기둥 트리와 같은 높이로 맞추고, 장식이 겉면에 붙도록 거리를 잰다
 local function loadTreeTemplate()
-	local source = game:GetService("ServerStorage"):FindFirstChild("TreeTemplate")
+	-- 편집하기 편하게 Workspace에 둬도 된다. 게임이 시작되면 Workspace의 원본은 치운다
+	local source = game:GetService("ServerStorage"):FindFirstChild("TreeTemplate") or workspace:FindFirstChild("TreeTemplate")
 	if not source then
 		warn("[Tree] ServerStorage에 TreeTemplate이 없어 원기둥 트리를 씁니다.")
 		return
 	end
 	if not source:IsA("Model") then
-		warn("[Tree] ServerStorage.TreeTemplate은 Model이어야 합니다. 지금은 " .. source.ClassName .. "입니다. 원기둥 트리를 씁니다.")
+		warn("[Tree] TreeTemplate은 Model이어야 합니다. 지금은 " .. source.ClassName .. "입니다. 원기둥 트리를 씁니다.")
 		return
 	end
 	local model = source:Clone()
+	if source.Parent == workspace then
+		source.Parent = nil
+	end
+
+	-- 자리 표시(Slots 폴더)는 크기 재기 전에 빼 두고, 모델 피벗 기준 위치만 기억한다
+	local markers = {} -- { area, index, name, point }
+	local slotsFolder = model:FindFirstChild("Slots")
+	if slotsFolder then
+		local pivot = model:GetPivot()
+		for _, marker in slotsFolder:GetChildren() do
+			if not marker:IsA("BasePart") then
+				continue
+			end
+			local area, number = string.match(marker.Name, "^(%a+)(%d*)$")
+			local index = tonumber(number) or 1
+			local capacity = area and AREA_CAPACITY[area]
+			if not capacity or index < 1 or index > capacity then
+				warn(string.format(
+					"[Tree] TreeTemplate.Slots의 '%s'는 쓸 수 없는 이름입니다. Topper, Ornament1~%d, Garland1~%d 중 하나로 지어 주세요.",
+					marker.Name,
+					AREA_CAPACITY.Ornament,
+					AREA_CAPACITY.Garland
+				))
+				continue
+			end
+			table.insert(markers, { area = area, index = index, point = pivot:PointToObjectSpace(marker.Position) })
+		end
+		slotsFolder:Destroy()
+	end
+
 	local parts = {}
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
@@ -163,13 +209,21 @@ local function loadTreeTemplate()
 	end
 
 	local _, size = model:GetBoundingBox()
-	model:ScaleTo(model:GetScale() * treeTop() / size.Y)
+	local scale = treeTop() / size.Y
+	model:ScaleTo(model:GetScale() * scale) -- 피벗을 중심으로 커지거나 작아진다
 
 	-- 밑동 가운데를 원점에 맞춘다
 	model:PivotTo(CFrame.identity)
 	local box, boxSize = model:GetBoundingBox()
 	treeTemplatePivot = CFrame.new(-box.X, boxSize.Y / 2 - box.Y, -box.Z)
 	model:PivotTo(treeTemplatePivot)
+
+	for _, marker in markers do
+		customSlots[marker.area][marker.index] = treeTemplatePivot:PointToWorldSpace(marker.point * scale)
+	end
+	if #markers > 0 then
+		print(string.format("[Tree] TreeTemplate.Slots에서 장식 자리 %d곳을 읽었습니다", #markers))
+	end
 
 	-- 원점에 잠깐 놓고 이 모델만 맞히는 광선으로 겉면 거리를 잰다 (같은 프레임에 치워서 보이지 않는다)
 	model.Parent = workspace

@@ -46,8 +46,33 @@
 - 원본: `assets/models/ChristmasTree.fbx` (Blender 스크립트 `tools/blender/make_tree.py`로 만듦)
 - Studio에서 **Home → Import**로 불러온 뒤, 생긴 Model을 `ServerStorage`로 옮기고 이름을 `TreeTemplate`으로 바꾼다.
 - 트리는 **똑바로 선 모습**으로 두고, 피벗을 돌리지 않는다. 크기·위치는 아무래도 된다. 게임이 시작될 때 높이를 위 표의 트리 높이(토퍼 제외 24)에 맞추고 밑동을 자리 바닥 가운데에 세운다.
-- 오너먼트·띠 장식은 모델 겉면에 맞춰 자동으로 붙는다.
+- 오너먼트·띠 장식은 모델 겉면에 맞춰 자동으로 붙는다. 위치를 직접 정하려면 아래 "장식 자리 직접 정하기"를 따른다.
 - `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
+- 편집할 때는 `TreeTemplate`을 `Workspace`에 꺼내 둬도 된다. 게임이 시작되면 Workspace에 있는 원본은 자동으로 치워지고 트리 자리마다 복제된다.
+
+### 장식 자리 직접 정하기 (Slots)
+
+`TreeTemplate` 안에 자리 표시 파트를 넣으면 코드가 정한 자리 대신 그 위치에 장식이 걸린다.
+
+1. `ServerStorage`의 `TreeTemplate`을 `Workspace`로 드래그해서 화면에 보이게 한다.
+2. `TreeTemplate` 안에 **Folder**를 만들고 이름을 정확히 `Slots`로 바꾼다.
+3. `Slots` 안에 작은 **Part**(예: 1 × 1 × 1)를 넣고 장식이 걸릴 곳에 옮긴다. 이름으로 어느 자리인지 정한다.
+
+   | 이름 | 뜻 |
+   | --- | --- |
+   | `Topper` | 꼭대기 장식 위치 (파트 가운데) |
+   | `Ornament1` ~ `Ornament10` | 오너먼트 위치 (파트 가운데. 트리 겉면에 반쯤 걸치게) |
+   | `Garland1` ~ `Garland3` | 띠 위치. 파트 하나를 띠가 지나갈 **겉면 한 곳**에 둔다. 그 높이에서 그 거리로 트리를 한 바퀴 두른다 |
+
+   - 번호 개수는 `Config.luau`의 `MAX_ORNAMENT`, `MAX_GARLAND`를 따른다. 표시가 없는 번호는 자동 위치를 쓴다.
+   - 이름이 틀리면 Play할 때 Output에 노란 경고가 나온다.
+   - 파트 하나를 만들고 `Cmd + D`로 복제하면 편하다. 색을 눈에 띄게 하고 `Anchored`, `CanCollide` 끄기를 권한다.
+4. 다 했으면 Play로 확인한다. Output에 `[Tree] TreeTemplate.Slots에서 장식 자리 N곳을 읽었습니다`가 나온다.
+5. 확인이 끝나면 `TreeTemplate`을 `ServerStorage`로 되돌리거나 Workspace에 그대로 두고 `Cmd + S`로 저장한다.
+
+- 모델 크기는 아무래도 된다. 게임이 트리 높이를 맞출 때 표시도 같이 늘거나 줄어든다.
+- 트리 정면은 모델의 **피벗 앞(-Z) 방향**이다. 피벗을 돌리지 않았다면 처음 불러온 방향 그대로다.
+- 이미 걸려 있는 장식은 번호(`Ornament3` 등)로 저장되어 있어서, 표시를 옮기면 기존 장식도 새 위치로 옮겨진다.
 
 ---
 
