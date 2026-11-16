@@ -347,6 +347,29 @@ local function createLeaderstats(player: Player, profile)
 	leaderstats.Parent = player
 end
 
+-- Studio 테스트용: 특성마다 오너먼트·띠·토퍼 견본을 하나씩 넣는다 (이미 있는 칸은 건너뛴다)
+local TRAIT_SAMPLE_DECORATIONS = { "Ball", "MiniLights", "Star" }
+
+local function giveTraitSamples(profile)
+	local given = 0
+	for _, decoId in TRAIT_SAMPLE_DECORATIONS do
+		local deco = Catalog.DecorationById[decoId]
+		if not deco then
+			continue
+		end
+		for _, trait in Catalog.Traits do
+			if trait.retired or PlayerData.FindStack(profile, stackKey(deco.id, trait.id)) then
+				continue
+			end
+			PlayerData.AddItem(profile, deco, trait, 1)
+			given += 1
+		end
+	end
+	if given > 0 then
+		print(string.format("[PlayerData] Studio 테스트: 특성 견본 장식 %d개를 가방에 넣었습니다", given))
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
@@ -372,6 +395,9 @@ local function onPlayerAdded(player: Player)
 
 	local profile = reconcile(saved)
 	profile.canSave = canSave
+	if IS_STUDIO and Config.STUDIO_GIVE_TRAIT_SAMPLES then
+		giveTraitSamples(profile)
+	end
 	profiles[player] = profile
 	createLeaderstats(player, profile)
 end

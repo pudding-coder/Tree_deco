@@ -3,7 +3,6 @@
 -- 플롯에는 트리가 서 있고, 정해진 자리에 장식을 건다.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
 local Shared = ReplicatedStorage:WaitForChild("Shared")
 local Config = require(Shared:WaitForChild("Config"))
@@ -15,6 +14,7 @@ local Remotes = ReplicatedStorage:WaitForChild("Remotes")
 local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local Income = require(script.Parent.Income)
+local TraitEffects = require(script.Parent.TraitEffects)
 
 local TreeService = {}
 
@@ -483,37 +483,8 @@ end
 -- 장식 모양
 ----------------------------------------------------------------
 
-local rainbowParts = {} -- 무지개 특성 파츠 (색을 계속 바꾼다)
-
--- 특성 효과: Traits.luau의 effect 이름으로 정한다
-local function applyTrait(part: BasePart, trait)
-	local effect = trait.effect
-	if effect == "Sparkle" then
-		Instance.new("Sparkles").Parent = part
-	elseif effect == "Frost" then
-		part.Material = Enum.Material.Ice
-		part.Color = part.Color:Lerp(Color3.new(1, 1, 1), 0.45)
-	elseif effect == "Gold" then
-		part.Color = Color3.fromRGB(255, 200, 40)
-		part.Material = Enum.Material.Metal
-		local sparkles = Instance.new("Sparkles")
-		sparkles.SparkleColor = Color3.fromRGB(255, 220, 120)
-		sparkles.Parent = part
-	elseif effect == "Rainbow" then
-		part.Material = Enum.Material.Neon
-		table.insert(rainbowParts, part)
-	elseif effect == "Aurora" then
-		part.Material = Enum.Material.Neon
-		part.Color = Color3.fromRGB(120, 255, 200)
-		local light = Instance.new("PointLight")
-		light.Color = Color3.fromRGB(120, 255, 200)
-		light.Range = 10
-		light.Parent = part
-		Instance.new("Sparkles").Parent = part
-	end
-end
-
-local function decorateLook(part: BasePart, deco, trait)
+-- 임시 모양(등급 색 공)의 겉모습. withExtras가 false면 특성 파티클·빛은 붙이지 않는다
+local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 	local r = Rarity.List[deco.rarity]
 	part.Color = r.color
 	part.Material = if deco.rarity >= 4 then Enum.Material.Neon else Enum.Material.SmoothPlastic
@@ -523,7 +494,7 @@ local function decorateLook(part: BasePart, deco, trait)
 		light.Range = 8
 		light.Parent = part
 	end
-	applyTrait(part, trait)
+	TraitEffects.Apply(part, trait, withExtras)
 end
 
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
@@ -568,6 +539,7 @@ local function renderEntry(plot, entry)
 			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
+		TraitEffects.Apply(model, trait)
 		model.Parent = plot.decorations
 		return
 	end
@@ -592,7 +564,8 @@ local function renderEntry(plot, entry)
 				CastShadow = false,
 				Parent = holder,
 			})
-			decorateLook(ball, deco, trait)
+			-- 파티클은 전구 몇 개에만 붙인다 (모두 붙이면 무거워진다)
+			decorateLook(ball, deco, trait, k % 7 == 1)
 
 			local nextPoint = points[k % GARLAND_BALLS + 1]
 			if nextPoint then
@@ -932,27 +905,6 @@ function TreeService.Init()
 			end
 			-- 이름표의 트리 가치는 그대로지만, 주인이 바뀐 경우를 위해 가끔 갱신
 		end
-	end)
-
-	-- 무지개 특성: 색을 천천히 바꾼다
-	local hue = 0
-	local elapsed = 0
-	RunService.Heartbeat:Connect(function(dt)
-		elapsed += dt
-		if elapsed < 0.15 then
-			return
-		end
-		hue = (hue + elapsed * 0.25) % 1
-		elapsed = 0
-		local alive = {}
-		local color = Color3.fromHSV(hue, 0.8, 1)
-		for _, part in rainbowParts do
-			if part.Parent then
-				part.Color = color
-				table.insert(alive, part)
-			end
-		end
-		rainbowParts = alive
 	end)
 end
 
