@@ -206,7 +206,7 @@ for i in range(150):
 
 # ---------------------------------------------------------------- 플롯 (각자의 트리)
 DECO = ["#e8413c", "#ffd84a", "#5aa0f0", "#f08cc0", "#f6f1e6", "#ff9a3c", "#78e6be"]
-N = 12
+N = 10
 for i in range(N):
     a = math.radians(-90 + 360 / N * (i + 0.5))
     x, z = RX * 0.84 * math.cos(a), RX * 0.84 * math.sin(a)
