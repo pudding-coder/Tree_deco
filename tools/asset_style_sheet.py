@@ -1,15 +1,16 @@
 # 장식 에셋 스타일 시안 그리기: python3 tools/asset_style_sheet.py out.html -> 브라우저로 열기 (규칙: docs/ASSET_RULES.md)
 import sys
 
-PALETTE = [
-    ("Red", "빨강", (200, 42, 48)),
-    ("DeepGreen", "진초록", (30, 112, 62)),
-    ("LightGreen", "연초록", (122, 190, 92)),
-    ("Navy", "남색", (38, 58, 124)),
-    ("SkyBlue", "하늘색", (118, 184, 230)),
-    ("Purple", "보라", (132, 82, 172)),
-    ("Pink", "분홍", (240, 140, 172)),
-    ("Brown", "갈색", (150, 96, 56)),
+PALETTE = [  # src/shared/Catalog/Paints.luau (retired 제외)
+    ("Pink", "분홍", (255, 150, 190)),
+    ("HotPink", "진분홍", (255, 90, 160)),
+    ("Red", "빨강", (230, 60, 60)),
+    ("Orange", "주황", (255, 150, 60)),
+    ("Yellow", "노랑", (255, 220, 80)),
+    ("Mint", "민트", (120, 230, 190)),
+    ("Sky", "하늘", (130, 200, 255)),
+    ("Blue", "파랑", (70, 120, 230)),
+    ("Lavender", "보라", (180, 140, 255)),
 ]
 TRIM = "#f6f4ef"
 ACCENT_GOLD = "#c49a48"
@@ -60,17 +61,7 @@ DEFS = """
 
 
 def main_fill(main, trait):
-    """returns (fill, overlay) for Main parts under a trait"""
-    if trait == "Gold":
-        return rgb((255, 200, 40)), "url(#goldshade)"
-    if trait == "Rainbow":
-        return "url(#rainbow)", "url(#shade)"
-    if trait == "Aurora":
-        return rgb((120, 255, 200)), "url(#shade)"
-    if trait == "Frost":
-        return rgb(lerp(main, (255, 255, 255), 0.45)), "url(#frost)"
-    if trait == "Smoge":
-        return rgb(main), "url(#shade)"
+    """특성은 색을 바꾸지 않는다: Paint 파츠는 항상 칠하기 색"""
     return rgb(main), "url(#shade)"
 
 
@@ -78,22 +69,43 @@ def shape(d, fill, overlay, extra=""):
     return f'<path d="{d}" fill="{fill}" {extra}/><path d="{d}" fill="{overlay}"/>'
 
 
+def star4(x, y, r, col):
+    return f'<path d="M{x},{y-r} L{x+r*.28},{y-r*.28} L{x+r},{y} L{x+r*.28},{y+r*.28} L{x},{y+r} L{x-r*.28},{y+r*.28} L{x-r},{y} L{x-r*.28},{y-r*.28} Z" fill="{col}"/>'
+
+
+HALO = {"Frost": ["#ffffff"], "Rainbow": ["#ff5a5a", "#ffdc50", "#5aff8c", "#5aaaff", "#c864ff"],
+        "Aurora": ["#78ffc8", "#5aaaff", "#be78ff"]}
+
+
+def halo(trait):
+    """특성 효과 중 장식 뒤에 깔리는 빛 안개"""
+    cols = HALO.get(trait)
+    if not cols:
+        return ""
+    stops = "".join(f'<stop offset="{i/(max(len(cols)-1,1)):.2f}" stop-color="{c}"/>' for i, c in enumerate(cols))
+    gid = "h" + trait
+    return (f'<defs><linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1">{stops}</linearGradient></defs>'
+            f'<ellipse cx="105" cy="110" rx="92" ry="92" fill="url(#{gid})" opacity=".35" filter="url(#glow)"/>')
+
+
 def sparkles(trait):
-    if trait in ("Glitter", "Gold", "Aurora"):
-        col = "#ffe08a" if trait == "Gold" else "#fffbe0"
-        pts = [(40, 50), (165, 70), (150, 175), (55, 160), (110, 30), (175, 125)]
+    pts = [(40, 50), (165, 70), (150, 175), (55, 160), (110, 30), (175, 125), (30, 110)]
+    if trait == "Glitter":
+        return "".join(star4(x, y, 8, "#fff6c0") for x, y in pts)
+    if trait == "Gold":
+        return "".join(star4(x, y, 10, "#ffc81e") for x, y in pts)
+    if trait == "Frost":
         out = ""
         for x, y in pts:
-            out += f'<path d="M{x},{y-9} L{x+2.5},{y-2.5} L{x+9},{y} L{x+2.5},{y+2.5} L{x},{y+9} L{x-2.5},{y+2.5} L{x-9},{y} L{x-2.5},{y-2.5} Z" fill="{col}" stroke="#d9b54a" stroke-width=".6"/>'
+            out += f'<g stroke="#bfe4ff" stroke-width="2" stroke-linecap="round"><path d="M{x-7},{y} L{x+7},{y} M{x-3.5},{y-6} L{x+3.5},{y+6} M{x-3.5},{y+6} L{x+3.5},{y-6}"/></g>'
         return out
     if trait == "Smoge":
-        return ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#8a8a8a" opacity=".35"/>' for x, y, r in [(50, 60, 16), (68, 48, 12), (160, 150, 18), (145, 168, 12), (170, 60, 10)])
+        return ''.join(f'<circle cx="{x}" cy="{y}" r="{r}" fill="#7a7a80" opacity=".35"/>' for x, y, r in [(50, 60, 18), (68, 44, 13), (160, 150, 20), (145, 170, 13), (172, 58, 12), (40, 140, 14)])
     return ""
 
 
 def wrap(inner, trait):
-    filt = ' filter="url(#glow)"' if trait == "Aurora" else ' filter="url(#soft)"'
-    return f'<g{filt}>{inner}</g>{sparkles(trait)}'
+    return f'{halo(trait)}<g filter="url(#soft)">{inner}</g>{sparkles(trait)}'
 
 
 def stocking(main, trait="None", mark=None):
@@ -103,7 +115,7 @@ def stocking(main, trait="None", mark=None):
     heel = "M72,158 Q72,192 98,192 L104,192 Q90,176 94,156 Q82,154 72,158 Z"
     cuff = "M62,30 Q62,22 72,22 L134,22 Q144,22 144,30 L144,56 Q138,66 132,56 Q126,68 118,56 Q110,70 102,56 Q94,66 86,56 Q78,68 70,56 Q64,62 62,54 Z"
     s = shape(body, f, o)
-    # knit lines on Main (form detail, follows main colour)
+    # knit lines on Paint (form detail, follows main colour)
     for x in (88, 104, 120):
         s += f'<path d="M{x},62 L{x},{180 if x < 110 else 150}" stroke="#000" stroke-opacity=".12" stroke-width="3" fill="none"/>'
     s += shape(toe, TRIM, "url(#shade)") + shape(heel, TRIM, "url(#shade)") + shape(cuff, TRIM, "url(#shade)")
@@ -167,43 +179,49 @@ def cell(svg_inner, label, sub=""):
 <div class="lab">{label}</div><div class="sub">{sub}</div></div>'''
 
 
-TRAITS = [("None", "기본", "팔레트 색 그대로"), ("Glitter", "반짝이", "색 유지 + 반짝임"),
-          ("Frost", "눈꽃", "흰색 45% 섞기, 얼음"), ("Gold", "황금", "금색 고정, 금속"),
-          ("Rainbow", "무지개", "네온, 색 순환"), ("Aurora", "오로라", "네온 민트, 빛"),
-          ("Smoge", "스모그", "효과 코드 미정")]
+TRAITS = [("None", "기본", "효과 없음"), ("Glitter", "반짝이", "흰·연노랑 반짝임"),
+          ("Frost", "눈꽃", "눈송이 + 흰 안개"), ("Gold", "황금", "금색 반짝임"),
+          ("Rainbow", "무지개", "무지개 빛 안개"), ("Aurora", "오로라", "초록·파랑·보라 안개"),
+          ("Smoge", "스모그", "회색 연기")]
 
-red = PALETTE[0][2]
-navy = PALETTE[3][2]
+red = PALETTE[2][2]
+blue = PALETTE[7][2]
 
 rows = []
-rows.append(("1. 대표 장식 네 가지 (메인 색 = 빨강, 기본 특성)",
+rows.append(("1. 대표 장식 네 가지 (칠하기 색 = 빨강, 기본 특성)",
              [cell(ball(red), "공 Ball"), cell(stocking(red), "양말 Stocking"),
               cell(box(red), "선물상자 PresentBox"), cell(star(red), "별 Star")]))
 
 diagram = stocking((210, 70, 200))
 diagram += '''
 <g font-size="11" font-family="sans-serif" font-weight="700">
-<line x1="110" y1="110" x2="200" y2="112" stroke="#222"/><text x="150" y="106" fill="#222">Main</text>
-<line x1="70" y1="40" x2="20" y2="20" stroke="#222"/><text x="4" y="16" fill="#222">Trim</text>
-<line x1="170" y1="182" x2="200" y2="200" stroke="#222"/><text x="165" y="208" fill="#222">Trim</text>
-<line x1="118" y1="28" x2="190" y2="10" stroke="#222"/><text x="150" y="8" fill="#222">Accent</text>
+<line x1="110" y1="110" x2="200" y2="112" stroke="#222"/><text x="150" y="106" fill="#222">Paint</text>
+<line x1="70" y1="40" x2="20" y2="20" stroke="#222"/><text x="4" y="16" fill="#222">흰 장식</text>
+<line x1="170" y1="182" x2="200" y2="200" stroke="#222"/><text x="150" y="208" fill="#222">흰 장식</text>
+<line x1="118" y1="28" x2="190" y2="10" stroke="#222"/><text x="150" y="8" fill="#222">포인트</text>
 </g>'''
 legend = f'''<div class="legend">
-<div><b class="sw" style="background:rgb(210,70,200)"></b><b>Main</b> 넓은 몸통. 뽑을 때 정한 랜덤 색 + 특성 효과가 여기에만 들어갑니다.</div>
-<div><b class="sw" style="background:{TRIM};border:1px solid #bbb"></b><b>Trim</b> 흰색 고정. 눈, 아이싱, 땡땡이, 바느질.</div>
-<div><b class="sw" style="background:{ACCENT_GOLD}"></b><b class="sw" style="background:{LEAF}"></b><b class="sw" style="background:{BERRY}"></b><b>Accent</b> 장식마다 고정. 무광 금, 잎, 열매. 면적 20% 이하.</div>
+<div><b class="sw" style="background:rgb(210,70,200)"></b><b>Paint 파츠</b> 이름이 Paint로 시작. 넓은 몸통. 뽑을 때 정한 랜덤 색이 여기에만 칠해집니다 (paintable 장식만).</div>
+<div><b class="sw" style="background:{TRIM};border:1px solid #bbb"></b><b>흰 장식</b> 흰색 고정. 눈, 아이싱, 땡땡이, 바느질.</div>
+<div><b class="sw" style="background:{ACCENT_GOLD}"></b><b class="sw" style="background:{LEAF}"></b><b class="sw" style="background:{BERRY}"></b><b>포인트</b> 장식마다 고정. 무광 금, 잎, 열매. 면적 20% 이하.</div>
 </div>'''
-rows.append(("2. 파츠 나누기 (그림의 분홍 = Main 자리 표시용)", [cell(diagram, "양말 파츠 구분"), legend]))
+rows.append(("2. 파츠 나누기 (그림의 자주색 = Paint 자리 표시용)", [cell(diagram, "양말 파츠 구분"), legend]))
 
-rows.append(("3. 랜덤 메인 색 팔레트 8색 (양말)",
+rows.append(("3. 랜덤 칠하기 색 9색 (Paints.luau, 하양은 뺌)",
              [cell(stocking(c), k, f"{rgb(c)[4:-1]}") for _, k, c in PALETTE]))
-rows.append(("4. 특성 효과 (메인 색 = 남색 양말, Trim·Accent는 그대로)",
-             [cell(stocking(navy, t), k, s) for t, k, s in TRAITS]))
-rows.append(("4-1. 같은 특성, 다른 장식 (남색)",
-             [cell(fn(navy, t), k) for t, k, _ in TRAITS[2:5] for fn in (ball, box)]))
+rows.append(("4. 특성 효과 (색은 그대로, 주변에 파티클·빛)",
+             [cell(stocking(blue, t), k, s) for t, k, s in TRAITS]))
+
+# 5. 띠: 한 칸 조각을 줄을 따라 반복
+import math
+pts = [(30 + i * 62, 95 + 40 * math.sin(i * 0.9)) for i in range(15)]
+wire = "M" + " L".join(f"{x:.0f},{y:.0f}" for x, y in pts)
+bulbs = "".join(f'<g transform="translate({x:.0f},{y:.0f})"><rect x="-6" y="-14" width="12" height="8" rx="2" fill="{ACCENT_GOLD}"/><ellipse cx="0" cy="4" rx="11" ry="14" fill="{rgb(red)}"/><ellipse cx="-4" cy="-1" rx="3" ry="5" fill="#fff" opacity=".5"/></g>' for k, (x, y) in enumerate(pts))
+garland = f'<div class="wide"><svg viewBox="0 0 920 190"><path d="{wire}" stroke="#1e2d1e" stroke-width="3" fill="none"/>{bulbs}</svg><div class="sub">조각 하나(전구 1개)만 모델로 만들면 게임이 줄을 따라 28곳에 놓고 전선으로 잇습니다.</div></div>'
+rows.append(("5. 띠는 한 칸 조각만 만든다", [garland]))
 
 html = f'''<!doctype html><html><head><meta charset="utf-8"><style>
-body{{margin:0;background:#fbf7f0;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;color:#2a2a2a;width:1400px}}
+body{{margin:0;background:#fbf7f0;font-family:'Noto Sans KR','Apple SD Gothic Neo',sans-serif;color:#2a2a2a;width:1540px}}
 .wrap{{padding:32px 40px}}
 h1{{font-size:30px;margin:0 0 4px}} .lead{{color:#666;margin:0 0 24px;font-size:15px}}
 h2{{font-size:18px;margin:26px 0 10px;border-left:5px solid #c8262c;padding-left:10px}}
@@ -211,11 +229,12 @@ h2{{font-size:18px;margin:26px 0 10px;border-left:5px solid #c8262c;padding-left
 .cell{{background:#fff;border-radius:14px;padding:8px 4px 10px;width:138px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.08)}}
 .cell svg{{width:138px;height:138px}}
 .lab{{font-weight:700;font-size:14px}} .sub{{font-size:11px;color:#888;min-height:14px}}
+.wide{{background:#fff;border-radius:14px;padding:10px;width:940px}} .wide svg{{width:920px}}
 .legend{{font-size:15px;line-height:2.1;max-width:900px}}
 .sw{{display:inline-block;width:16px;height:16px;border-radius:4px;vertical-align:-3px;margin-right:4px}}
 </style></head><body><svg width="0" height="0" style="position:absolute">{DEFS}</svg><div class="wrap">
 <h1>장식 에셋 스타일 시안</h1>
-<p class="lead">통통한 실물 소품 느낌, 큰 몸통 + 흰 장식 + 작은 포인트. 몸통 색은 뽑을 때 팔레트 8색 중 하나로 정해집니다.</p>
+<p class="lead">통통한 실물 소품 느낌, 큰 몸통 + 흰 장식 + 작은 포인트. paintable 장식은 뽑을 때 몸통(Paint 파츠) 색이 9색 중 하나로 정해집니다. 특성은 색을 바꾸지 않고 주변에 효과를 냅니다.</p>
 {''.join(f'<h2>{t}</h2><div class="row">{"".join(c)}</div>' for t, c in rows)}
 </div></body></html>'''
 

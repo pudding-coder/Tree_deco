@@ -497,29 +497,136 @@ local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 	TraitEffects.Apply(part, trait, withExtras)
 end
 
+-- 장식 모델이 맞춰질 기준 크기 (가장 긴 변, 스터드). 임시 공 크기와 같다. 장식마다 scale을 곱한다
+local MODEL_SIZE = {
+	Topper = 2.4,
+	Ornament = 1.4,
+	Garland = 0.6, -- 띠는 한 칸 조각 크기 (임시 전구 크기)
+}
+
+-- 모델을 쓸 수 있는 상태로 만든다: 고정, 충돌·클릭·닿기 끄기
+local function prepareParts(model: Model)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true
+			descendant.CanCollide = false
+			descendant.CanQuery = false
+			descendant.CanTouch = false
+		end
+	end
+end
+
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
-local function cloneModel(deco)
+-- 크기는 가장 긴 변이 MODEL_SIZE × scale이 되도록 피벗을 중심으로 맞춘다. 항상 Model로 돌려준다
+local warnedMissing = {}
+local function cloneModel(deco): Model?
 	if not deco.model then
 		return nil
 	end
 	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
 	local template = folder and folder:FindFirstChild(deco.model)
-	if not template then
-		warn("[Tree] 장식 모델을 찾지 못했습니다:", deco.model)
+	if not template or not (template:IsA("Model") or template:IsA("BasePart")) then
+		if not warnedMissing[deco.model] then
+			warnedMissing[deco.model] = true
+			warn("[Tree] 장식 모델을 찾지 못했습니다 (Model이나 파트여야 합니다):", deco.model)
+		end
 		return nil
 	end
+
 	local clone = template:Clone()
-	for _, descendant in clone:GetDescendants() do
-		if descendant:IsA("BasePart") then
-			descendant.Anchored = true
-			descendant.CanCollide = false
+	local model: Model
+	if clone:IsA("Model") then
+		model = clone
+	else
+		-- 파트(MeshPart) 하나만 넣었으면 Model로 감싼다. 피벗은 그 파트의 피벗
+		model = Instance.new("Model")
+		model.Name = deco.model
+		model.WorldPivot = clone:GetPivot()
+		clone.Parent = model
+		model.PrimaryPart = clone
+	end
+	prepareParts(model)
+
+	local _, size = model:GetBoundingBox()
+	local longest = math.max(size.X, size.Y, size.Z)
+	local target = MODEL_SIZE[deco.area] * deco.scale
+	if longest > 0 then
+		model:ScaleTo(model:GetScale() * target / longest)
+	end
+	return model
+end
+
+-- 모델의 앞면(-Z, Studio의 Front)이 트리 바깥(플레이어 쪽)을 보게 하는 회전
+-- slotOffset의 오너먼트 자리는 -Z가 트리 쪽을 보므로 반 바퀴 돌린다
+local FACE_OUT = CFrame.Angles(0, math.pi, 0)
+
+-- 띠 자리의 점마다 놓을 방향: 앞면(-Z)은 트리 바깥, 위는 위쪽
+local function garlandPieceFrame(plot, point: Vector3): CFrame
+	local world = plot.cframe:PointToWorldSpace(point)
+	local center = plot.cframe:PointToWorldSpace(Vector3.new(0, point.Y, 0))
+	local outward = world - center
+	if outward.Magnitude < 1e-3 then
+		return CFrame.new(world)
+	end
+	return CFrame.lookAt(world, world + outward)
+end
+
+-- 띠: 트리 겉면을 비스듬히 도는 점마다 조각(모델 또는 임시 전구)을 놓고 전선으로 잇는다
+-- makePiece(점의 CFrame, 번호): 조각을 만들어 holder에 넣는다
+local function renderGarland(plot, entry, trait, holder: Model, makePiece)
+	local points = garlandPaths[entry.i] or {}
+	for k = 1, GARLAND_BALLS do
+		local point = points[k]
+		if not point then
+			continue
+		end
+		makePiece(garlandPieceFrame(plot, point), k)
+
+		local nextPoint = points[k % GARLAND_BALLS + 1]
+		if nextPoint then
+			local a = plot.cframe:PointToWorldSpace(point)
+			local b = plot.cframe:PointToWorldSpace(nextPoint)
+			newPart({
+				Name = "Wire",
+				Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
+				CFrame = CFrame.lookAt((a + b) / 2, b),
+				Color = GARLAND_WIRE_COLOR,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Parent = holder,
+			})
 		end
 	end
-	if clone:IsA("BasePart") then
-		clone.Anchored = true
-		clone.CanCollide = false
+
+	-- 특성 효과: 조각 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+	if trait.effect then
+		local carrier = 0
+		for k = 1, GARLAND_BALLS, 2 do
+			local from = points[k]
+			local to = points[(k + 1) % GARLAND_BALLS + 1]
+			if not from or not to then
+				continue
+			end
+			local a = plot.cframe:PointToWorldSpace(from)
+			local b = plot.cframe:PointToWorldSpace(to)
+			carrier += 1
+			local band = newPart({
+				Name = "TraitBand",
+				Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
+				CFrame = CFrame.lookAt((a + b) / 2, b),
+				Transparency = 1,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Parent = holder,
+			})
+			-- 빛은 몇 곳에만 (많으면 무거워진다)
+			TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
+		end
 	end
-	return clone
 end
 
 local function renderEntry(plot, entry)
@@ -529,11 +636,50 @@ local function renderEntry(plot, entry)
 		return -- 카탈로그에 없는 장식은 보이지 않는다
 	end
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
-
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
+
+	-- 띠: 줄을 따라 조각을 반복해서 놓는다 (모델이 있으면 모델 조각, 없으면 임시 전구)
+	if entry.a == "Garland" then
+		local holder = Instance.new("Model")
+		holder.Name = deco.id
+		local first = cloneModel(deco)
+		renderGarland(plot, entry, trait, holder, function(frame: CFrame, k: number)
+			if first then
+				local piece = if k == 1 then first else first:Clone()
+				piece:PivotTo(frame)
+				if paint then
+					TraitEffects.Paint(piece, paint.color) -- Paint 파츠만 칠한다
+				end
+				piece.Parent = holder
+			else
+				local ball = newPart({
+					Shape = Enum.PartType.Ball,
+					Size = Vector3.new(0.6, 0.6, 0.6),
+					CFrame = frame,
+					CanCollide = false,
+					CanQuery = false,
+					CanTouch = false,
+					CastShadow = false,
+					Parent = holder,
+				})
+				-- 특성 효과는 전구가 아니라 띠 모양 운반 파츠에 붙인다
+				decorateLook(ball, deco, trait, false)
+				if paint then
+					TraitEffects.Paint(ball, paint.color)
+				end
+			end
+		end)
+		holder.Parent = plot.decorations
+		return
+	end
+
 	local model = cloneModel(deco)
 	if model then
-		model:PivotTo(cf)
+		if entry.a == "Ornament" then
+			model:PivotTo(cf * FACE_OUT)
+		else
+			model:PivotTo(cf)
+		end
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
 			local box, boxSize = model:GetBoundingBox()
@@ -548,92 +694,23 @@ local function renderEntry(plot, entry)
 		return
 	end
 
-	-- 임시 모양
-	if entry.a == "Garland" then
-		-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
-		local holder = Instance.new("Model")
-		holder.Name = deco.id
-		local points = garlandPaths[entry.i] or {}
-		for k = 1, GARLAND_BALLS do
-			local point = points[k]
-			if not point then
-				continue
-			end
-			local ball = newPart({
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.6, 0.6, 0.6),
-				CFrame = plot.cframe * CFrame.new(point),
-				CanCollide = false,
-				CanQuery = false,
-				CastShadow = false,
-				Parent = holder,
-			})
-			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
-			decorateLook(ball, deco, trait, false)
-
-			local nextPoint = points[k % GARLAND_BALLS + 1]
-			if nextPoint then
-				local a = plot.cframe:PointToWorldSpace(point)
-				local b = plot.cframe:PointToWorldSpace(nextPoint)
-				newPart({
-					Name = "Wire",
-					Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
-					CFrame = CFrame.lookAt((a + b) / 2, b),
-					Color = GARLAND_WIRE_COLOR,
-					CanCollide = false,
-					CanQuery = false,
-					CastShadow = false,
-					Parent = holder,
-				})
-			end
-		end
-
-		-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
-		if trait.effect then
-			local carrier = 0
-			for k = 1, GARLAND_BALLS, 2 do
-				local from = points[k]
-				local to = points[(k + 1) % GARLAND_BALLS + 1]
-				if not from or not to then
-					continue
-				end
-				local a = plot.cframe:PointToWorldSpace(from)
-				local b = plot.cframe:PointToWorldSpace(to)
-				carrier += 1
-				local band = newPart({
-					Name = "TraitBand",
-					Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
-					CFrame = CFrame.lookAt((a + b) / 2, b),
-					Transparency = 1,
-					CanCollide = false,
-					CanQuery = false,
-					CanTouch = false,
-					CastShadow = false,
-					Parent = holder,
-				})
-				-- 빛은 몇 곳에만 (많으면 무거워진다)
-				TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
-			end
-		end
-		holder.Parent = plot.decorations
-	else
-		local size = if entry.a == "Topper" then 2.4 else 1.4
-		local part = newPart({
-			Name = deco.id,
-			Shape = Enum.PartType.Ball,
-			Size = Vector3.new(size, size, size),
-			-- 토퍼는 공 밑면이 꼭대기 끝에 살짝 걸치게
-			CFrame = if entry.a == "Topper" then cf * CFrame.new(0, size / 2 - 0.3, 0) else cf,
-			CanCollide = false,
-			Parent = plot.decorations,
-		})
-		decorateLook(part, deco, trait)
-		if paint then
-			TraitEffects.Paint(part, paint.color)
-		end
-		if entry.a == "Topper" then
-			part.Material = Enum.Material.Neon
-		end
+	-- 임시 모양 (공)
+	local size = MODEL_SIZE[entry.a]
+	local part = newPart({
+		Name = deco.id,
+		Shape = Enum.PartType.Ball,
+		Size = Vector3.new(size, size, size),
+		-- 토퍼는 공 밑면이 꼭대기 끝에 살짝 걸치게
+		CFrame = if entry.a == "Topper" then cf * CFrame.new(0, size / 2 - 0.3, 0) else cf,
+		CanCollide = false,
+		Parent = plot.decorations,
+	})
+	decorateLook(part, deco, trait)
+	if paint then
+		TraitEffects.Paint(part, paint.color)
+	end
+	if entry.a == "Topper" then
+		part.Material = Enum.Material.Neon
 	end
 end
 

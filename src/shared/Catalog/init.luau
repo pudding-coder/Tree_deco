@@ -72,6 +72,9 @@ for index, deco in rawDecorations do
 	if deco.model ~= nil and not isNonEmptyString(deco.model) then
 		problem(where, "model은 모델 이름(글자)이어야 해요")
 	end
+	if deco.scale ~= nil and (type(deco.scale) ~= "number" or deco.scale <= 0) then
+		problem(where, "scale은 0보다 큰 숫자여야 해요 (1이 기본 크기)")
+	end
 	if deco.paintable ~= nil and type(deco.paintable) ~= "boolean" then
 		problem(where, "paintable은 true 또는 false여야 해요")
 	end
@@ -84,6 +87,7 @@ for index, deco in rawDecorations do
 			area = deco.area,
 			weight = deco.weight or 1,
 			model = deco.model,
+			scale = deco.scale or 1,
 			paintable = deco.paintable == true,
 			retired = deco.retired == true,
 		}

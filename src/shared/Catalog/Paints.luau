@@ -20,5 +20,5 @@ return {
 	{ id = "Sky", name = "하늘", rgb = { 130, 200, 255 } },
 	{ id = "Blue", name = "파랑", rgb = { 70, 120, 230 } },
 	{ id = "Lavender", name = "보라", rgb = { 180, 140, 255 } },
-	{ id = "White", name = "하양", rgb = { 245, 245, 250 } },
+	{ id = "White", name = "하양", rgb = { 245, 245, 250 }, retired = true }, -- 흰 장식 파츠(Trim)와 겹쳐서 뺐다
 }
