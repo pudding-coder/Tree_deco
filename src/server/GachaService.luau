@@ -82,6 +82,7 @@ function GachaService.BuildState(player: Player)
 		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
 		autoSellMax = profile.autoSellMax,
+		quickSellLock = profile.quickSellLock,
 
 		-- 업그레이드
 		luckLevel = profile.luckLevel,

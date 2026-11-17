@@ -12,6 +12,19 @@ local Gacha = require(Shared:WaitForChild("Gacha"))
 
 local PlayerData = {}
 
+-- 룰렛 '바로 판매' 잠금 기본값: QUICK_SELL_LOCK_MIN_RARITY 이상 등급을 잠근다
+function PlayerData.DefaultQuickSellLock(): number
+	local mask = 0
+	for i = Config.QUICK_SELL_LOCK_MIN_RARITY, Rarity.Count do
+		mask += 2 ^ (i - 1)
+	end
+	return mask
+end
+
+function PlayerData.IsQuickSellLocked(profile, rarityIndex: number): boolean
+	return bit32.btest(profile.quickSellLock, 2 ^ (rarityIndex - 1))
+end
+
 local STORE_NAME = "PlayerData_v1"
 local DATA_VERSION = 2 -- 2: 가방이 등급별 개수에서 장식·특성 칸 목록으로 바뀜
 local AUTOSAVE_INTERVAL = 60 -- 초
@@ -51,6 +64,7 @@ local function newProfile()
 		stacks = {},
 		bagCapacity = Config.BAG_BASE_SLOTS,
 		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
+		quickSellLock = PlayerData.DefaultQuickSellLock(), -- 룰렛 '바로 판매'를 막은 등급 (비트: 등급 i면 2^(i-1))
 		potionEndsAt = 0, -- 물약이 끝나는 서버 시각. 저장할 때는 남은 시간(초)으로 바꾼다 (접속 중에만 줄어듦)
 		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id, p = 색 id 또는 nil }
 		tree = {},
@@ -99,6 +113,7 @@ local function serialize(profile)
 		stacks = copyStacks(profile.stacks),
 		bagCapacity = profile.bagCapacity,
 		autoSellMax = profile.autoSellMax,
+		quickSellLock = profile.quickSellLock,
 		potionRemaining = math.max(0, math.floor(profile.potionEndsAt - workspace:GetServerTimeNow())),
 		tree = copyTree(profile.tree),
 		votes = profile.votes,
@@ -131,6 +146,7 @@ local function reconcile(saved)
 	profile.speedLevel = readInt(saved.speedLevel, 0, #Config.SPEED_TIME_MULT, 0)
 	profile.bagCapacity = readInt(saved.bagCapacity, Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS, Config.BAG_BASE_SLOTS)
 	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+	profile.quickSellLock = readInt(saved.quickSellLock, 0, 2 ^ Rarity.Count - 1, PlayerData.DefaultQuickSellLock())
 	profile.votes = readInt(saved.votes, 0, math.huge, 0)
 
 	-- 트리: 영역·자리 번호가 맞고 겹치지 않는 것만 (자리 수를 줄였으면 넘치는 장식은 가방으로)

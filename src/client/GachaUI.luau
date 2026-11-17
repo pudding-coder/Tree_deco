@@ -175,7 +175,7 @@ local REEL_TITLES = { "등급", "장식", "특성" }
 local function buildSlot(gui)
 	local slot = panel({
 		Name = "Slot",
-		Size = UDim2.fromOffset(520, 280),
+		Size = UDim2.fromOffset(520, 330),
 		AnchorPoint = Vector2.new(0.5, 1),
 		Position = UDim2.new(0.5, 0, 1, -20),
 		Visible = false, -- 룰렛 버튼으로 열고 닫는다
@@ -272,13 +272,73 @@ local function buildSlot(gui)
 		Position = UDim2.new(0.5, 6, 0, 166),
 		Parent = slot,
 	})
+
+	-- 바로 판매: 방금 뽑은 장식 1개를 판다. 오른쪽 등급 칸을 눌러 등급별로 잠글 수 있다 (실수 방지)
+	ui.quickSellButton = button({
+		Name = "QuickSell",
+		Text = "바로 판매",
+		TextSize = 15,
+		Color = COLORS.disabled,
+		Size = UDim2.new(0.34, -6, 0, 46),
+		Position = UDim2.fromOffset(0, 230),
+		Parent = slot,
+	})
+	ui.quickSellButton.TextScaled = true -- "바로 판매 +2,000코인"처럼 길어지면 줄인다
+	create("UITextSizeConstraint", { MaxTextSize = 15, MinTextSize = 9, Parent = ui.quickSellButton })
+	create("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6), Parent = ui.quickSellButton })
+	label({
+		Text = "바로 판매 잠금 (색이 칠해진 등급은 팔리지 않습니다)",
+		TextSize = 11,
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(0.66, -6, 0, 14),
+		Position = UDim2.new(0.34, 6, 0, 228),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = slot,
+	})
+	local chips = create("Frame", {
+		Name = "QuickSellLocks",
+		BackgroundTransparency = 1,
+		Size = UDim2.new(0.66, -6, 0, 30),
+		Position = UDim2.new(0.34, 6, 0, 246),
+		Parent = slot,
+	})
+	create("UIListLayout", {
+		FillDirection = Enum.FillDirection.Horizontal,
+		Padding = UDim.new(0, 4),
+		SortOrder = Enum.SortOrder.LayoutOrder,
+		Parent = chips,
+	})
+	ui.lockChips = {}
+	for i, r in Rarity.List do
+		local chip = create("TextButton", {
+			Text = "",
+			AutoButtonColor = false,
+			BackgroundColor3 = COLORS.panelLight,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1 / Rarity.Count, -4, 1, 0),
+			LayoutOrder = i,
+			Parent = chips,
+		})
+		corner(chip, 6)
+		create("UIStroke", { Color = r.color, Thickness = 1.5, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = chip })
+		local name = scaledLabel({
+			Text = r.name,
+			TextColor3 = r.color,
+			Size = UDim2.new(1, -4, 1, -4),
+			Position = UDim2.fromOffset(2, 2),
+			Parent = chip,
+		}, 12, 7)
+		ui.lockChips[i] = { button = chip, name = name }
+	end
+
 	ui.status = label({
 		Text = "",
 		TextSize = 14,
 		Font = Enum.Font.Gotham,
 		TextColor3 = COLORS.errorText,
 		Size = UDim2.new(1, 0, 0, 20),
-		Position = UDim2.fromOffset(0, 230),
+		Position = UDim2.fromOffset(0, 284),
 		Parent = slot,
 	})
 end
@@ -1516,8 +1576,41 @@ local function refreshTree()
 	end
 end
 
+-- 방금 뽑아서 가방에 들어간 장식 (바로 판매 대상). 자동 판매됐거나 아직 결과가 안 나왔으면 nil
+local lastSpin = nil -- { key = 가방 칸 열쇠, rarity = 등급 번호 }
+
+local function isQuickSellLocked(rarityIndex: number): boolean
+	return bit32.btest(state.quickSellLock or 0, 2 ^ (rarityIndex - 1))
+end
+
+local function refreshQuickSell()
+	if not state then
+		return
+	end
+	for i, chip in ui.lockChips do
+		local r = Rarity.List[i]
+		local locked = isQuickSellLocked(i)
+		chip.button.BackgroundColor3 = if locked then r.color else COLORS.panelLight
+		chip.name.TextColor3 = if locked then COLORS.panel else r.color
+	end
+
+	local stack = lastSpin and findStateStack(lastSpin.key)
+	if spinning or not lastSpin then
+		setButton(ui.quickSellButton, "바로 판매", false, COLORS.disabled)
+	elseif not stack or stack.c <= 0 then
+		setButton(ui.quickSellButton, "가방에 없습니다", false, COLORS.disabled)
+	elseif stack.l then
+		setButton(ui.quickSellButton, "잠긴 장식입니다", false, COLORS.disabled)
+	elseif isQuickSellLocked(lastSpin.rarity) then
+		setButton(ui.quickSellButton, "잠긴 등급입니다", false, COLORS.disabled)
+	else
+		setButton(ui.quickSellButton, "바로 판매 +" .. Gacha.FormatNumber(stackSellPrice(stack)) .. "코인", true, COLORS.gold)
+	end
+end
+
 local function applyState(newState)
 	state = newState
+	refreshQuickSell()
 	refreshCoins()
 	refreshOdds()
 	GachaUI.RefreshBag()
@@ -1781,8 +1874,10 @@ local function spin(kind: string)
 		return
 	end
 	spinning = true
+	lastSpin = nil
 	setStatus("")
 	refreshSpinButtons()
+	refreshQuickSell()
 
 	local ok, result = pcall(function()
 		return Remotes.Spin:InvokeServer(kind)
@@ -1811,8 +1906,11 @@ local function spin(kind: string)
 	playResultEffect(result.rarity, deco, trait, result.paintId)
 	if result.autoSold then
 		ui.reelSub.Text = string.format("자동 판매 +%s코인", Gacha.FormatNumber(result.saleCoins))
+	else
+		lastSpin = { key = Catalog.StackKey(result.decoId, result.traitId, result.paintId), rarity = result.rarity }
 	end
 	spinning = false
+	refreshQuickSell()
 end
 
 -- 가방 요청 공통 처리
@@ -2057,6 +2155,31 @@ function GachaUI.Start()
 	ui.coinButton.Activated:Connect(function()
 		spin("coin")
 	end)
+	ui.quickSellButton.Activated:Connect(function()
+		if not lastSpin then
+			return
+		end
+		local result = bagRequest(Remotes.QuickSell, lastSpin.key)
+		if result then
+			lastSpin = nil
+			refreshQuickSell()
+			showToast(string.format("판매했습니다 +%s코인", Gacha.FormatNumber(result.gained)), COLORS.gold)
+		end
+	end)
+	for i, chip in ui.lockChips do
+		chip.button.Activated:Connect(function()
+			if not state then
+				return
+			end
+			-- 설정만 바꾸는 요청이라 룰렛이 도는 중에도 된다
+			local ok, result = pcall(function()
+				return Remotes.SetQuickSellLock:InvokeServer(i, not isQuickSellLocked(i))
+			end)
+			if ok and type(result) == "table" and result.ok then
+				applyState(result.state)
+			end
+		end)
+	end
 	ui.rouletteButton.Activated:Connect(function()
 		setRouletteOpen(not ui.slot.Visible)
 	end)

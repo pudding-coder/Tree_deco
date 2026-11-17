@@ -15,7 +15,9 @@
         "Upgrade": { "$className": "RemoteFunction" },
         "BuyPotion": { "$className": "RemoteFunction" },
         "PlaceDecoration": { "$className": "RemoteFunction" },
-        "RemoveDecoration": { "$className": "RemoteFunction" }
+        "RemoveDecoration": { "$className": "RemoteFunction" },
+        "QuickSell": { "$className": "RemoteFunction" },
+        "SetQuickSellLock": { "$className": "RemoteFunction" }
       }
     },
     "ServerScriptService": {
