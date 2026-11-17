@@ -1574,7 +1574,34 @@ local function randomFrom(list)
 end
 
 -- 슬롯 3칸이 같이 돌다가 등급 → 장식 → 특성 순서로 멈춘다 (전체 시간의 45% · 75% · 100% 지점)
+-- 전체 시간은 서버가 정한다(REEL_STOP_TIME). 여기서는 칸이 넘어가는 간격만 정한다
 local REEL_STOP_FRACTIONS = { 0.45, 0.75, 1.0 }
+local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(초)
+-- 멈추기 직전 마지막 간격(그 칸이 멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값
+-- 특성 칸(3번)은 마지막 간격이 길어서 끝에서 한 칸씩 뜸을 들이며 넘어간다 (5초면 0.6초)
+-- 비율이라 속도 업그레이드로 전체 시간이 줄어도 느려지는 느낌은 같다
+local REEL_LAST_GAP = { 0.1, 0.08, 0.12 }
+local REEL_GAP_RATIO = { 0.75, 0.75, 0.78 }
+
+-- 칸이 바뀌는 시각들 (마지막이 stopTime). 끝에서부터 간격을 늘려 가며 거꾸로 만든다
+local function reelTimes(stopTime: number, lastGapFraction: number, ratio: number): { number }
+	local backwards = { stopTime }
+	local t = stopTime
+	local gap = stopTime * lastGapFraction
+	while true do
+		t -= gap
+		if t <= 0 then
+			break
+		end
+		table.insert(backwards, t)
+		gap = math.max(gap * ratio, REEL_FAST_GAP)
+	end
+	local times = {}
+	for i = #backwards, 1, -1 do
+		table.insert(times, backwards[i])
+	end
+	return times
+end
 
 local function playReel(rarityIndex: number, deco, trait, duration: number)
 	local finals = { rarityIndex, deco, trait }
@@ -1594,7 +1621,8 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 	local reels = {}
 	for i = 1, 3 do
 		local stopTime = duration * REEL_STOP_FRACTIONS[i]
-		local steps = math.max(8, math.floor(stopTime * 14))
+		local times = reelTimes(stopTime, REEL_LAST_GAP[i], REEL_GAP_RATIO[i])
+		local steps = #times
 		local sequence = table.create(steps)
 		local prev = nil
 		for s = 1, steps - 1 do
@@ -1608,10 +1636,11 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 			prev = pick
 		end
 		sequence[steps] = finals[i]
-		reels[i] = { stopTime = stopTime, steps = steps, sequence = sequence, shown = 0, done = false }
+		reels[i] = { stopTime = stopTime, times = times, steps = steps, sequence = sequence, shown = 0, done = false }
 	end
 
 	ui.reelSub.Text = ""
+	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 특성 칸만 남았을 때
 	local start = os.clock()
 	while true do
 		local elapsed = os.clock() - start
@@ -1620,21 +1649,27 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 			if reel.done then
 				continue
 			end
-			local alpha = math.clamp(elapsed / reel.stopTime, 0, 1)
-			local eased = 1 - (1 - alpha) ^ 3
-			local step = if alpha >= 1
-				then reel.steps
-				else math.clamp(math.floor(eased * (reel.steps - 1)) + 1, 1, reel.steps)
+			-- 지금까지 지난 칸 수
+			local step = 1
+			while step < reel.steps and reel.times[step] <= elapsed do
+				step += 1
+			end
+			if elapsed >= reel.stopTime then
+				step = reel.steps
+			end
 			if step ~= reel.shown then
 				reel.shown = step
 				showers[i](reel.sequence[step])
 				if step == reel.steps then
-					popReel(i, 1.3, 0.3, Enum.EasingStyle.Back) -- 멈춘 칸은 크게 튕긴다
+					-- 멈춘 칸은 크게 튕긴다. 특성 칸은 더 크게
+					popReel(i, if i == 3 then 1.45 else 1.3, if i == 3 then 0.45 else 0.3, Enum.EasingStyle.Back)
+				elseif i == 3 and elapsed >= slowStart then
+					popReel(i, 1.14, 0.15) -- 특성 칸만 남으면 넘어갈 때마다 쿵쿵 크게 뛴다
 				else
 					popReel(i, 1.08, 0.08)
 				end
 			end
-			if alpha >= 1 then
+			if elapsed >= reel.stopTime then
 				reel.done = true
 			else
 				allDone = false
