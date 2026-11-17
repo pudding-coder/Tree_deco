@@ -642,6 +642,23 @@ local TREE_AREAS = {
 	{ id = "Garland", name = "띠", count = Config.MAX_GARLAND },
 }
 
+-- 자리 번호 → 화면 순서(아래에서 몇 번째). 서버가 ReplicatedStorage 속성 TreeSlotOrder_<영역>으로 알려 준다
+local slotRank = {} -- [영역][자리 번호] = 순서
+for _, area in TREE_AREAS do
+	slotRank[area.id] = {}
+	for index = 1, area.count do
+		slotRank[area.id][index] = index
+	end
+end
+
+-- 안내 글에 쓰는 자리 이름: "오너먼트 아래에서 3번째 자리" (토퍼는 하나뿐이라 "토퍼 자리")
+local function slotName(area: string, index: number): string
+	if area == "Topper" then
+		return "토퍼 자리"
+	end
+	return string.format("%s 아래에서 %d번째 자리", Catalog.AREAS[area], slotRank[area][index] or index)
+end
+
 -- 룰렛 버튼 (트리 버튼 위): 룰렛 창과 확률표를 열고 닫는다
 local function buildRouletteButton(gui)
 	ui.rouletteButton = button({
@@ -739,7 +756,9 @@ local function buildTreeWindow(gui)
 	ui.treeCells = {}
 	for order, area in TREE_AREAS do
 		label({
-			Text = string.format("%s (%d자리)", area.name, area.count),
+			Text = if area.count > 1
+				then string.format("%s (%d자리 · 아래부터)", area.name, area.count)
+				else string.format("%s (%d자리)", area.name, area.count),
 			TextSize = 14,
 			Size = UDim2.new(1, 0, 0, 22),
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -876,6 +895,27 @@ local function buildTreeWindow(gui)
 	})
 end
 
+-- 서버가 알려 준 순서대로 자리 칸을 아래부터 늘어놓는다
+local function applySlotOrder()
+	for _, area in TREE_AREAS do
+		local order = ReplicatedStorage:GetAttribute("TreeSlotOrder_" .. area.id)
+		if type(order) ~= "string" then
+			continue
+		end
+		local rank = 0
+		for text in string.gmatch(order, "%d+") do
+			local index = tonumber(text)
+			if index and slotRank[area.id][index] then
+				rank += 1
+				slotRank[area.id][index] = rank
+			end
+		end
+		for index, cell in ui.treeCells[area.id] do
+			cell.button.LayoutOrder = slotRank[area.id][index]
+		end
+	end
+end
+
 local function buildUI()
 	local gui = create("ScreenGui", {
 		Name = "GachaGui",
@@ -905,6 +945,10 @@ local function buildUI()
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
+	applySlotOrder()
+	for _, area in TREE_AREAS do
+		ReplicatedStorage:GetAttributeChangedSignal("TreeSlotOrder_" .. area.id):Connect(applySlotOrder)
+	end
 
 	-- 공지
 	ui.toast = create("CanvasGroup", {
@@ -1335,11 +1379,7 @@ local function refreshPicker()
 		return
 	end
 	ui.treePicker.Visible = true
-	ui.treePickerTitle.Text = string.format(
-		"%s %d번 자리에 걸 장식을 골라 주세요",
-		Catalog.AREAS[pickingSlot.area],
-		pickingSlot.index
-	)
+	ui.treePickerTitle.Text = string.format("%s에 걸 장식을 골라 주세요", slotName(pickingSlot.area, pickingSlot.index))
 
 	local count = 0
 	for _, stack in sortedStacks() do
@@ -1888,7 +1928,7 @@ local function placeSelected()
 	local result = bagRequest(Remotes.PlaceDecoration, stackKey(stack))
 	if result then
 		showToast(
-			string.format("트리의 %s %d번 자리에 걸었습니다", Catalog.AREAS[result.area], result.index),
+			string.format("트리의 %s에 걸었습니다", slotName(result.area, result.index)),
 			COLORS.green
 		)
 	end
@@ -1916,7 +1956,7 @@ placeIntoSlot = function(stack, area: string, index: number)
 	if result then
 		pickingSlot = nil
 		refreshTree()
-		showToast(string.format("트리의 %s %d번 자리에 걸었습니다", Catalog.AREAS[area], index), COLORS.green)
+		showToast(string.format("트리의 %s에 걸었습니다", slotName(area, index)), COLORS.green)
 	end
 end
 

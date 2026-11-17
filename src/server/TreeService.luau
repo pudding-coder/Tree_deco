@@ -948,6 +948,31 @@ end
 -- 시작
 ----------------------------------------------------------------
 
+-- 내 트리 창이 칸을 아래부터 보여 주도록, 영역별 자리 번호를 높이가 낮은 순서로 알려 준다
+-- (자리 번호 자체는 처음 몇 개만 걸어도 퍼지게 섞여 있어서 화면 순서와 다르다)
+-- ReplicatedStorage 속성 TreeSlotOrder_<영역> = "2,5,1,..." (아래 자리부터)
+local function publishSlotOrder()
+	for area, capacity in AREA_CAPACITY do
+		local heights = {}
+		local indexes = {}
+		for i = 1, capacity do
+			table.insert(indexes, i)
+			if area == "Ornament" and not ORNAMENT_SPOTS[i] and not customSlots.Ornament[i] then
+				heights[i] = math.huge -- 자리 정보가 없는 번호는 맨 뒤로
+			else
+				heights[i] = slotOffset(area, i).Position.Y
+			end
+		end
+		table.sort(indexes, function(a, b)
+			if math.abs(heights[a] - heights[b]) > 0.05 then
+				return heights[a] < heights[b]
+			end
+			return a < b
+		end)
+		ReplicatedStorage:SetAttribute("TreeSlotOrder_" .. area, table.concat(indexes, ","))
+	end
+end
+
 function TreeService.Init()
 	loadMapSpots()
 	loadTreeTemplate()
@@ -958,6 +983,7 @@ function TreeService.Init()
 		end
 		buildSlotPositions(bands, cylinderSurfaceRadius)
 	end
+	publishSlotOrder()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
