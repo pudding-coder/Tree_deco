@@ -651,12 +651,12 @@ for _, area in TREE_AREAS do
 	end
 end
 
--- 안내 글에 쓰는 자리 이름: "오너먼트 아래에서 3번째 자리" (토퍼는 하나뿐이라 "토퍼 자리")
+-- 안내 글에 쓰는 자리 이름: "오너먼트 3번 자리" (번호는 빈 칸에 보이는 번호와 같다. 토퍼는 하나뿐이라 "토퍼 자리")
 local function slotName(area: string, index: number): string
 	if area == "Topper" then
 		return "토퍼 자리"
 	end
-	return string.format("%s 아래에서 %d번째 자리", Catalog.AREAS[area], slotRank[area][index] or index)
+	return string.format("%s %d번 자리", Catalog.AREAS[area], slotRank[area][index] or index)
 end
 
 -- 룰렛 버튼 (트리 버튼 위): 룰렛 창과 확률표를 열고 닫는다
@@ -756,9 +756,7 @@ local function buildTreeWindow(gui)
 	ui.treeCells = {}
 	for order, area in TREE_AREAS do
 		label({
-			Text = if area.count > 1
-				then string.format("%s (%d자리 · 아래부터)", area.name, area.count)
-				else string.format("%s (%d자리)", area.name, area.count),
+			Text = string.format("%s (%d자리)", area.name, area.count),
 			TextSize = 14,
 			Size = UDim2.new(1, 0, 0, 22),
 			TextXAlignment = Enum.TextXAlignment.Left,
