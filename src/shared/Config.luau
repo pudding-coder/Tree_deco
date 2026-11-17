@@ -62,10 +62,9 @@ Config.BAG_EXPAND_SLOTS = 25 -- [미구현] 확장 1회당 늘어나는 칸 수
 Config.BAG_EXPAND_COST_BASE = 5_000 -- [미구현] 첫 코인 확장 비용 (미검증)
 Config.BAG_EXPAND_COST_GROWTH = 3 -- [미구현] 확장할 때마다 비용에 곱하는 배수 (미검증)
 Config.SELL_RATE = 0.25 -- 판매 가격 = 장식 가치 × SELL_RATE (소수점 버림, 최소 1)
-Config.AUTO_SELL_MAX_OPTION = 5 -- 자동 판매로 고를 수 있는 최고 등급 (레전더리)
+Config.AUTO_SELL_MAX_OPTION = 5 -- 자동 판매를 켤 수 있는 최고 등급 (레전더리). 이보다 높은 등급은 항상 잠겨 있다
 Config.DEFAULT_LOCK_MIN_RARITY = 5 -- 처음부터 잠겨 있는 최소 등급 (레전더리 이상)
 Config.SELL_CONFIRM_MIN_RARITY = 4 -- 모두 판매에 이 등급 이상이 섞이면 한 번 더 눌러야 판다 (에픽)
-Config.QUICK_SELL_LOCK_MIN_RARITY = 4 -- 룰렛의 '바로 판매'가 처음부터 잠겨 있는 최소 등급 (에픽 이상). 플레이어가 등급별로 바꿀 수 있다
 Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙은 장식(반짝이 등)은 자동 판매하지 않는다
 
 ----------------------------------------------------------------

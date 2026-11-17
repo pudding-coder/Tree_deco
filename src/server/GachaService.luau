@@ -81,8 +81,7 @@ function GachaService.BuildState(player: Player)
 		stacks = stacks,
 		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
-		autoSellMax = profile.autoSellMax,
-		quickSellLock = profile.quickSellLock,
+		autoSellMask = profile.autoSellMask,
 
 		-- 업그레이드
 		luckLevel = profile.luckLevel,
@@ -203,7 +202,7 @@ local function onSpin(player: Player, kind: any)
 	local traitAllowed = trait == Catalog.BaseTrait or not Config.AUTO_SELL_ONLY_BASE_TRAIT
 
 	local saleCoins = 0
-	if rarityIndex <= profile.autoSellMax and not isLocked and traitAllowed then
+	if PlayerData.IsAutoSold(profile, rarityIndex) and not isLocked and traitAllowed then
 		saleCoins = Gacha.GetSellPrice(rarityIndex, trait.mult)
 		PlayerData.AddCoins(player, saleCoins)
 	else
