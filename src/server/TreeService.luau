@@ -127,6 +127,7 @@ local garlandCenters = {} -- [띠 자리] = 띠 가운데 높이
 local topperY = nil -- 트리 꼭대기 끝 높이 (모델에서 잰 값)
 -- TreeTemplate 안 Slots 폴더에 직접 놓은 자리 표시 (docs/MAP.md). 있으면 자동 위치보다 먼저 쓴다
 local customSlots = { Topper = {}, Ornament = {}, Garland = {} } -- [영역][번호] = 플롯 기준 위치(Vector3)
+local slotOrder = {} -- [영역] = { 자리 번호, ... } 아래 자리부터. 빈자리를 채우는 순서로도 쓴다 (publishSlotOrder)
 
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
@@ -857,7 +858,8 @@ local function onPlace(player: Player, key: any, index: any)
 		end
 		freeIndex = index
 	else
-		for i = 1, capacity do
+		-- 아래 자리부터 채운다 (내 트리 창의 1, 2, 3 ... 순서)
+		for _, i in slotOrder[deco.area] or {} do
 			if not findEntry(profile, deco.area, i) then
 				freeIndex = i
 				break
@@ -974,6 +976,7 @@ local function publishSlotOrder()
 			end
 			return a < b
 		end)
+		slotOrder[area] = indexes
 		ReplicatedStorage:SetAttribute("TreeSlotOrder_" .. area, table.concat(indexes, ","))
 	end
 end
