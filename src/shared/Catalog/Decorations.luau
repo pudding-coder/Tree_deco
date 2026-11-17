@@ -18,58 +18,71 @@
 return {
 	-- 커먼
 	{ id = "Star", name = "별", rarity = "Common", area = "Topper" },
+
 	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
-	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
 	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
-	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 
+	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
+	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
+
 	-- 언커먼
 	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper" },
+
 	{ id = "Gingerbread", name = "진저브레드맨", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Snowman", name = "눈사람", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Stocking", name = "크리스마스 양말", rarity = "Uncommon", area = "Ornament" },
-	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 	{ id = "LuckyFish", name = "액막이 명태", rarity = "Uncommon", area = "Ornament" },
 	{ id = "NoEntrySign", name = "관계자 외 출입금지 표지판", rarity = "Uncommon", area = "Ornament" },
 
+	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
+
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
+
 	{ id = "TakeLKeycap", name = "L을 가져가 키캡", rarity = "Rare", area = "Ornament" },
 	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
-	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
+
+	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
 	-- 에픽
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
-	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" }, 
-	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
+
+	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
-	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
+
+	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
+	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
+
 	{ id = "TralaleroKeyring", name = "트랄랄레로 트랄랄라 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "BallerinaKeyring", name = "발레리나 카푸치나 키링", rarity = "Legendary", area = "Ornament" },
+
 	{ id = "AuroraRibbon", name = "오로라 리본", rarity = "Legendary", area = "Garland" },
 
 	-- 미스틱
 	{ id = "SantaSleigh", name = "산타 썰매", rarity = "Mystic", area = "Topper" },
+
 	{ id = "CrystalSnowflake", name = "크리스탈 눈꽃", rarity = "Mystic", area = "Ornament" },
-	{ id = "GoldenKeyboard", name = "황금 키보드 줄", rarity = "Mystic", area = "Garland" },
 	{ id = "HeartPresentBox", name = "하트무늬 선물상자", rarity = "Mystic", area = "Ornament" },
+
+	{ id = "GoldenKeyboard", name = "황금 키보드 줄", rarity = "Mystic", area = "Garland" },
 
 	-- 시크릿
 	{ id = "GiantTungSahur", name = "거대 퉁퉁퉁 사후르", rarity = "Secret", area = "Topper" },
+	
 	{ id = "GalaxyOrb", name = "은하수 구슬", rarity = "Secret", area = "Ornament" },
 }

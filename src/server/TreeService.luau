@@ -53,18 +53,23 @@ local TEMPLATE_TIER_BANDS = {
 }
 -- 오너먼트 자리: 어느 띠를 따라 걸지(띠 번호)와 각도(0 = 광장 쪽 정면, 도 단위)
 -- 띠가 비스듬하므로 같은 띠의 오너먼트는 사선으로 이어진다. 띠를 안 걸어도 그 자리를 따른다
--- 트리 둘레 360도에 고르게 퍼져 있고, 1번 자리부터 채워지므로 몇 개만 걸어도 퍼지게 순서를 섞어 둔다
+-- 1번 자리부터 채워지므로 아래 띠 → 가운데 띠 → 위 띠 순서로, 같은 띠에서는 앞쪽부터 둔다
+-- (띠 2번이 아래, 1번이 가운데, 3번이 위: GARLAND_TIERS)
+-- 정확히 옆(±90도)은 트리 가장자리에 떠 보여서 피한다
 local ORNAMENT_SPOTS = {
-	{ garland = 1, angle = 0 },
+	-- 아래 띠: 앞 둘, 뒤 둘
 	{ garland = 2, angle = -45 },
-	{ garland = 3, angle = 60 },
 	{ garland = 2, angle = 45 },
-	{ garland = 1, angle = -90 },
-	{ garland = 1, angle = 90 },
 	{ garland = 2, angle = 135 },
 	{ garland = 2, angle = -135 },
-	{ garland = 1, angle = 180 },
-	{ garland = 3, angle = -120 },
+	-- 가운데 띠: 정면, 뒤 양쪽
+	{ garland = 1, angle = 0 },
+	{ garland = 1, angle = -120 },
+	{ garland = 1, angle = 120 },
+	-- 위 띠: 앞 둘, 뒤
+	{ garland = 3, angle = -50 },
+	{ garland = 3, angle = 50 },
+	{ garland = 3, angle = 180 },
 }
 local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
 -- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
@@ -122,6 +127,7 @@ local garlandCenters = {} -- [띠 자리] = 띠 가운데 높이
 local topperY = nil -- 트리 꼭대기 끝 높이 (모델에서 잰 값)
 -- TreeTemplate 안 Slots 폴더에 직접 놓은 자리 표시 (docs/MAP.md). 있으면 자동 위치보다 먼저 쓴다
 local customSlots = { Topper = {}, Ornament = {}, Garland = {} } -- [영역][번호] = 플롯 기준 위치(Vector3)
+local slotOrder = {} -- [영역] = { 자리 번호, ... } 아래 자리부터. 빈자리를 채우는 순서로도 쓴다 (publishSlotOrder)
 
 local function layerBottom(layerIndex: number): number
 	local y = TRUNK_HEIGHT
@@ -852,7 +858,8 @@ local function onPlace(player: Player, key: any, index: any)
 		end
 		freeIndex = index
 	else
-		for i = 1, capacity do
+		-- 아래 자리부터 채운다 (내 트리 창의 1, 2, 3 ... 순서)
+		for _, i in slotOrder[deco.area] or {} do
 			if not findEntry(profile, deco.area, i) then
 				freeIndex = i
 				break
@@ -948,6 +955,32 @@ end
 -- 시작
 ----------------------------------------------------------------
 
+-- 내 트리 창이 칸을 아래부터 보여 주도록, 영역별 자리 번호를 높이가 낮은 순서로 알려 준다
+-- (자리 번호 자체는 처음 몇 개만 걸어도 퍼지게 섞여 있어서 화면 순서와 다르다)
+-- ReplicatedStorage 속성 TreeSlotOrder_<영역> = "2,5,1,..." (아래 자리부터)
+local function publishSlotOrder()
+	for area, capacity in AREA_CAPACITY do
+		local heights = {}
+		local indexes = {}
+		for i = 1, capacity do
+			table.insert(indexes, i)
+			if area == "Ornament" and not ORNAMENT_SPOTS[i] and not customSlots.Ornament[i] then
+				heights[i] = math.huge -- 자리 정보가 없는 번호는 맨 뒤로
+			else
+				heights[i] = slotOffset(area, i).Position.Y
+			end
+		end
+		table.sort(indexes, function(a, b)
+			if math.abs(heights[a] - heights[b]) > 0.05 then
+				return heights[a] < heights[b]
+			end
+			return a < b
+		end)
+		slotOrder[area] = indexes
+		ReplicatedStorage:SetAttribute("TreeSlotOrder_" .. area, table.concat(indexes, ","))
+	end
+end
+
 function TreeService.Init()
 	loadMapSpots()
 	loadTreeTemplate()
@@ -958,6 +991,7 @@ function TreeService.Init()
 		end
 		buildSlotPositions(bands, cylinderSurfaceRadius)
 	end
+	publishSlotOrder()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
