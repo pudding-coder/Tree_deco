@@ -504,6 +504,10 @@ local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 end
 
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
+-- 장식 모델 크기: 모델에서 가장 긴 변을 이 길이(스터드)에 맞춘다. 장식 목록의 size로 장식마다 배수를 줄 수 있다
+-- 임시 공 크기와 같다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
+local MODEL_SIZE = { Topper = 2.4, Ornament = 1.4 }
+
 local function cloneModel(deco)
 	if not deco.model then
 		return nil
@@ -515,17 +519,48 @@ local function cloneModel(deco)
 		return nil
 	end
 	local clone = template:Clone()
+	if clone:IsA("BasePart") then
+		-- 파츠 하나짜리 모델도 Model로 감싸서 똑같이 다룬다
+		local holder = Instance.new("Model")
+		holder.Name = clone.Name
+		clone.Parent = holder
+		holder.PrimaryPart = clone
+		clone = holder
+	elseif not clone:IsA("Model") then
+		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", deco.model, clone.ClassName)
+		return nil
+	end
 	for _, descendant in clone:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanCollide = false
 		end
 	end
-	if clone:IsA("BasePart") then
-		clone.Anchored = true
-		clone.CanCollide = false
-	end
 	return clone
+end
+
+-- 모델을 자리에 맞춰 놓는다: 크기를 맞추고, 정면이 바깥을 보게 돌리고, 모델 가운데가 자리에 오게 한다
+-- (FBX로 들여온 모델은 피벗이 가운데가 아닌 경우가 많아서 피벗 대신 모델 상자 가운데를 기준으로 한다)
+local function placeModel(model: Model, area: string, deco, cf: CFrame)
+	local target = MODEL_SIZE[area]
+	if target then
+		local _, boxSize = model:GetBoundingBox()
+		local longest = math.max(boxSize.X, boxSize.Y, boxSize.Z)
+		if longest > 0 then
+			model:ScaleTo(model:GetScale() * target * deco.size / longest)
+		end
+	end
+
+	local facing = cf
+	if area == "Ornament" then
+		-- 오너먼트 자리는 트리 쪽을 바라본다. 모델 정면(-Z)이 바깥을 보게 뒤집는다
+		facing = cf * CFrame.Angles(0, math.pi, 0)
+	end
+	facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
+
+	local box = model:GetBoundingBox()
+	local pivotFromBox = box:ToObjectSpace(model:GetPivot())
+	model:PivotTo(facing * pivotFromBox)
 end
 
 local function renderEntry(plot, entry)
@@ -539,7 +574,7 @@ local function renderEntry(plot, entry)
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local model = cloneModel(deco)
 	if model then
-		model:PivotTo(cf)
+		placeModel(model, entry.a, deco, cf)
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
 			local box, boxSize = model:GetBoundingBox()

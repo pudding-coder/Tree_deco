@@ -72,6 +72,12 @@ for index, deco in rawDecorations do
 	if deco.model ~= nil and not isNonEmptyString(deco.model) then
 		problem(where, "model은 모델 이름(글자)이어야 해요")
 	end
+	if deco.size ~= nil and (type(deco.size) ~= "number" or deco.size <= 0) then
+		problem(where, "size는 0보다 큰 숫자여야 해요 (1이면 기본 크기, 1.5면 1.5배)")
+	end
+	if deco.turn ~= nil and type(deco.turn) ~= "number" then
+		problem(where, "turn은 숫자(도)여야 해요. 예: turn = 180")
+	end
 	if deco.paintable ~= nil and type(deco.paintable) ~= "boolean" then
 		problem(where, "paintable은 true 또는 false여야 해요")
 	end
@@ -85,6 +91,8 @@ for index, deco in rawDecorations do
 			weight = deco.weight or 1,
 			model = deco.model,
 			paintable = deco.paintable == true,
+			size = deco.size or 1,
+			turn = deco.turn or 0,
 			retired = deco.retired == true,
 		}
 		table.insert(Catalog.Decorations, entry)
