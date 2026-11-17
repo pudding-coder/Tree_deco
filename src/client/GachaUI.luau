@@ -2141,6 +2141,9 @@ function GachaUI.Start()
 			end
 		end)
 	end
+	ui.rouletteButton.Activated:Connect(function()
+		setRouletteOpen(not ui.slot.Visible)
+	end)
 	ui.bagButton.Activated:Connect(function()
 		setInventoryOpen(not ui.inventory.Visible)
 	end)
