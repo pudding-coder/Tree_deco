@@ -30,6 +30,7 @@ return {
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
+	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 
 	-- 언커먼
 	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper" },
