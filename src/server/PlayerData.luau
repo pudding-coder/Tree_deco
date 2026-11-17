@@ -12,6 +12,14 @@ local Gacha = require(Shared:WaitForChild("Gacha"))
 
 local PlayerData = {}
 
+-- 자동 판매: 등급마다 켜고 끈다 (비트: 등급 i면 2^(i-1)). 켤 수 있는 등급은 AUTO_SELL_MAX_OPTION까지
+local AUTO_SELL_ALLOWED_MASK = 2 ^ Config.AUTO_SELL_MAX_OPTION - 1
+PlayerData.AUTO_SELL_ALLOWED_MASK = AUTO_SELL_ALLOWED_MASK
+
+function PlayerData.IsAutoSold(profile, rarityIndex: number): boolean
+	return bit32.btest(profile.autoSellMask, 2 ^ (rarityIndex - 1))
+end
+
 local STORE_NAME = "PlayerData_v1"
 local DATA_VERSION = 2 -- 2: 가방이 등급별 개수에서 장식·특성 칸 목록으로 바뀜
 local AUTOSAVE_INTERVAL = 60 -- 초
@@ -50,7 +58,7 @@ local function newProfile()
 		-- 카탈로그에 없는 id(지워졌거나 바뀐 장식)는 지우지 않고 보관만 한다. 화면·칸 수·판매에서 빠진다.
 		stacks = {},
 		bagCapacity = Config.BAG_BASE_SLOTS,
-		autoSellMax = 0, -- 이 등급 이하는 뽑자마자 판매 (0 = 끔)
+		autoSellMask = 0, -- 뽑자마자 판매할 등급 (비트: 등급 i면 2^(i-1). 0 = 모두 보관)
 		potionEndsAt = 0, -- 물약이 끝나는 서버 시각. 저장할 때는 남은 시간(초)으로 바꾼다 (접속 중에만 줄어듦)
 		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id, p = 색 id 또는 nil }
 		tree = {},
@@ -98,7 +106,7 @@ local function serialize(profile)
 		speedLevel = profile.speedLevel,
 		stacks = copyStacks(profile.stacks),
 		bagCapacity = profile.bagCapacity,
-		autoSellMax = profile.autoSellMax,
+		autoSellMask = profile.autoSellMask,
 		potionRemaining = math.max(0, math.floor(profile.potionEndsAt - workspace:GetServerTimeNow())),
 		tree = copyTree(profile.tree),
 		votes = profile.votes,
@@ -130,7 +138,13 @@ local function reconcile(saved)
 	profile.luckLevel = readInt(saved.luckLevel, 0, #Config.LUCK_MULT, 0)
 	profile.speedLevel = readInt(saved.speedLevel, 0, #Config.SPEED_TIME_MULT, 0)
 	profile.bagCapacity = readInt(saved.bagCapacity, Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS, Config.BAG_BASE_SLOTS)
-	profile.autoSellMax = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+	if type(saved.autoSellMask) == "number" then
+		profile.autoSellMask = bit32.band(readInt(saved.autoSellMask, 0, 2 ^ Rarity.Count - 1, 0), AUTO_SELL_ALLOWED_MASK)
+	else
+		-- 옛 데이터: "이 등급 이하 자동 판매"(autoSellMax)를 등급별 켜기로 바꾼다
+		local level = readInt(saved.autoSellMax, 0, Config.AUTO_SELL_MAX_OPTION, 0)
+		profile.autoSellMask = 2 ^ level - 1
+	end
 	profile.votes = readInt(saved.votes, 0, math.huge, 0)
 
 	-- 트리: 영역·자리 번호가 맞고 겹치지 않는 것만 (자리 수를 줄였으면 넘치는 장식은 가방으로)

@@ -99,23 +99,29 @@ local function onSetLock(player: Player, key: any, locked: any)
 	return { ok = true, state = GachaService.BuildState(player) }
 end
 
--- level: 0(끔) ~ AUTO_SELL_MAX_OPTION. 이 등급 이하를 자동 판매한다.
-local function onSetAutoSell(player: Player, level: any)
-	if not isWholeNumber(level, 0, Config.AUTO_SELL_MAX_OPTION) then
+-- 자동 판매를 등급별로 켜고 끈다 (룰렛 창의 자물쇠 칸). AUTO_SELL_MAX_OPTION보다 높은 등급은 켤 수 없다
+local function onSetAutoSellRarity(player: Player, rarityIndex: any, enabled: any)
+	if not isWholeNumber(rarityIndex, 1, Config.AUTO_SELL_MAX_OPTION) or type(enabled) ~= "boolean" then
 		return fail("잘못된 요청입니다")
 	end
 	local profile = PlayerData.Get(player)
 	if not profile then
 		return fail("데이터를 불러오는 중입니다")
 	end
-	profile.autoSellMax = level
+	local bit = 2 ^ (rarityIndex - 1)
+	local isOn = bit32.btest(profile.autoSellMask, bit)
+	if enabled and not isOn then
+		profile.autoSellMask += bit
+	elseif not enabled and isOn then
+		profile.autoSellMask -= bit
+	end
 	return { ok = true, state = GachaService.BuildState(player) }
 end
 
 function BagService.Init()
 	Remotes.Sell.OnServerInvoke = onSell
 	Remotes.SetLock.OnServerInvoke = onSetLock
-	Remotes.SetAutoSell.OnServerInvoke = onSetAutoSell
+	Remotes.SetAutoSellRarity.OnServerInvoke = onSetAutoSellRarity
 end
 
 return BagService

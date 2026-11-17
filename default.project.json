@@ -11,7 +11,7 @@
         "Announce": { "$className": "RemoteEvent" },
         "Sell": { "$className": "RemoteFunction" },
         "SetLock": { "$className": "RemoteFunction" },
-        "SetAutoSell": { "$className": "RemoteFunction" },
+        "SetAutoSellRarity": { "$className": "RemoteFunction" },
         "Upgrade": { "$className": "RemoteFunction" },
         "BuyPotion": { "$className": "RemoteFunction" },
         "PlaceDecoration": { "$className": "RemoteFunction" },
