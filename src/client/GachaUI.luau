@@ -1456,11 +1456,17 @@ local function refreshTree()
 				cell.name.TextColor3 = color
 				cell.trait.Text = if trait == Catalog.BaseTrait then "" else trait.name
 				cell.trait.TextColor3 = traitColor(trait)
+				cell.trait.TextXAlignment = Enum.TextXAlignment.Left
+				cell.trait.TextSize = 10
 				cell.stroke.Color = if selected then COLORS.text else color
 			else
 				cell.name.Text = "빈 자리"
 				cell.name.TextColor3 = COLORS.subText
-				cell.trait.Text = ""
+				-- 빈 칸 위쪽 가운데에 자리 번호 (아래에서 몇 번째. 토퍼는 하나라 표시 안 함)
+				cell.trait.Text = if area.count > 1 then tostring(slotRank[area.id][index] or index) else ""
+				cell.trait.TextColor3 = COLORS.subText
+				cell.trait.TextXAlignment = Enum.TextXAlignment.Center
+				cell.trait.TextSize = 13
 				cell.stroke.Color = if selected then COLORS.text else COLORS.disabled
 			end
 			cell.stroke.Thickness = if selected then 3 else 2
