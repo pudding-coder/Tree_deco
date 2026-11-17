@@ -53,18 +53,23 @@ local TEMPLATE_TIER_BANDS = {
 }
 -- 오너먼트 자리: 어느 띠를 따라 걸지(띠 번호)와 각도(0 = 광장 쪽 정면, 도 단위)
 -- 띠가 비스듬하므로 같은 띠의 오너먼트는 사선으로 이어진다. 띠를 안 걸어도 그 자리를 따른다
--- 트리 둘레 360도에 고르게 퍼져 있고, 1번 자리부터 채워지므로 몇 개만 걸어도 퍼지게 순서를 섞어 둔다
+-- 1번 자리부터 채워지므로 아래 띠 → 가운데 띠 → 위 띠 순서로, 같은 띠에서는 앞쪽부터 둔다
+-- (띠 2번이 아래, 1번이 가운데, 3번이 위: GARLAND_TIERS)
+-- 정확히 옆(±90도)은 트리 가장자리에 떠 보여서 피한다
 local ORNAMENT_SPOTS = {
-	{ garland = 1, angle = 0 },
+	-- 아래 띠: 앞 둘, 뒤 둘
 	{ garland = 2, angle = -45 },
-	{ garland = 3, angle = 60 },
 	{ garland = 2, angle = 45 },
-	{ garland = 1, angle = -90 },
-	{ garland = 1, angle = 90 },
 	{ garland = 2, angle = 135 },
 	{ garland = 2, angle = -135 },
-	{ garland = 1, angle = 180 },
-	{ garland = 3, angle = -120 },
+	-- 가운데 띠: 정면, 뒤 양쪽
+	{ garland = 1, angle = 0 },
+	{ garland = 1, angle = -120 },
+	{ garland = 1, angle = 120 },
+	-- 위 띠: 앞 둘, 뒤
+	{ garland = 3, angle = -50 },
+	{ garland = 3, angle = 50 },
+	{ garland = 3, angle = 180 },
 }
 local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
 -- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
