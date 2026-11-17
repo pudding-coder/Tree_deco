@@ -16,7 +16,7 @@ local player = Players.LocalPlayer
 local GachaUI = {}
 
 -- 자물쇠 그림 (assets/textures/lock.png를 올린 이미지 id). 비워 두면 "잠금" 글자로 나온다
-local LOCK_IMAGE = ""
+local LOCK_IMAGE = "rbxassetid://133145630160436" -- assets/textures/lock.png
 
 local COLORS = {
 	panel = Color3.fromRGB(20, 28, 40),
