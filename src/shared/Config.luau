@@ -53,11 +53,12 @@ Config.LUCK_TOTAL_CAP = 8 -- 최종 행운 배수 상한 (×8일 때 언커먼 �
 -- n    확률 분모 (20이면 1/20). 보통은 n이 없고 나머지 확률을 가져간다
 -- scale 트리에 걸었을 때 크기 배수 (오너먼트 1.6배 넘으면 옆 장식과 겹치기 쉽다)
 -- mult 가치 배수 (특성 배수와 곱한다)
+-- 특성·크기 배수의 평균(약 1.07 × 1.05 ≈ 1.13)을 특성·크기가 생기기 전 평균(1.12)과 맞춰 둔다. 바꾸면 수입이 달라진다
 Config.SIZES = {
-	{ id = "Small", name = "작은", n = 20, scale = 0.7, mult = 1.2 },
+	{ id = "Small", name = "작은", n = 20, scale = 0.7, mult = 1.1 },
 	{ id = "Normal", name = "보통", scale = 1, mult = 1 },
-	{ id = "Big", name = "큰", n = 8, scale = 1.3, mult = 1.5 },
-	{ id = "Huge", name = "거대", n = 50, scale = 1.6, mult = 3 },
+	{ id = "Big", name = "큰", n = 8, scale = 1.3, mult = 1.2 },
+	{ id = "Huge", name = "거대", n = 50, scale = 1.6, mult = 2 },
 }
 
 -- 연출·공지
