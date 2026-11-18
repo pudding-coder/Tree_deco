@@ -13,7 +13,7 @@
 1. Explorer에서 `Workspace`에 **Folder**를 만들고 이름을 정확히 `PlotSpots`로 바꾼다.
 2. 그 안에 **Part**를 넣는다. 파트 하나 = 트리 하나.
    - 이름: `1`, `2`, `3` ... (숫자 순서대로 먼저 채워진다. **사람이 많이 지나가는 좋은 자리를 작은 번호로**)
-   - 크기: 아무거나 (예: 4 × 1 × 4). 파트 **바닥 가운데**에 트리가 선다 → 파트를 땅 위에 올려 둔다.
+   - 크기: **30 × 0.4 × 30** (트리 + 바닥 아이템이 들어가는 내 자리 넓이). 파트 **바닥 가운데**에 트리가 선다 → 파트를 땅 위에 올려 둔다. 이미 만든 자리는 아래 "자리 크기 한 번에 맞추기"로 바꾼다.
    - `Anchored` 켜기
 3. 파트의 **앞면(Front)** 이 트리 정면이다. 사람은 앞면 쪽 14스터드에 나타나 트리를 바라본다. 파트에는 앞면을 보여주는 속성이 없으므로 글자를 붙여 표시한다 (**1번에만 하고 복제**):
    1. 파트 `1`의 `+` → **SurfaceGui** (`Face`가 기본으로 Front)
@@ -25,6 +25,138 @@
 
 게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 편집할 때는 보이니 그대로 두면 된다.
 
+### 원 따라 둥글게 놓기 (Command Bar)
+
+트리 자리 판을 **원 둘레에 같은 간격으로** 세운다. 판 앞(노란 띠)은 모두 **원 가운데(광장)**를 본다. 그래서 사람은 광장 쪽에 나타나 자기 트리를 바라본다. **Play를 멈춘 상태**에서 실행하고, 끝나면 투명벽 스크립트를 다시 실행해 벽을 맞춘다.
+
+- `COUNT`: 자리 수(서버 인원 `SERVER_MAX_PLAYERS`와 같게). 이미 있는 `PlotSpots` 파트는 번호 순서대로 다시 쓰고, 모자라면 만들고, 남으면 지운다.
+- `GAP`: 이웃 판 사이 빈 통로 폭. 반지름은 판이 겹치지 않게 자동으로 정한다(직접 정하려면 `RADIUS`).
+- `CENTER`: 광장 가운데. `nil`이면 지금 자리들의 가운데(없으면 원점).
+- `START_ANGLE`: 1번 자리 방향(도). 0이면 가운데에서 -Z 쪽. 입구·스폰 앞에 1번이 오게 돌린다.
+
+```lua
+local COUNT = 20 -- 자리 수 (SERVER_MAX_PLAYERS)
+local PAD = 30 -- 판 가로·세로
+local PAD_H = 0.4 -- 판 두께
+local GAP = 8 -- 이웃 판 사이 통로 폭
+local RADIUS = nil -- 원 반지름을 직접 정하려면 숫자로. nil이면 판이 안 겹치게 자동
+local CENTER = nil -- 광장 가운데 Vector3.new(x, 0, z). nil이면 지금 자리들의 가운데
+local START_ANGLE = 0 -- 1번 자리 방향(도)
+
+local folder = workspace:FindFirstChild("PlotSpots")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "PlotSpots"
+	folder.Parent = workspace
+end
+local parts = {}
+for _, p in folder:GetChildren() do
+	if p:IsA("BasePart") then
+		table.insert(parts, p)
+	end
+end
+table.sort(parts, function(a, b)
+	return (tonumber(a.Name) or math.huge) < (tonumber(b.Name) or math.huge)
+end)
+
+-- 가운데와 바닥 높이: 지금 자리들 기준
+local center, groundY = CENTER, 0
+if #parts > 0 then
+	local sum, low = Vector3.zero, math.huge
+	for _, p in parts do
+		sum += p.Position
+		low = math.min(low, p.Position.Y - p.Size.Y / 2)
+	end
+	center = center or sum / #parts
+	groundY = low
+end
+center = center or Vector3.zero
+
+-- 반지름: 이웃 판 중심 사이가 (판 대각선 + 통로)가 되게
+local step = math.pi * 2 / COUNT
+local need = PAD * math.sqrt(2) + GAP
+local radius = RADIUS or need / (2 * math.sin(step / 2))
+
+for i = 1, COUNT do
+	local p = parts[i]
+	if not p then
+		p = Instance.new("Part")
+		p.Parent = folder
+	end
+	p.Name = tostring(i)
+	p.Anchored = true
+	p.CanCollide = false
+	p.Color = Color3.fromRGB(120, 200, 255)
+	p.Transparency = 0.3
+	p.Size = Vector3.new(PAD, PAD_H, PAD)
+	local angle = math.rad(START_ANGLE) + (i - 1) * step
+	local pos = Vector3.new(center.X + math.sin(angle) * radius, groundY + PAD_H / 2, center.Z - math.cos(angle) * radius)
+	-- 앞(-Z)이 원 가운데를 보게
+	p.CFrame = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
+	local old = p:FindFirstChild("FrontEdge")
+	if old then old:Destroy() end
+	local edge = Instance.new("Part")
+	edge.Name = "FrontEdge"
+	edge.Anchored = true
+	edge.CanCollide = false
+	edge.Color = Color3.fromRGB(255, 210, 60)
+	edge.Size = Vector3.new(PAD, PAD_H + 0.1, 1.5)
+	edge.CFrame = p.CFrame * CFrame.new(0, 0.05, -PAD / 2 + 0.75)
+	edge.Parent = p
+end
+for i = COUNT + 1, #parts do
+	parts[i]:Destroy() -- 남는 자리 표시는 지운다
+end
+print(string.format("트리 자리 %d개를 반지름 %.0f 원 위에 놓았습니다 (가운데 %.0f, %.0f)", COUNT, radius, center.X, center.Z))
+```
+
+### 자리 크기 한 번에 맞추기 (Command Bar)
+
+`PlotSpots` 안의 파트를 모두 **넓고 납작한 판(30 × 0.4 × 30)**으로 바꾼다. 트리가 서는 바닥 가운데 위치와 앞 방향은 그대로 두고 크기만 바꾼다. 판 앞쪽 가장자리에 **노란 띠**를 붙여 정면을 보여 준다(게임이 시작되면 판과 띠는 사라진다). **Play를 멈춘 상태**에서 실행한다.
+
+판 하나에 들어가는 것: 트리(폭 13), 넓게 까는 바닥 아이템(잔디·마법진, 지름 약 20), 트리 둘레 바닥 자리 아이템(지름 약 23). 사람은 판 앞 가장자리 근처(트리 앞 14)에 나타난다.
+
+```lua
+local PAD = 30 -- 판 가로·세로(스터드)
+local PAD_H = 0.4 -- 판 두께
+local folder = workspace:FindFirstChild("PlotSpots")
+local spots = {}
+for _, p in (folder and folder:GetChildren() or {}) do
+	if p:IsA("BasePart") then
+		local bottom = p.CFrame * CFrame.new(0, -p.Size.Y / 2, 0) -- 트리가 서는 곳 (그대로 둔다)
+		p.Size = Vector3.new(PAD, PAD_H, PAD)
+		p.CFrame = bottom * CFrame.new(0, PAD_H / 2, 0)
+		p.Anchored = true
+		p.CanCollide = false
+		local old = p:FindFirstChild("FrontEdge")
+		if old then old:Destroy() end
+		local edge = Instance.new("Part")
+		edge.Name = "FrontEdge" -- 앞쪽 표시 (편집용)
+		edge.Anchored = true
+		edge.CanCollide = false
+		edge.Color = Color3.fromRGB(255, 210, 60)
+		edge.Size = Vector3.new(PAD, PAD_H + 0.1, 1.5)
+		edge.CFrame = p.CFrame * CFrame.new(0, 0.05, -PAD / 2 + 0.75)
+		edge.Parent = p
+		table.insert(spots, p)
+	end
+end
+-- 판끼리 겹치는 자리를 알려 준다
+for i = 1, #spots do
+	for j = i + 1, #spots do
+		local a, b = spots[i].Position, spots[j].Position
+		local dist = (Vector3.new(a.X, 0, a.Z) - Vector3.new(b.X, 0, b.Z)).Magnitude
+		if dist < PAD then
+			warn(string.format("자리 %s와 %s가 겹칩니다 (중심 간격 %.0f, %d 이상 필요)", spots[i].Name, spots[j].Name, dist, PAD))
+		end
+	end
+end
+print(string.format("트리 자리 %d개를 %d × %.1f × %d 판으로 바꿨습니다", #spots, PAD, PAD_H, PAD))
+```
+
+- 겹친다는 경고가 나오면 그 자리를 옮겨 **중심 간격 30 이상**(사이로 지나가려면 36 이상) 띄운다.
+- 판을 돌려 앞(노란 띠)을 통로 쪽으로 맞춘다. 돌릴 때는 판을 선택하고 `Cmd + R`(90도)이나 Rotate 도구.
+
 ### 트리 크기 (자리 사이 간격 잡을 때)
 
 | 항목 | 크기 (스터드) |
@@ -35,7 +167,7 @@
 | 띠 장식 | 트리 폭 안 |
 | 사람이 나타나는 곳 | 트리 앞 14 |
 
-- 트리끼리 **중심 간격 18 이상** 띄우면 겹치지 않는다. 사이로 사람이 지나가려면 24 이상.
+- 트리끼리는 **중심 간격 18 이상**이면 겹치지 않지만, 바닥 아이템까지 넣는 내 자리(판 30)를 쓰려면 **30 이상**, 사이로 사람이 지나가려면 36 이상 띄운다.
 - 트리 앞 14스터드 안에 부스·벽이 있으면 사람이 그 안에 끼일 수 있다. 앞쪽은 비워 둔다.
 - 트리 모양·크기를 바꾸고 싶으면 Claude에게 말한다 (`src/server/TreeService.luau`의 `LAYERS`).
 
@@ -89,6 +221,89 @@
 ---
 
 ## 2. 투명벽 (맵 밖으로 못 나가게)
+
+### 자동으로 만들기 (Command Bar)
+
+트리 자리(`PlotSpots`)를 모두 감싸는 **원형** 투명벽을 한 번에 세운다. 짧은 벽 조각을 원 둘레에 빙 둘러 세우는 방식이다. **Play를 멈춘 상태**에서 **View → Command Bar**에 붙여 넣고 Enter.
+
+- 편집할 때는 **빨간 반투명**으로 보여서 위치를 확인하기 좋다. **게임이 시작되면 자동으로 안 보이게** 된다(코드가 `MapWalls`·`Walls` 폴더의 파트를 투명하게 바꾼다).
+- 다시 실행하면 예전 `MapWalls`를 지우고 새로 세운다. 크기는 `MARGIN`(가장 바깥 트리 자리에서 벽까지)이나 `RADIUS`(직접 정하는 반지름)로 바꾼다. 원이 더 매끈해야 하면 `SEGMENTS`를 늘린다.
+- 원의 가운데는 트리 자리들의 가운데(없으면 맵 원점)다. 광장 가운데가 따로 있으면 `CENTER`에 적는다.
+- 다 됐으면 저장(`Cmd + S`).
+
+```lua
+local MARGIN = 45 -- 가장 바깥 트리 자리에서 벽까지 거리(스터드). 트리 폭 13 + 사람이 서는 앞 14 + 여유
+local RADIUS = nil -- 반지름을 직접 정하려면 숫자로 (예: 220). nil이면 트리 자리 + MARGIN
+local CENTER = nil -- 원 가운데를 직접 정하려면 Vector3.new(x, 0, z). nil이면 트리 자리들의 가운데
+local SEGMENTS = 64 -- 벽 조각 수 (많을수록 매끈한 원)
+local HEIGHT = 80 -- 벽 높이 (뛰어넘기 방지)
+local THICK = 4 -- 벽 두께
+
+local points, groundY = {}, 0
+local spots = workspace:FindFirstChild("PlotSpots")
+if spots then
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			table.insert(points, p.Position)
+		end
+	end
+end
+local center = CENTER
+if #points > 0 then
+	local sum = Vector3.zero
+	groundY = math.huge
+	for _, pos in points do
+		sum += pos
+	end
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			groundY = math.min(groundY, p.Position.Y - p.Size.Y / 2)
+		end
+	end
+	center = center or sum / #points
+end
+center = center or Vector3.zero
+local radius = RADIUS
+if not radius then
+	local far = 170 -- 트리 자리 표시가 없으면 코드가 자동 배치하는 바깥 반지름
+	if #points > 0 then
+		far = 0
+		for _, pos in points do
+			far = math.max(far, (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude)
+		end
+	end
+	radius = far + MARGIN
+end
+
+local old = workspace:FindFirstChild("MapWalls")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapWalls"
+folder.Parent = workspace
+
+local y = groundY - 5 + HEIGHT / 2 -- 땅속 5스터드부터 세워 바닥 틈을 막는다
+local r = radius + THICK / 2 -- 벽 안쪽 면이 radius에 오게
+local length = 2 * r * math.tan(math.pi / SEGMENTS) + 0.5 -- 이웃 조각과 살짝 겹치게
+for i = 1, SEGMENTS do
+	local angle = (i - 1) / SEGMENTS * math.pi * 2
+	local pos = Vector3.new(center.X + math.cos(angle) * r, y, center.Z + math.sin(angle) * r)
+	local p = Instance.new("Part")
+	p.Name = "Wall" .. i
+	p.Anchored = true
+	p.CanCollide = true
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.Color = Color3.fromRGB(255, 80, 80)
+	p.Transparency = 0.7 -- 편집 중에만 보인다. 게임이 시작되면 1이 된다
+	p.Size = Vector3.new(length, HEIGHT, THICK)
+	p.CFrame = CFrame.lookAt(pos, Vector3.new(center.X, y, center.Z)) -- 넓은 면이 가운데를 본다
+	p.Parent = folder
+end
+print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %d개, 높이 %d (MapWalls)", radius, SEGMENTS, HEIGHT))
+```
+
+### 손으로 만들기
 
 1. `Workspace`에 **Folder** `Walls`를 만든다 (정리용, 이름은 자유).
 2. **Part**를 넣고 맵 가장자리를 따라 세운다.
