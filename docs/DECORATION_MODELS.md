@@ -113,8 +113,15 @@ Command Bar에 아래를 붙여 넣고 Enter. 빨간 판은 지워지고 모델�
 local RS = game:GetService("ReplicatedStorage")
 local preview = workspace:FindFirstChild("DecorationPreview")
 local dest = RS:FindFirstChild("DecorationModels")
-if not preview or not dest then
-	warn("DecorationPreview나 DecorationModels가 없습니다.")
+if not dest then
+	-- 빈 폴더가 지워졌으면 새로 만든다
+	dest = Instance.new("Folder")
+	dest.Name = "DecorationModels"
+	dest.Parent = RS
+	print("ReplicatedStorage에 DecorationModels 폴더를 새로 만들었습니다.")
+end
+if not preview then
+	warn("Workspace에 DecorationPreview가 없습니다. Play 중이라면 멈추고 다시 실행해 주세요.")
 else
 	local moved = 0
 	for _, child in preview:GetChildren() do
