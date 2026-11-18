@@ -14,10 +14,10 @@
 
 return {
 	{ id = "None", name = "기본", mult = 1 },
-	{ id = "Glitter", name = "반짝이", n = 20, mult = 1.5, effect = "Sparkle" },
-	{ id = "Frost", name = "눈꽃", n = 50, mult = 2, effect = "Frost" },
-	{ id = "Golden", name = "황금", n = 100, mult = 5, effect = "Gold" },
-	{ id = "Rainbow", name = "무지개", n = 500, mult = 10, effect = "Rainbow" },
-	{ id = "Aurora", name = "오로라", n = 3000, mult = 25, effect = "Aurora" },
-	{ id = "Smoge", name = "스모그", n = 2000, mult = 25, effect = "Smoge" },
+	{ id = "Glitter", name = "반짝이", n = 8, mult = 1.5, effect = "Sparkle" },
+	{ id = "Frost", name = "눈꽃", n = 20, mult = 2, effect = "Frost" },
+	{ id = "Golden", name = "황금", n = 50, mult = 5, effect = "Gold" },
+	{ id = "Rainbow", name = "무지개", n = 250, mult = 10, effect = "Rainbow" },
+	{ id = "Aurora", name = "오로라", n = 1500, mult = 25, effect = "Aurora" },
+	{ id = "Smoge", name = "스모그", n = 1000, mult = 25, effect = "Smoge" },
 }
