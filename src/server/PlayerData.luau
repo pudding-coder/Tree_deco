@@ -415,19 +415,12 @@ local function giveTraitSamples(profile)
 end
 
 local function onPlayerAdded(player: Player)
-	local ok, saved
-	if IS_STUDIO and Config.STUDIO_FRESH_START then
-		-- Studio 테스트: 새 플레이어처럼 시작하고 저장하지 않는다 (저장된 데이터는 그대로 남는다)
-		ok, saved = true, nil
-		print("[PlayerData] Studio 새로 시작: 저장된 데이터를 불러오지 않고, 이번 테스트는 저장하지 않습니다 (Config.STUDIO_FRESH_START)")
-	else
-		ok, saved = loadData(player.UserId)
-	end
+	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
 		return -- 불러오는 동안 나갔다
 	end
 
-	local canSave = not (IS_STUDIO and Config.STUDIO_FRESH_START)
+	local canSave = true
 	if not ok then
 		if IS_STUDIO then
 			-- 게시 안 된 플레이스이거나 Studio API 접근이 꺼져 있으면 여기로 온다
