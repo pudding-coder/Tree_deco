@@ -15,6 +15,7 @@ local PlayerData = require(script.Parent.PlayerData)
 local GachaService = require(script.Parent.GachaService)
 local Income = require(script.Parent.Income)
 local TraitEffects = require(script.Parent.TraitEffects)
+local TreeFx = require(script.Parent.TreeFx)
 
 local TreeService = {}
 
@@ -485,6 +486,9 @@ local function buildPlot(index: number)
 	local decorations = Instance.new("Folder")
 	decorations.Name = "Decorations"
 	decorations.Parent = model
+	local effects = Instance.new("Folder")
+	effects.Name = "Effects" -- 상점 트리 효과·바닥 아이템
+	effects.Parent = model
 
 	model.Parent = plotsFolder
 	plots[index] = {
@@ -492,6 +496,7 @@ local function buildPlot(index: number)
 		spawn = base * CFrame.new(0, 3, -14) * CFrame.Angles(0, math.pi, 0), -- 트리 앞 14스터드, 트리를 바라봄
 		model = model,
 		decorations = decorations,
+		effects = effects,
 		signLabel = signLabel,
 		owner = nil,
 	}
@@ -823,6 +828,49 @@ local function updateTreeValueStat(player: Player)
 	end
 end
 
+-- 상점 트리 효과와 바닥 아이템을 다시 만든다 (TreeFx.luau)
+-- 장식을 걸 때마다 render가 불리므로, 켠 효과가 바뀌었을 때만 다시 만든다 (벼락·컨페티가 끊기지 않게)
+local function renderEffects(plot, profile)
+	local key = (profile.effect or "") .. "|" .. table.concat(profile.floor, ",")
+	if plot.effectsKey == key then
+		return
+	end
+	plot.effectsKey = key
+	plot.effects:ClearAllChildren()
+	local radius = LAYERS[1].radius
+	local tree = plot.model:FindFirstChild("Tree")
+	if tree and tree:IsA("Model") then
+		local _, size = tree:GetBoundingBox()
+		radius = math.max(size.X, size.Z) / 2
+	end
+	local ctx = { base = plot.cframe, height = treeTop(), radius = radius, spot = 1 }
+
+	local list = {}
+	if profile.effect then
+		table.insert(list, profile.effect)
+	end
+	for _, id in profile.floor do
+		table.insert(list, id)
+	end
+	local spot = 0
+	for _, id in list do
+		local fx = Catalog.TreeEffectById[id]
+		if not fx then
+			continue -- 카탈로그에서 빠진 효과는 보이지 않는다
+		end
+		if fx.area == "Floor" and not fx.spread then
+			spot += 1
+			ctx.spot = spot
+		end
+		local ok, inst = pcall(TreeFx.Build, fx, ctx)
+		if not ok then
+			warn("[Tree] 트리 효과를 만들지 못했습니다:", id, inst)
+		elseif inst then
+			inst.Parent = plot.effects
+		end
+	end
+end
+
 local function render(player: Player)
 	local plotIndex = plotOf[player]
 	local profile = PlayerData.Get(player)
@@ -834,6 +882,7 @@ local function render(player: Player)
 	for _, entry in profile.tree do
 		renderEntry(plot, entry)
 	end
+	renderEffects(plot, profile)
 	updateSign(plotIndex)
 	updateTreeValueStat(player)
 end
@@ -1215,6 +1264,15 @@ local function publishSlotOrder()
 	end
 end
 
+-- 상점에서 트리 효과를 사거나 켜고 끈 뒤 부른다 (TreeEffectService)
+function TreeService.RefreshEffects(player: Player)
+	local plotIndex = plotOf[player]
+	local profile = PlayerData.Get(player)
+	if plotIndex and profile and plots[plotIndex] then
+		renderEffects(plots[plotIndex], profile)
+	end
+end
+
 function TreeService.Init()
 	loadMapSpots()
 	loadTreeTemplate()
@@ -1227,6 +1285,7 @@ function TreeService.Init()
 	end
 	publishSlotOrder()
 	reportDecorationModels()
+	TreeFx.Report(Catalog.TreeEffects)
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace

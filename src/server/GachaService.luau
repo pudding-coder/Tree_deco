@@ -95,6 +95,11 @@ function GachaService.BuildState(player: Player)
 		treeValue = Income.GetTreeValue(profile),
 		votes = profile.votes,
 		displayStartedAt = profile.displayStartedAt,
+
+		-- 트리 효과 상점
+		ownedEffects = PlayerData.OwnedEffectList(profile.ownedEffects),
+		effect = profile.effect,
+		floor = table.clone(profile.floor),
 	}
 end
 

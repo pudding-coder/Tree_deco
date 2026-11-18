@@ -6,6 +6,7 @@ local Config = require(script.Parent.Config)
 local rawDecorations = require(script.Decorations)
 local rawTraits = require(script.Traits)
 local rawPaints = require(script.Paints)
+local rawTreeEffects = require(script.TreeEffects)
 
 local Catalog = {}
 
@@ -297,6 +298,73 @@ if sizeBaseCount ~= 1 then
 end
 if sizeProbabilitySum >= 1 then
 	problem("Config.SIZES", "크기 확률(1/n)을 모두 더하면 100%를 넘어요")
+end
+
+----------------------------------------------------------------
+-- 트리 효과 (상점)
+----------------------------------------------------------------
+
+Catalog.TREE_EFFECT_AREAS = {
+	Effect = "트리 효과",
+	Floor = "바닥",
+}
+Catalog.TreeEffects = {} -- 파일에 적힌 순서
+Catalog.TreeEffectById = {}
+
+for index, fx in rawTreeEffects do
+	local where = string.format("TreeEffects.luau %d번째 줄(id=%s)", index, tostring(type(fx) == "table" and fx.id))
+	if type(fx) ~= "table" then
+		problem(where, "{ id = ..., name = ..., ... } 형태가 아니에요")
+		continue
+	end
+	local before = #problems
+	if not isValidId(fx.id) then
+		problem(where, "id는 영문으로 시작하고 영문·숫자·_만 쓸 수 있어요")
+	elseif Catalog.TreeEffectById[fx.id] then
+		problem(where, "id가 다른 트리 효과와 겹쳐요")
+	end
+	if not isNonEmptyString(fx.name) then
+		problem(where, "name(화면에 보이는 이름)이 비어 있어요")
+	end
+	if not Catalog.TREE_EFFECT_AREAS[fx.area] then
+		problem(where, "area는 Effect, Floor 중 하나여야 해요")
+	end
+	if fx.spread ~= nil and (type(fx.spread) ~= "boolean" or fx.area ~= "Floor") then
+		problem(where, "spread는 Floor(바닥)에만 true 또는 false로 쓸 수 있어요")
+	end
+	if fx.model ~= nil and not isNonEmptyString(fx.model) then
+		problem(where, "model은 모델 이름(글자)이어야 해요")
+	end
+	if fx.size ~= nil and (type(fx.size) ~= "number" or fx.size <= 0) then
+		problem(where, "size는 0보다 큰 숫자여야 해요")
+	end
+	local cost = Config.TREE_EFFECT_COST[fx.id]
+	local robux = Config.TREE_EFFECT_ROBUX_PRICE[fx.id]
+	if cost ~= nil and (type(cost) ~= "number" or cost < 0) then
+		problem(where, "Config.TREE_EFFECT_COST의 가격은 0 이상 숫자여야 해요")
+	end
+	if robux ~= nil and (type(robux) ~= "number" or robux <= 0) then
+		problem(where, "Config.TREE_EFFECT_ROBUX_PRICE의 가격은 0보다 큰 숫자여야 해요")
+	end
+	if cost == nil and robux == nil and fx.retired ~= true then
+		problem(where, "Config.TREE_EFFECT_COST나 TREE_EFFECT_ROBUX_PRICE에 가격이 없어요")
+	end
+
+	if #problems == before then
+		local entry = {
+			id = fx.id,
+			name = fx.name,
+			area = fx.area,
+			spread = fx.spread == true,
+			model = fx.model,
+			size = fx.size or 1,
+			cost = cost, -- 코인 가격 (없으면 코인으로 못 삼)
+			robux = robux, -- 로벅스 가격 (표시만)
+			retired = fx.retired == true,
+		}
+		table.insert(Catalog.TreeEffects, entry)
+		Catalog.TreeEffectById[entry.id] = entry
+	end
 end
 
 if #problems > 0 then

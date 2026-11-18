@@ -738,6 +738,120 @@ local function buildUpgradeWindow(gui)
 	}
 end
 
+-- 상점 버튼 (룰렛 버튼 위)
+local function buildShopButton(gui)
+	ui.shopButton = button({
+		Name = "ShopButton",
+		Text = "상점",
+		Color = COLORS.panel,
+		Size = UDim2.fromOffset(200, 56),
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 16, 1, -276),
+		Radius = 14,
+		Parent = gui,
+	})
+	create("UIStroke", {
+		Color = Color3.new(1, 1, 1),
+		Transparency = 0.85,
+		Thickness = 1.5,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = ui.shopButton,
+	})
+end
+
+-- 상점 창: 트리 효과·바닥 아이템 목록 (Catalog/TreeEffects.luau)
+local function buildShopWindow(gui)
+	local window = panel({
+		Name = "Shop",
+		Size = UDim2.fromOffset(560, 440),
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.45),
+		Visible = false,
+		Parent = gui,
+	})
+	window.ZIndex = 5
+	ui.shopWindow = window
+
+	label({
+		Text = "트리 꾸미기 상점",
+		TextSize = 20,
+		Size = UDim2.new(1, -40, 0, 30),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+	ui.shopClose = button({
+		Text = "X",
+		TextSize = 18,
+		Size = UDim2.fromOffset(32, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.fromScale(1, 0),
+		Parent = window,
+	})
+	scaledLabel({
+		Text = string.format(
+			"트리 효과는 하나, 바닥 아이템은 %d개까지 켤 수 있습니다. 꾸미기 전용이라 수입에는 영향이 없습니다.",
+			Config.MAX_FLOOR_ITEMS
+		),
+		Font = Enum.Font.Gotham,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(1, 0, 0, 20),
+		Position = UDim2.fromOffset(0, 32),
+		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	}, 14, 9)
+
+	local list = create("ScrollingFrame", {
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		Position = UDim2.fromOffset(0, 60),
+		Size = UDim2.new(1, 0, 1, -60),
+		CanvasSize = UDim2.new(),
+		AutomaticCanvasSize = Enum.AutomaticSize.Y,
+		ScrollBarThickness = 6,
+		ScrollingDirection = Enum.ScrollingDirection.Y,
+		Parent = window,
+	})
+	create("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = list })
+
+	ui.shopRows = {}
+	for order, fx in Catalog.TreeEffects do
+		local frame = create("Frame", {
+			BackgroundColor3 = COLORS.panelLight,
+			BorderSizePixel = 0,
+			Size = UDim2.new(1, -10, 0, 74),
+			LayoutOrder = order,
+			Parent = list,
+		})
+		corner(frame, 10)
+		padding(frame, 12)
+		local title = label({
+			Text = fx.name,
+			TextSize = 18,
+			Size = UDim2.new(1, -170, 0, 24),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = frame,
+		})
+		local info = scaledLabel({
+			Text = "",
+			Font = Enum.Font.Gotham,
+			TextColor3 = COLORS.subText,
+			Size = UDim2.new(1, -170, 0, 22),
+			Position = UDim2.fromOffset(0, 26),
+			TextXAlignment = Enum.TextXAlignment.Left,
+			Parent = frame,
+		}, 14, 9)
+		local btn = button({
+			Text = "",
+			TextSize = 15,
+			Size = UDim2.fromOffset(150, 46),
+			AnchorPoint = Vector2.new(1, 0.5),
+			Position = UDim2.fromScale(1, 0.5),
+			Parent = frame,
+		})
+		ui.shopRows[fx.id] = { frame = frame, title = title, info = info, button = btn }
+	end
+end
+
 -- 트리 영역 (Config의 자리 수)
 local TREE_AREAS = {
 	{ id = "Topper", name = "토퍼", count = Config.MAX_TOPPER },
@@ -1052,9 +1166,11 @@ local function buildUI()
 	buildUpgradeButton(gui)
 	buildTreeButton(gui)
 	buildRouletteButton(gui)
+	buildShopButton(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
+	buildShopWindow(gui)
 	applySlotOrder()
 	for _, area in TREE_AREAS do
 		ReplicatedStorage:GetAttributeChangedSignal("TreeSlotOrder_" .. area.id):Connect(applySlotOrder)
@@ -1435,6 +1551,52 @@ local function refreshUpgrades()
 	refreshPotionTimer()
 end
 
+-- 상점 창 갱신
+local function isEffectOn(fx): boolean
+	if fx.area == "Effect" then
+		return state.effect == fx.id
+	end
+	return table.find(state.floor or {}, fx.id) ~= nil
+end
+
+local function refreshShop()
+	if not ui.shopRows then
+		return
+	end
+	local owned = {}
+	for _, id in state.ownedEffects or {} do
+		owned[id] = true
+	end
+	local floorCount = #(state.floor or {})
+	for _, fx in Catalog.TreeEffects do
+		local row = ui.shopRows[fx.id]
+		local has = owned[fx.id] == true
+		-- 그만 파는 효과는 가진 사람에게만 보인다
+		row.frame.Visible = has or not fx.retired
+
+		local areaName = Catalog.TREE_EFFECT_AREAS[fx.area]
+		local info = "[" .. areaName .. "]"
+		if has then
+			local on = isEffectOn(fx)
+			info ..= if on then " 켜져 있습니다" else " 가지고 있습니다"
+			if not on and fx.area == "Floor" and floorCount >= Config.MAX_FLOOR_ITEMS then
+				info ..= string.format(" (바닥 %d개가 모두 켜져 있습니다)", Config.MAX_FLOOR_ITEMS)
+			end
+			setButton(row.button, if on then "끄기" else "켜기", true, if on then COLORS.panelHover else COLORS.green)
+		else
+			if fx.robux then
+				info ..= string.format(" 로벅스 %d (준비 중)", fx.robux)
+			end
+			if fx.cost then
+				setButton(row.button, Gacha.FormatNumber(fx.cost) .. "코인", state.coins >= fx.cost, COLORS.gold)
+			else
+				setButton(row.button, "준비 중", false, COLORS.gold)
+			end
+		end
+		row.info.Text = info
+	end
+end
+
 local selectedSlots = {} -- ["영역:자리 번호"] = { area, index } 빼려고 고른 자리들 (여러 개)
 local pickingSlot = nil -- { area, index } 장식을 고르는 중인 빈 자리
 local placeIntoSlot -- (stack, area, index) 아래에서 정한다
@@ -1659,6 +1821,7 @@ local function applyState(newState)
 	GachaUI.RefreshBag()
 	refreshUpgrades()
 	refreshTree()
+	refreshShop()
 end
 
 local function refreshSpinButtons()
@@ -2098,6 +2261,26 @@ placeIntoSlot = function(stack, area: string, index: number)
 	end
 end
 
+local function shopPress(fx)
+	if not state then
+		return
+	end
+	local owned = table.find(state.ownedEffects or {}, fx.id) ~= nil
+	if not owned then
+		local result = bagRequest(Remotes.BuyTreeEffect, fx.id)
+		if result then
+			local text = "구매했습니다: " .. fx.name
+			if result.note then
+				showToast(text .. ". " .. result.note, COLORS.gold)
+			else
+				showToast(text .. ". 내 트리에 켜졌습니다", COLORS.gold)
+			end
+		end
+		return
+	end
+	bagRequest(Remotes.SetTreeEffect, fx.id, not isEffectOn(fx))
+end
+
 -- 룰렛 창과 확률표. 열려 있으면 버튼 테두리를 금색으로 표시한다
 local function setRouletteOpen(open: boolean)
 	ui.slot.Visible = open
@@ -2113,6 +2296,7 @@ local function setTreeOpen(open: boolean)
 	if open then
 		ui.inventory.Visible = false
 		ui.upgradeWindow.Visible = false
+		ui.shopWindow.Visible = false
 		selectedKey = nil
 	end
 	if state then
@@ -2125,7 +2309,21 @@ local function setUpgradeOpen(open: boolean)
 	if open then
 		ui.inventory.Visible = false
 		ui.treeWindow.Visible = false
+		ui.shopWindow.Visible = false
 		selectedKey = nil
+	end
+end
+
+local function setShopOpen(open: boolean)
+	ui.shopWindow.Visible = open
+	if open then
+		ui.inventory.Visible = false
+		ui.treeWindow.Visible = false
+		ui.upgradeWindow.Visible = false
+		selectedKey = nil
+		if state then
+			refreshShop()
+		end
 	end
 end
 
@@ -2133,6 +2331,7 @@ local function setInventoryOpen(open: boolean)
 	if open then
 		ui.upgradeWindow.Visible = false
 		ui.treeWindow.Visible = false
+		ui.shopWindow.Visible = false
 	end
 	ui.inventory.Visible = open
 	if not open then
@@ -2227,6 +2426,17 @@ function GachaUI.Start()
 		upgrade("speed")
 	end)
 	ui.upgradeRows.potion.button.Activated:Connect(buyPotion)
+	ui.shopButton.Activated:Connect(function()
+		setShopOpen(not ui.shopWindow.Visible)
+	end)
+	ui.shopClose.Activated:Connect(function()
+		setShopOpen(false)
+	end)
+	for _, fx in Catalog.TreeEffects do
+		ui.shopRows[fx.id].button.Activated:Connect(function()
+			shopPress(fx)
+		end)
+	end
 	ui.sellAllButton.Activated:Connect(sellAll)
 	ui.detailLock.Activated:Connect(toggleSelectedLock)
 	ui.detailSell.Activated:Connect(sellSelected)
@@ -2281,6 +2491,7 @@ function GachaUI.Start()
 				state.coins = value
 				refreshCoins()
 				refreshUpgrades()
+				refreshShop()
 			end
 		end)
 	end)

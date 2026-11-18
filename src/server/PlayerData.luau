@@ -64,6 +64,10 @@ local function newProfile()
 		-- 트리에 걸린 장식. { a = 영역(Topper/Ornament/Garland), i = 자리 번호, d = 장식 id, t = 특성 id, p = 색 id 또는 nil, s = 크기 id 또는 nil }
 		tree = {},
 		votes = 0, -- 누적으로 받은 투표 수 (투표 기능 전까지 0)
+		-- 트리 효과 상점: 산 효과 id 모음과 켠 효과. 카탈로그에서 빠진 id도 지우지 않고 보관한다 (산 것이므로)
+		ownedEffects = {}, -- [id] = true
+		effect = nil, -- 켠 트리 효과 id (하나) 또는 nil
+		floor = {}, -- 켠 바닥 아이템 id 목록 (Config.MAX_FLOOR_ITEMS개까지, 순서 = 바닥 자리 순서)
 
 		-- 아래는 저장하지 않는 값
 		displayStartedAt = workspace:GetServerTimeNow(), -- 이번 접속에서 전시를 시작한 서버 시각 (전시 시간 보너스)
@@ -98,6 +102,17 @@ local AREA_CAPACITY = {
 }
 PlayerData.AREA_CAPACITY = AREA_CAPACITY
 
+-- { [id] = true } → { id, ... } (저장용)
+local function ownedList(owned)
+	local list = {}
+	for id in owned do
+		table.insert(list, id)
+	end
+	table.sort(list)
+	return list
+end
+PlayerData.OwnedEffectList = ownedList
+
 -- 저장할 값만 골라낸다
 local function serialize(profile)
 	return {
@@ -112,6 +127,9 @@ local function serialize(profile)
 		potionRemaining = math.max(0, math.floor(profile.potionEndsAt - workspace:GetServerTimeNow())),
 		tree = copyTree(profile.tree),
 		votes = profile.votes,
+		ownedEffects = ownedList(profile.ownedEffects),
+		effect = profile.effect,
+		floor = table.clone(profile.floor),
 	}
 end
 
@@ -174,6 +192,28 @@ local function reconcile(saved)
 				table.insert(profile.tree, { a = entry.a, i = index, d = entry.d, t = entry.t, p = readPaint(entry.p), s = readSize(entry.s) })
 			else
 				table.insert(overflow, entry)
+			end
+		end
+	end
+
+	-- 트리 효과: 산 것만 켤 수 있다
+	if type(saved.ownedEffects) == "table" then
+		for _, id in saved.ownedEffects do
+			if type(id) == "string" and id ~= "" then
+				profile.ownedEffects[id] = true
+			end
+		end
+	end
+	if type(saved.effect) == "string" and profile.ownedEffects[saved.effect] then
+		profile.effect = saved.effect
+	end
+	if type(saved.floor) == "table" then
+		for _, id in saved.floor do
+			if #profile.floor >= Config.MAX_FLOOR_ITEMS then
+				break
+			end
+			if type(id) == "string" and profile.ownedEffects[id] and not table.find(profile.floor, id) then
+				table.insert(profile.floor, id)
 			end
 		end
 	end
