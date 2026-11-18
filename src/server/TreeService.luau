@@ -553,14 +553,8 @@ local function cloneModel(deco)
 		clone.Parent = holder
 		holder.PrimaryPart = clone
 		clone = holder
-	elseif not clone:IsA("Model") and clone:FindFirstChildWhichIsA("BasePart", true) then
-		-- Accessory(모자류)·Tool·Folder처럼 안에 파츠가 든 것도 Model로 감싸서 쓴다
-		local holder = Instance.new("Model")
-		holder.Name = clone.Name
-		clone.Parent = holder
-		clone = holder
 	elseif not clone:IsA("Model") then
-		warn("[Tree] 장식 모델 안에 파츠가 없습니다:", modelName, clone.ClassName)
+		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", modelName, clone.ClassName)
 		return nil
 	end
 	for _, descendant in clone:GetDescendants() do
