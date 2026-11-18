@@ -16,7 +16,8 @@ Config.GameName = "Tree_deco"
 ----------------------------------------------------------------
 Config.START_COINS = 1_000 -- 처음 접속할 때 주는 코인 (속도 업그레이드 1단계 + 코인 룰렛 약 6회. 시뮬레이션상 밸런스 영향 거의 없음)
 Config.STUDIO_START_COINS = 1000 -- Studio 테스트용 시작 코인
-Config.STUDIO_GIVE_TRAIT_SAMPLES = true -- Studio 테스트: 접속하면 특성마다 견본 장식(공·꼬마전구 줄·별)을 가방에 넣는다. 실제 서버에서는 동작하지 않는다
+Config.STUDIO_GIVE_TRAIT_SAMPLES = false -- Studio 테스트: 접속하면 특성마다 견본 장식(공·꼬마전구 줄·별)을 가방에 넣는다. 실제 서버에서는 동작하지 않는다
+Config.STUDIO_FRESH_START = true -- Studio 테스트: 저장된 데이터를 불러오지 않고 새 플레이어로 시작하며, 저장도 하지 않는다. 저장을 확인할 때는 false. 실제 서버에서는 동작하지 않는다
 
 ----------------------------------------------------------------
 -- 룰렛
