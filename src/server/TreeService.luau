@@ -624,8 +624,9 @@ local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScal
 	model:PivotTo(facing * pivotFromBox)
 end
 
--- 오너먼트 모델 뒷면 여러 점에서 트리 쪽으로 광선을 쏴 실제 겉면까지 거리를 재고, 가장 가까운 점이 ORNAMENT_SURFACE_GAP에 오게 옮긴다
--- 트리 모양(층마다 튀어나온 가지 등) 때문에 뜨거나 묻히는 것을 막는다. 광선이 하나도 안 맞으면 그대로 둔다
+-- 오너먼트 모델 뒷면 윗부분 여러 점에서 트리 쪽으로 광선을 쏴 실제 겉면까지 거리를 재고, 가장 가까운 점이 ORNAMENT_SURFACE_GAP에 오게 옮긴다
+-- 윗부분만 재는 이유: 트리는 층마다 아래 가지가 튀어나와서, 아랫부분까지 재면 그 가지에 걸려 윗부분이 떠 보인다.
+-- 매달린 장식처럼 윗부분(고리 쪽)을 트리에 붙이고, 아랫부분은 아래 가지에 살짝 걸쳐도 둔다. 광선이 하나도 안 맞으면 그대로 둔다
 local function snapToTree(model: Model, plot, cf: CFrame)
 	local treeParts = {}
 	for _, child in plot.model:GetChildren() do
@@ -645,7 +646,7 @@ local function snapToTree(model: Model, plot, cf: CFrame)
 	local box, size = model:GetBoundingBox() -- 놓은 방향(기울기 포함)을 따른 상자. +Z가 트리 쪽
 	local nearest = math.huge
 	for _, u in { -0.4, 0, 0.4 } do
-		for _, v in { -0.45, -0.15, 0.15, 0.45 } do
+		for _, v in { 0.05, 0.25, 0.45 } do
 			local point = box:PointToWorldSpace(Vector3.new(u * size.X, v * size.Y, size.Z / 2))
 			local origin = point - inward * 5 -- 모델이 트리에 묻혀 있어도 바깥에서 쏜다
 			local hit = workspace:Raycast(origin, inward * 20, params)
