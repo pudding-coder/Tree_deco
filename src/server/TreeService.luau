@@ -267,11 +267,23 @@ local function loadTreeTemplate()
 	end
 
 	local parts = {}
+	local roughMeshes = 0
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			table.insert(parts, descendant)
+			if descendant:IsA("MeshPart") and descendant.CollisionFidelity ~= Enum.CollisionFidelity.PreciseConvexDecomposition then
+				roughMeshes += 1
+			end
 		end
+	end
+	if roughMeshes > 0 then
+		-- 장식을 붙일 때 광선으로 겉면을 재는데, 광선은 보이는 모양이 아니라 충돌 모양에 맞는다
+		-- 충돌 모양이 덩어리(Default·Hull·Box)면 층 사이 오목한 곳을 못 재서 장식·띠가 떠 보인다
+		warn(string.format(
+			"[Tree] TreeTemplate의 MeshPart %d개가 CollisionFidelity = PreciseConvexDecomposition이 아닙니다. 장식이 트리에서 떠 보입니다. docs/MAP.md를 보고 바꿔 주세요.",
+			roughMeshes
+		))
 	end
 	if #parts == 0 then
 		warn("[Tree] ServerStorage.TreeTemplate 안에 파츠가 없습니다. 원기둥 트리를 씁니다.")
@@ -503,19 +515,29 @@ local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 	TraitEffects.Apply(part, trait, withExtras)
 end
 
--- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
+-- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.장식id 또는 model에 적은 이름)
 -- 장식 모델 크기: 모델에서 가장 긴 변을 이 길이(스터드)에 맞춘다. 장식 목록의 size로 장식마다 배수를 줄 수 있다
--- 임시 공 크기와 같다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
-local MODEL_SIZE = { Topper = 2.4, Ornament = 1.4 }
+-- 임시 공(오너먼트 1.4, 토퍼 2.4)보다 크다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
+local MODEL_SIZE = { Topper = 4, Ornament = 2.3 }
+-- 오너먼트 모델이 가지에 매달린 것처럼 보이게 윗부분을 트리 쪽으로 기울인다(도). 장식 목록의 lean으로 장식마다 바꿀 수 있다
+local ORNAMENT_LEAN = 10
+-- 오너먼트 모델의 가장 안쪽(트리 쪽 끝)이 자리보다 이만큼 바깥에 오게 한다(스터드. 음수면 안쪽)
+-- 자리는 트리 겉면 +0.6, 띠 전구 가운데는 겉면 +0.35라서 -0.25면 트리 쪽 끝이 전구 가운데 깊이에 온다
+local ORNAMENT_GAP = -0.25
+-- 위 계산은 어림이라, 놓은 뒤 실제 트리 겉면까지 광선으로 재서 다시 붙인다
+-- 모델의 트리 쪽 끝이 실제 겉면에서 이만큼 바깥에 온다(스터드). 띠 전구 가운데가 겉면 +0.35
+-- 음수면 그만큼 트리 안으로 파묻는다. 충돌 모양이 보이는 겉면보다 조금 바깥이라 살짝 파묻어야 붙어 보인다
+local ORNAMENT_SURFACE_GAP = -0.3
 
 local function cloneModel(deco)
-	if not deco.model then
-		return nil
-	end
+	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
+	local modelName = deco.model or deco.id
 	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
-	local template = folder and folder:FindFirstChild(deco.model)
+	local template = folder and folder:FindFirstChild(modelName)
 	if not template then
-		warn("[Tree] 장식 모델을 찾지 못했습니다:", deco.model)
+		if deco.model then -- 직접 적은 이름만 경고한다 (모델이 아직 없는 장식은 임시 모양으로 보인다)
+			warn("[Tree] 장식 모델을 찾지 못했습니다:", deco.model)
+		end
 		return nil
 	end
 	local clone = template:Clone()
@@ -527,7 +549,7 @@ local function cloneModel(deco)
 		holder.PrimaryPart = clone
 		clone = holder
 	elseif not clone:IsA("Model") then
-		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", deco.model, clone.ClassName)
+		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", modelName, clone.ClassName)
 		return nil
 	end
 	for _, descendant in clone:GetDescendants() do
@@ -536,7 +558,49 @@ local function cloneModel(deco)
 			descendant.CanCollide = false
 		end
 	end
-	return clone
+	-- 방향 기준: DecorationModels에 놓인 그대로의 월드 방향을 쓴다 (모델 피벗 방향은 무시)
+	-- Studio에서 모델의 앞이 Front(-Z), 위가 위(+Y)를 보게 돌려 두면 트리에서도 그쪽이 앞이 된다 (docs/DECORATION_MODELS.md)
+	-- PrimaryPart가 있으면 피벗이 그 파츠 방향을 따라가므로 잠깐 빼고, 놓은 뒤 renderEntry에서 되돌린다
+	local primary = clone.PrimaryPart
+	clone.PrimaryPart = nil
+	clone.WorldPivot = CFrame.new(clone:GetPivot().Position)
+	return clone, primary
+end
+
+-- 서버 시작 때 장식 모델 연결 상태를 Output에 알린다 (모델이 안 보일 때 원인 찾기용)
+local function reportDecorationModels()
+	if workspace:FindFirstChild("DecorationPreview") then
+		warn("[Tree] Workspace에 DecorationPreview가 남아 있습니다. 꺼내 둔 모델은 게임에 쓰이지 않습니다. Play를 멈추고 docs/DECORATION_MODELS.md의 3번(다시 넣기) 스크립트를 실행해 주세요.")
+	end
+	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
+	if not folder then
+		warn("[Tree] ReplicatedStorage에 DecorationModels 폴더가 없습니다. 모든 장식이 임시 모양으로 보입니다.")
+		return
+	end
+	local linked, missing = {}, {}
+	local used = {}
+	for _, deco in Catalog.Decorations do
+		local modelName = deco.model or deco.id
+		if folder:FindFirstChild(modelName) then
+			table.insert(linked, deco.id)
+			used[modelName] = true
+		elseif deco.model then
+			table.insert(missing, deco.id .. "(" .. deco.model .. ")")
+		end
+	end
+	local unused = {}
+	for _, child in folder:GetChildren() do
+		if not used[child.Name] then
+			table.insert(unused, child.Name)
+		end
+	end
+	print(string.format("[Tree] 장식 모델 %d개 연결: %s", #linked, table.concat(linked, ", ")))
+	if #missing > 0 then
+		warn("[Tree] model에 적었지만 폴더에 없는 모델: " .. table.concat(missing, ", "))
+	end
+	if #unused > 0 then
+		warn("[Tree] 이름이 어떤 장식 id와도 맞지 않는 모델: " .. table.concat(unused, ", "))
+	end
 end
 
 -- 모델을 자리에 맞춰 놓는다: 크기를 맞추고, 정면이 바깥을 보게 돌리고, 모델 가운데가 자리에 오게 한다
@@ -554,14 +618,63 @@ local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScal
 
 	local facing = cf
 	if area == "Ornament" then
-		-- 오너먼트 자리는 트리 쪽을 바라본다. 모델 정면(-Z)이 바깥을 보게 뒤집는다
-		facing = cf * CFrame.Angles(0, math.pi, 0)
+		local lean = math.rad(deco.lean or ORNAMENT_LEAN)
+		-- 모델 앞뒤 두께(turn으로 돌린 뒤 기준)와 기울였을 때 윗부분이 트리 쪽으로 들어오는 만큼 바깥으로 밀어
+		-- 모델이 띠·트리에 묻히지 않게 한다
+		local _, boxSize = model:GetBoundingBox()
+		local t = math.rad(deco.turn)
+		local depth = math.abs(math.cos(t)) * boxSize.Z + math.abs(math.sin(t)) * boxSize.X
+		local out = depth / 2 + boxSize.Y / 2 * math.abs(math.sin(lean)) + ORNAMENT_GAP
+		-- 오너먼트 자리는 트리 쪽을 바라본다(LookVector가 트리 쪽). 바깥으로 밀고, 모델 정면(-Z)이 바깥을 보게 뒤집는다
+		facing = (cf - cf.LookVector * out) * CFrame.Angles(0, math.pi, 0)
+		-- 윗부분을 트리 쪽(+Z)으로 기울인다. turn보다 먼저 해서 모델을 돌려도 트리 쪽으로 기운다
+		facing *= CFrame.Angles(lean, 0, 0)
 	end
 	facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
 
 	local box = model:GetBoundingBox()
 	local pivotFromBox = box:ToObjectSpace(model:GetPivot())
 	model:PivotTo(facing * pivotFromBox)
+end
+
+-- 오너먼트 모델 뒷면 윗부분 여러 점에서 트리 쪽으로 광선을 쏴 실제 겉면까지 거리를 재고, 가장 가까운 점이 ORNAMENT_SURFACE_GAP에 오게 옮긴다
+-- 윗부분만 재는 이유: 트리는 층마다 아래 가지가 튀어나와서, 아랫부분까지 재면 그 가지에 걸려 윗부분이 떠 보인다.
+-- 매달린 장식처럼 윗부분(고리 쪽)을 트리에 붙이고, 아랫부분은 아래 가지에 살짝 걸쳐도 둔다. 광선이 하나도 안 맞으면 그대로 둔다
+local snapMissWarned = {} -- 같은 경고를 한 번만 띄운다
+local function snapToTree(model: Model, deco, plot, cf: CFrame)
+	local treeParts = {}
+	for _, child in plot.model:GetChildren() do
+		if child ~= plot.decorations and child.Name ~= "Sign" and child.Name ~= "Ground" then
+			table.insert(treeParts, child)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = treeParts
+
+	local inward = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	if inward.Magnitude < 1e-3 then
+		return
+	end
+	inward = inward.Unit
+	local box, size = model:GetBoundingBox() -- 놓은 방향(기울기 포함)을 따른 상자. +Z가 트리 쪽
+	local nearest = math.huge
+	for _, u in { -0.4, 0, 0.4 } do
+		for _, v in { 0.05, 0.25, 0.45 } do
+			local point = box:PointToWorldSpace(Vector3.new(u * size.X, v * size.Y, size.Z / 2))
+			local origin = point - inward * 5 -- 모델이 트리에 묻혀 있어도 바깥에서 쏜다
+			local hit = workspace:Raycast(origin, inward * 20, params)
+			if hit then
+				nearest = math.min(nearest, (hit.Position - point):Dot(inward))
+			end
+		end
+	end
+	if nearest < math.huge then
+		model:PivotTo(model:GetPivot() + inward * (nearest - ORNAMENT_SURFACE_GAP - deco.out))
+	elseif not snapMissWarned[model.Name] then
+		snapMissWarned[model.Name] = true
+		warn("[Tree] 오너먼트를 트리에 붙이지 못했습니다(광선이 트리에 안 맞음). 계산한 위치에 둡니다:", model.Name)
+	end
 end
 
 local function renderEntry(plot, entry)
@@ -574,15 +687,19 @@ local function renderEntry(plot, entry)
 
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local sizeScale = Catalog.SizeOf(entry.s).scale -- 뽑을 때 정해진 크기 (띠는 항상 보통)
-	local model = cloneModel(deco)
+	local model, primary = cloneModel(deco)
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
+		if entry.a == "Ornament" then
+			snapToTree(model, deco, plot, cf)
+		end
 		if entry.a == "Topper" then
-			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
+			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다. sink만큼(모델 높이 비율) 더 내려 꼭대기에 씌운다
 			local box, boxSize = model:GetBoundingBox()
-			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
+			local lift = (cf.Y - 0.3 - boxSize.Y * deco.sink) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
+		model.PrimaryPart = primary -- 특성 분위기가 붙을 파츠
 		if paint then
 			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
 		end
@@ -1109,6 +1226,7 @@ function TreeService.Init()
 		buildSlotPositions(bands, cylinderSurfaceRadius)
 	end
 	publishSlotOrder()
+	reportDecorationModels()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace

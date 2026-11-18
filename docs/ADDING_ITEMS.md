@@ -114,8 +114,8 @@ Candy = Color3.fromRGB(255, 150, 200),
 ### 만들기
 
 - Blender나 Studio에서 만든다. Toolbox 모델도 된다(직접 만든 게 아니면 사용 조건 확인).
-- **크기는 아무래도 된다.** 게임이 가장 긴 변을 오너먼트 1.4스터드, 토퍼 2.4스터드에 맞춘다.
-- **정면**이 있는 장식(얼굴, 글자)은 정면이 모델의 앞(Studio에서 Front)이 되게 만든다. 걸었을 때 뒤나 옆을 보면 아래 `turn`으로 고친다.
+- **크기는 아무래도 된다.** 게임이 가장 긴 변을 오너먼트 2.3스터드, 토퍼 4스터드에 맞춘다.
+- **정면**이 있는 장식(얼굴, 글자)은 정면이 Studio의 Front(-Z), 위가 위(+Y)를 보게 둔다. 게임은 `DecorationModels`에 놓인 그대로의 방향을 쓴다. 여러 모델을 Studio에서 한꺼번에 돌려 맞추는 법은 `docs/DECORATION_MODELS.md`.
 - 오너먼트는 모델 가운데가 자리에 온다. 고리(걸이)는 위쪽에 두면 자연스럽다.
 - 파트를 너무 많이 쓰지 않는다. 트리 하나에 오너먼트 10개, 서버에 트리 여러 개가 있다. 장식 하나에 파트 10개 안쪽을 권한다.
 
@@ -124,10 +124,10 @@ Candy = Color3.fromRGB(255, 150, 200),
 1. Blender에서 **File → Export → FBX**로 내보낸다.
 2. Studio **Home → Import 3D**로 FBX를 불러온다. Workspace에 Model이 생긴다.
 3. Explorer의 `ReplicatedStorage` 안에 `DecorationModels` 폴더를 만들고(처음 한 번), 모델을 그 안으로 옮긴다. (Rojo는 이 폴더를 건드리지 않는다)
-4. 모델 이름을 영문으로 바꾼다. 장식 `id`와 같게 하면 헷갈리지 않는다. 예: `TungSahurKeyring`
-5. `Decorations.luau`의 그 장식 줄에 `model = "모델 이름"`을 붙인다.
+4. 모델 이름을 장식 `id`와 **똑같이**(대소문자까지) 바꾼다. 예: `TungSahurKeyring`. 그러면 자동으로 연결되고 `Decorations.luau`는 고칠 필요가 없다.
+5. (모델 이름을 `id`와 다르게 지었을 때만) 그 장식 줄에 `model = "모델 이름"`을 붙인다.
    ```lua
-   { id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", model = "TungSahurKeyring" },
+   { id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", model = "TungSahurKeyringV2" },
    ```
 6. Play해서 트리에 걸어 본다. 확인이 끝나면 플레이스를 저장(`Cmd + S`, Publish)한다. 모델은 GitHub가 아니라 플레이스 파일에 저장된다.
 
@@ -138,10 +138,13 @@ Candy = Color3.fromRGB(255, 150, 200),
 | 너무 작거나 크다 | `size = 1.3` (1.3배), `size = 0.8` (0.8배) |
 | 뒤를 보고 있다 | `turn = 180` |
 | 옆을 보고 있다 | `turn = 90` 또는 `turn = -90` |
-| 모델이 안 보이고 공이 나온다 | `model` 이름과 `DecorationModels` 안의 이름이 같은지(대소문자까지) 확인. Output에 `장식 모델을 찾지 못했습니다`가 나온다 |
+| 오너먼트가 트리에 묻힌다 | `out = 0.4` (0.4스터드 바깥으로). 더 묻히면 숫자를 키운다 |
+| 오너먼트가 너무 눕거나 너무 서 있다 | `lean = 30` (더 기울임), `lean = 10` (덜 기울임), `lean = 0` (똑바로). 안 쓰면 10 |
+| 토퍼가 꼭대기 위에 떠 있다 (모자·머리처럼 씌우고 싶다) | `sink = 0.5` (모델 높이의 절반이 꼭대기 아래로). 0~1 사이. `id`가 `Hair`로 끝나는 토퍼는 안 써도 0.5 |
+| 모델이 안 보이고 공이 나온다 | `DecorationModels` 안의 모델 이름이 장식 `id`(또는 적어 둔 `model`)와 대소문자까지 같은지 확인. `model`을 적었는데 못 찾으면 Output에 `장식 모델을 찾지 못했습니다`가 나온다 |
 
 ```lua
-{ id = "TungSahurKeyring", ..., model = "TungSahurKeyring", size = 1.2, turn = 180 },
+{ id = "TungSahurKeyring", ..., size = 1.2, turn = 180 },
 ```
 
 띠(Garland) 모델은 줄 모양이라 트리를 감싸는 방식이 따로 필요하다. 지금은 오너먼트와 토퍼만 모델을 권한다.
@@ -151,7 +154,7 @@ Candy = Color3.fromRGB(255, 150, 200),
 모델은 **장식마다 하나만** 만든다. 색별로 따로 만들 필요 없다.
 
 1. 색을 바꿀 부분(머리, 리본 등)은 **파트 이름을 `Paint`로 시작**하게 짓는다. 예: `PaintHair`, `PaintRibbon`. 여러 개여도 된다.
-2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., model = "MikuKeyring", paintable = true },`
+2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., paintable = true },`
 3. 뽑을 때 `src/shared/Catalog/Paints.luau`의 색 중 하나가 랜덤으로 정해지고, `Paint` 파트만 그 색으로 칠해진다. 나머지 파트(눈, 고리 등)는 원래 색 그대로다.
 
 - 색이 다르면 가방 칸이 따로 생긴다. 그래서 `Paint` 파트가 있는 모델에만 `paintable`을 켠다.
