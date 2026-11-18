@@ -42,7 +42,7 @@
 ### 넣기 (새 모델)
 
 1. 생긴 Model을 Explorer에서 `ReplicatedStorage → DecorationModels` 안으로 끌어다 놓는다.
-2. 이름을 장식 `id`와 **똑같이**(대소문자까지) 바꾼다. 예: `HangingMonkey`
+2. 이름을 장식 `id`와 **똑같이**(대소문자까지) 바꾼다. 예: `Donut`
 3. 안에 `Script`·`LocalScript`가 있으면 지운다(무료 모델의 악성 스크립트 방지).
 4. 아래 '작업 순서'로 방향을 맞추고 저장한다.
 5. 아직 장식 목록에 없는 새 장식이면 `Decorations.luau`에 한 줄 추가한다(또는 Claude에게 id·이름·등급을 알려 준다).
