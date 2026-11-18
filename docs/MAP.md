@@ -92,33 +92,56 @@
 
 ### 자동으로 만들기 (Command Bar)
 
-트리 자리(`PlotSpots`)를 모두 감싸는 네모난 투명벽을 한 번에 세운다. **Play를 멈춘 상태**에서 **View → Command Bar**에 붙여 넣고 Enter.
+트리 자리(`PlotSpots`)를 모두 감싸는 **원형** 투명벽을 한 번에 세운다. 짧은 벽 조각을 원 둘레에 빙 둘러 세우는 방식이다. **Play를 멈춘 상태**에서 **View → Command Bar**에 붙여 넣고 Enter.
 
 - 편집할 때는 **빨간 반투명**으로 보여서 위치를 확인하기 좋다. **게임이 시작되면 자동으로 안 보이게** 된다(코드가 `MapWalls`·`Walls` 폴더의 파트를 투명하게 바꾼다).
-- 다시 실행하면 예전 `MapWalls`를 지우고 새로 세운다. 크기를 바꾸려면 맨 위 `MARGIN`(트리 자리 바깥 여유)을 고쳐서 다시 실행한다.
-- 벽을 손으로 옮기거나 늘려도 된다(Scale·Move 도구). 다 됐으면 저장(`Cmd + S`).
-- `PlotSpots`가 없으면 코드가 자동 배치하는 범위(반지름 170)를 감싼다.
+- 다시 실행하면 예전 `MapWalls`를 지우고 새로 세운다. 크기는 `MARGIN`(가장 바깥 트리 자리에서 벽까지)이나 `RADIUS`(직접 정하는 반지름)로 바꾼다. 원이 더 매끈해야 하면 `SEGMENTS`를 늘린다.
+- 원의 가운데는 트리 자리들의 가운데(없으면 맵 원점)다. 광장 가운데가 따로 있으면 `CENTER`에 적는다.
+- 다 됐으면 저장(`Cmd + S`).
 
 ```lua
-local MARGIN = 45 -- 트리 자리 가장 바깥에서 벽까지 거리(스터드). 트리 폭 13 + 사람이 서는 앞 14 + 여유
+local MARGIN = 45 -- 가장 바깥 트리 자리에서 벽까지 거리(스터드). 트리 폭 13 + 사람이 서는 앞 14 + 여유
+local RADIUS = nil -- 반지름을 직접 정하려면 숫자로 (예: 220). nil이면 트리 자리 + MARGIN
+local CENTER = nil -- 원 가운데를 직접 정하려면 Vector3.new(x, 0, z). nil이면 트리 자리들의 가운데
+local SEGMENTS = 64 -- 벽 조각 수 (많을수록 매끈한 원)
 local HEIGHT = 80 -- 벽 높이 (뛰어넘기 방지)
 local THICK = 4 -- 벽 두께
 
-local minX, maxX, minZ, maxZ, groundY = math.huge, -math.huge, math.huge, -math.huge, math.huge
+local points, groundY = {}, 0
 local spots = workspace:FindFirstChild("PlotSpots")
 if spots then
 	for _, p in spots:GetChildren() do
 		if p:IsA("BasePart") then
-			minX, maxX = math.min(minX, p.Position.X), math.max(maxX, p.Position.X)
-			minZ, maxZ = math.min(minZ, p.Position.Z), math.max(maxZ, p.Position.Z)
-			groundY = math.min(groundY, p.Position.Y - p.Size.Y / 2)
+			table.insert(points, p.Position)
 		end
 	end
 end
-if minX == math.huge then -- 트리 자리 표시가 없으면 자동 배치 범위
-	minX, maxX, minZ, maxZ, groundY = -170, 170, -170, 170, 0
+local center = CENTER
+if #points > 0 then
+	local sum = Vector3.zero
+	groundY = math.huge
+	for _, pos in points do
+		sum += pos
+	end
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			groundY = math.min(groundY, p.Position.Y - p.Size.Y / 2)
+		end
+	end
+	center = center or sum / #points
 end
-minX, maxX, minZ, maxZ = minX - MARGIN, maxX + MARGIN, minZ - MARGIN, maxZ + MARGIN
+center = center or Vector3.zero
+local radius = RADIUS
+if not radius then
+	local far = 170 -- 트리 자리 표시가 없으면 코드가 자동 배치하는 바깥 반지름
+	if #points > 0 then
+		far = 0
+		for _, pos in points do
+			far = math.max(far, (Vector3.new(pos.X, 0, pos.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude)
+		end
+	end
+	radius = far + MARGIN
+end
 
 local old = workspace:FindFirstChild("MapWalls")
 if old then old:Destroy() end
@@ -126,12 +149,14 @@ local folder = Instance.new("Folder")
 folder.Name = "MapWalls"
 folder.Parent = workspace
 
-local cx, cz = (minX + maxX) / 2, (minZ + maxZ) / 2
-local w, d = maxX - minX, maxZ - minZ
 local y = groundY - 5 + HEIGHT / 2 -- 땅속 5스터드부터 세워 바닥 틈을 막는다
-local function wall(name, pos, size)
+local r = radius + THICK / 2 -- 벽 안쪽 면이 radius에 오게
+local length = 2 * r * math.tan(math.pi / SEGMENTS) + 0.5 -- 이웃 조각과 살짝 겹치게
+for i = 1, SEGMENTS do
+	local angle = (i - 1) / SEGMENTS * math.pi * 2
+	local pos = Vector3.new(center.X + math.cos(angle) * r, y, center.Z + math.sin(angle) * r)
 	local p = Instance.new("Part")
-	p.Name = name
+	p.Name = "Wall" .. i
 	p.Anchored = true
 	p.CanCollide = true
 	p.CanQuery = false
@@ -139,16 +164,11 @@ local function wall(name, pos, size)
 	p.Material = Enum.Material.SmoothPlastic
 	p.Color = Color3.fromRGB(255, 80, 80)
 	p.Transparency = 0.7 -- 편집 중에만 보인다. 게임이 시작되면 1이 된다
-	p.Size = size
-	p.Position = pos
+	p.Size = Vector3.new(length, HEIGHT, THICK)
+	p.CFrame = CFrame.lookAt(pos, Vector3.new(center.X, y, center.Z)) -- 넓은 면이 가운데를 본다
 	p.Parent = folder
 end
--- 모서리가 겹치게 두께만큼 길게
-wall("North", Vector3.new(cx, y, minZ - THICK / 2), Vector3.new(w + THICK * 2, HEIGHT, THICK))
-wall("South", Vector3.new(cx, y, maxZ + THICK / 2), Vector3.new(w + THICK * 2, HEIGHT, THICK))
-wall("West", Vector3.new(minX - THICK / 2, y, cz), Vector3.new(THICK, HEIGHT, d + THICK * 2))
-wall("East", Vector3.new(maxX + THICK / 2, y, cz), Vector3.new(THICK, HEIGHT, d + THICK * 2))
-print(string.format("투명벽을 세웠습니다: 가로 %d × 세로 %d, 높이 %d (MapWalls)", w, d, HEIGHT))
+print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %d개, 높이 %d (MapWalls)", radius, SEGMENTS, HEIGHT))
 ```
 
 ### 손으로 만들기
