@@ -78,6 +78,7 @@ return {
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
 	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament" },
 	{ id = "CuteSnowman", name = "귀여운 눈사람", rarity = "Rare", area = "Ornament" },
+	{ id = "PowerDrill", name = "전동 드릴", rarity = "Rare", area = "Ornament" },
 
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
