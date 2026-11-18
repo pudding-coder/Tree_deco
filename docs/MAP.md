@@ -25,6 +25,91 @@
 
 게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 편집할 때는 보이니 그대로 두면 된다.
 
+### 원 따라 둥글게 놓기 (Command Bar)
+
+트리 자리 판을 **원 둘레에 같은 간격으로** 세운다. 판 앞(노란 띠)은 모두 **원 가운데(광장)**를 본다. 그래서 사람은 광장 쪽에 나타나 자기 트리를 바라본다. **Play를 멈춘 상태**에서 실행하고, 끝나면 투명벽 스크립트를 다시 실행해 벽을 맞춘다.
+
+- `COUNT`: 자리 수(서버 인원 `SERVER_MAX_PLAYERS`와 같게). 이미 있는 `PlotSpots` 파트는 번호 순서대로 다시 쓰고, 모자라면 만들고, 남으면 지운다.
+- `GAP`: 이웃 판 사이 빈 통로 폭. 반지름은 판이 겹치지 않게 자동으로 정한다(직접 정하려면 `RADIUS`).
+- `CENTER`: 광장 가운데. `nil`이면 지금 자리들의 가운데(없으면 원점).
+- `START_ANGLE`: 1번 자리 방향(도). 0이면 가운데에서 -Z 쪽. 입구·스폰 앞에 1번이 오게 돌린다.
+
+```lua
+local COUNT = 20 -- 자리 수 (SERVER_MAX_PLAYERS)
+local PAD = 30 -- 판 가로·세로
+local PAD_H = 0.4 -- 판 두께
+local GAP = 8 -- 이웃 판 사이 통로 폭
+local RADIUS = nil -- 원 반지름을 직접 정하려면 숫자로. nil이면 판이 안 겹치게 자동
+local CENTER = nil -- 광장 가운데 Vector3.new(x, 0, z). nil이면 지금 자리들의 가운데
+local START_ANGLE = 0 -- 1번 자리 방향(도)
+
+local folder = workspace:FindFirstChild("PlotSpots")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "PlotSpots"
+	folder.Parent = workspace
+end
+local parts = {}
+for _, p in folder:GetChildren() do
+	if p:IsA("BasePart") then
+		table.insert(parts, p)
+	end
+end
+table.sort(parts, function(a, b)
+	return (tonumber(a.Name) or math.huge) < (tonumber(b.Name) or math.huge)
+end)
+
+-- 가운데와 바닥 높이: 지금 자리들 기준
+local center, groundY = CENTER, 0
+if #parts > 0 then
+	local sum, low = Vector3.zero, math.huge
+	for _, p in parts do
+		sum += p.Position
+		low = math.min(low, p.Position.Y - p.Size.Y / 2)
+	end
+	center = center or sum / #parts
+	groundY = low
+end
+center = center or Vector3.zero
+
+-- 반지름: 이웃 판 중심 사이가 (판 대각선 + 통로)가 되게
+local step = math.pi * 2 / COUNT
+local need = PAD * math.sqrt(2) + GAP
+local radius = RADIUS or need / (2 * math.sin(step / 2))
+
+for i = 1, COUNT do
+	local p = parts[i]
+	if not p then
+		p = Instance.new("Part")
+		p.Parent = folder
+	end
+	p.Name = tostring(i)
+	p.Anchored = true
+	p.CanCollide = false
+	p.Color = Color3.fromRGB(120, 200, 255)
+	p.Transparency = 0.3
+	p.Size = Vector3.new(PAD, PAD_H, PAD)
+	local angle = math.rad(START_ANGLE) + (i - 1) * step
+	local pos = Vector3.new(center.X + math.sin(angle) * radius, groundY + PAD_H / 2, center.Z - math.cos(angle) * radius)
+	-- 앞(-Z)이 원 가운데를 보게
+	p.CFrame = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z))
+	local old = p:FindFirstChild("FrontEdge")
+	if old then old:Destroy() end
+	local edge = Instance.new("Part")
+	edge.Name = "FrontEdge"
+	edge.Anchored = true
+	edge.CanCollide = false
+	edge.Color = Color3.fromRGB(255, 210, 60)
+	edge.Size = Vector3.new(PAD, PAD_H + 0.1, 1.5)
+	edge.CFrame = p.CFrame * CFrame.new(0, 0.05, -PAD / 2 + 0.75)
+	edge.Parent = p
+end
+for i = COUNT + 1, #parts do
+	parts[i]:Destroy() -- 남는 자리 표시는 지운다
+end
+print(string.format("트리 자리 %d개를 반지름 %.0f 원 위에 놓았습니다 (가운데 %.0f, %.0f)", COUNT, radius, center.X, center.Z))
+```
+
 ### 자리 크기 한 번에 맞추기 (Command Bar)
 
 `PlotSpots` 안의 파트를 모두 **넓고 납작한 판(30 × 0.4 × 30)**으로 바꾼다. 트리가 서는 바닥 가운데 위치와 앞 방향은 그대로 두고 크기만 바꾼다. 판 앞쪽 가장자리에 **노란 띠**를 붙여 정면을 보여 준다(게임이 시작되면 판과 띠는 사라진다). **Play를 멈춘 상태**에서 실행한다.
