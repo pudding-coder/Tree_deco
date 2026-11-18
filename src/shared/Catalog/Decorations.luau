@@ -31,7 +31,7 @@ return {
 
 	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
-	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament", turn = 90 },
+	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
@@ -39,7 +39,7 @@ return {
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
-	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament", turn = 180 },
+	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 

@@ -541,7 +541,13 @@ local function cloneModel(deco)
 			descendant.CanCollide = false
 		end
 	end
-	return clone
+	-- 방향 기준: DecorationModels에 놓인 그대로의 월드 방향을 쓴다 (모델 피벗 방향은 무시)
+	-- Studio에서 모델의 앞이 Front(-Z), 위가 위(+Y)를 보게 돌려 두면 트리에서도 그쪽이 앞이 된다 (docs/DECORATION_MODELS.md)
+	-- PrimaryPart가 있으면 피벗이 그 파츠 방향을 따라가므로 잠깐 빼고, 놓은 뒤 renderEntry에서 되돌린다
+	local primary = clone.PrimaryPart
+	clone.PrimaryPart = nil
+	clone.WorldPivot = CFrame.new(clone:GetPivot().Position)
+	return clone, primary
 end
 
 -- 서버 시작 때 장식 모델 연결 상태를 Output에 알린다 (모델이 안 보일 때 원인 찾기용)
@@ -615,7 +621,7 @@ local function renderEntry(plot, entry)
 
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local sizeScale = Catalog.SizeOf(entry.s).scale -- 뽑을 때 정해진 크기 (띠는 항상 보통)
-	local model = cloneModel(deco)
+	local model, primary = cloneModel(deco)
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Topper" then
@@ -624,6 +630,7 @@ local function renderEntry(plot, entry)
 			local lift = (cf.Y - 0.3 - boxSize.Y * deco.sink) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
+		model.PrimaryPart = primary -- 특성 분위기가 붙을 파츠
 		if paint then
 			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
 		end
