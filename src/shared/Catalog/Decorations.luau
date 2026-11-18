@@ -20,9 +20,14 @@
 return {
 	-- 커먼
 	{ id = "Star", name = "별", rarity = "Common", area = "Topper" },
+	{ id = "NoobHead", name = "뉴비 머리", rarity = "Common", area = "Topper" },
+	{ id = "BrownFloofHair", name = "갈색 푹신한 머리", rarity = "Common", area = "Topper" },
+
+
 
 	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
+	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament" },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
@@ -30,6 +35,7 @@ return {
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
+	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 
@@ -41,19 +47,24 @@ return {
 
 	{ id = "Gingerbread", name = "진저브레드맨", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Snowman", name = "눈사람", rarity = "Uncommon", area = "Ornament" },
+	{ id = "SadNoob", name = "슬픈 로블록스 뉴비 스킨 키링", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Stocking", name = "크리스마스 양말", rarity = "Uncommon", area = "Ornament" },
 	{ id = "LuckyFish", name = "액막이 명태", rarity = "Uncommon", area = "Ornament" },
 	{ id = "NoEntrySign", name = "관계자 외 출입금지 표지판", rarity = "Uncommon", area = "Ornament" },
+	{ id = "EggDog", name = "에그독", rarity = "Uncommon", area = "Ornament" },
 
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
+	{ id = "SpinningMaxWellTheCat", name = "산타 ", rarity = "Rare", area = "Topper" },
+
 
 	{ id = "TakeLKeycap", name = "L을 가져가 키캡", rarity = "Rare", area = "Ornament" },
 	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
+	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament" },
 
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
@@ -61,8 +72,10 @@ return {
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
 
 	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" },
+	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament" },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
+	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament" },
 
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
@@ -79,6 +92,7 @@ return {
 	{ id = "SantaSleigh", name = "산타 썰매", rarity = "Mystic", area = "Topper" },
 
 	{ id = "CrystalSnowflake", name = "크리스탈 눈꽃", rarity = "Mystic", area = "Ornament" },
+	{ id = "SantaWithSleigh", name = "썰매를 탄 산타", rarity = "Mystic", area = "Ornament" },
 	{ id = "HeartPresentBox", name = "하트무늬 선물상자", rarity = "Mystic", area = "Ornament" },
 
 	{ id = "GoldenKeyboard", name = "황금 키보드 줄", rarity = "Mystic", area = "Garland" },
