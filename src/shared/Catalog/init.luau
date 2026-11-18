@@ -114,7 +114,7 @@ for index, deco in rawDecorations do
 			weight = deco.weight or 1,
 			model = deco.model,
 			paintable = deco.paintable == true,
-			holdable = deco.holdable == true, -- 트리에 걸린 장식을 누르면 같은 모양의 사본을 손에 든다
+			holdable = deco.holdable == true, -- 트리에 걸린 장식을 누르면 그 사람이 장식을 잡고 트리에 붙는다
 			size = deco.size or 1,
 			turn = deco.turn or 0,
 			out = deco.out or 0, -- 트리에서 바깥으로 더 띄우는 거리(스터드)

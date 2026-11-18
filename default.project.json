@@ -18,7 +18,8 @@
         "RemoveDecoration": { "$className": "RemoteFunction" },
         "SetAutoFill": { "$className": "RemoteFunction" },
         "BuyTreeEffect": { "$className": "RemoteFunction" },
-        "SetTreeEffect": { "$className": "RemoteFunction" }
+        "SetTreeEffect": { "$className": "RemoteFunction" },
+        "ReleaseHold": { "$className": "RemoteEvent" }
       }
     },
     "ServerScriptService": {

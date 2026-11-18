@@ -17,8 +17,8 @@
 	        안 쓰면 0 (꼭대기 위에 올라앉음). 단 id가 Hair로 끝나는 토퍼는 안 써도 0.5
 	paintable (선택) true면 뽑을 때 Paints.luau의 색이 랜덤으로 정해져 모델의 Paint 파트에 칠해진다.
 	        색이 다르면 가방 칸이 따로 생기므로, Paint 파트가 있는 모델에만 켠다.
-	holdable (선택) true면 트리에 걸린 이 장식에 '잡기' 버튼이 생기고, 누르면 같은 모양의 사본을 손에 든다(누구나, 한 사람당 하나).
-	        트리의 장식은 그대로 남는다. 모델 안에 Tool이 있으면 그 Tool 모양을 쓴다
+	holdable (선택) true면 트리에 걸린 이 장식에 '잡기' 버튼이 생기고, 누르면 그 사람이 장식을 잡은 채 트리에 그대로 붙는다(누구나).
+	        점프하면 놓고 내려온다. 장식은 트리에서 빠지지 않는다
 	retired (선택) true면 더 이상 뽑히지 않는다. 이미 가진 사람은 그대로 갖는다. (삭제 대신 이걸 쓸 것)
 
 	※ 초안: GAME_RULES.md에 확정되기 전 목록이다.
@@ -99,7 +99,7 @@ return {
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
-	{ id = "Poop", name = "똥", rarity = "Legendary", area = "Topper" },
+	{ id = "Poop", name = "똥", rarity = "Legendary", area = "Topper", sink = 0.3 },
 
 	{ id = "TralaleroKeyring", name = "트랄랄레로 트랄랄라 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "BallerinaKeyring", name = "발레리나 카푸치나 키링", rarity = "Legendary", area = "Ornament" },
