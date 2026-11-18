@@ -336,6 +336,99 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 2. Play → Output에 `PlotSpots에 자리가 N개뿐입니다` 경고가 없는지 확인.
 3. **Test** 탭에서 플레이어를 2~3명으로 두고 Start → 트리가 1번, 2번, 3번 자리에 차례로 생기는지 확인.
 
+## 5. 꾸미기 에셋
+
+맵 분위기 초안(원형 광장 · 가운데 별 기둥 스폰 · 룰렛/업그레이드/물약 가게 · 세 갈래 길 · 트리 구경 둘레길 · 포토존 아치 · 리더보드 · 숲 · 눈 언덕)에 맞춘 에셋.
+
+### 우리가 만든 에셋 (먼저 쓰기)
+
+`assets/models/map/`의 FBX 14종은 이 초안에 맞춰 만든 것이다. **Home → Import 3D**로 하나씩 불러온다(1단위 = 1스터드).
+
+| 초안 | 파일 |
+| --- | --- |
+| 가운데 별 기둥(스폰) | `StarPole.fbx` |
+| 룰렛·업그레이드·물약 가게 | `StallRoulette.fbx` · `StallUpgrade.fbx` · `StallPotion.fbx` |
+| 포토존 아치 · 벤치 · 눈사람 · 선물상자 | `PhotoArch.fbx` · `Bench.fbx` · `Snowman.fbx` · `GiftBox.fbx` |
+| 길가 가로등 · 전구 줄 | `LampPost.fbx` · `StringLight.fbx`(이어 붙이는 조각) |
+| 각자의 트리 자리 받침 | `PlotBase.fbx` |
+| 리더보드 판 | `Leaderboard.fbx` |
+| 숲 · 눈 언덕 | `PineTree.fbx` · `SnowHill.fbx` |
+
+### 무료 에셋 후보 (Creator Store)
+
+웹 검색으로 찾은 후보다. 품질·라이선스·스크립트 여부는 **직접 확인하지 못했다**. 아래 스크립트로 한꺼번에 꺼내 보고 마음에 드는 것만 남긴다.
+
+| 용도 | 에셋 ID | 이름 |
+| --- | --- | --- |
+| 가게 | 2994923203 | Shop Model (FREE!) |
+| 전구 줄 | 8236432063 | Christmas Lights - Decoration |
+| 전구 줄 | 208231531 | Simple Christmas Lights |
+| 가로등 | 18184120049 | Old Roblox Lamp Post |
+| 눈사람 | 2115285171 | Snowman |
+| 눈사람 | 5722668698 | Snowman Couple |
+| 선물상자 | 12606769394 | Gift Box (MrCat) |
+| 선물상자 | 15480976264 | Gift box |
+| 벤치 | 86392811 | Park Bench |
+| 벤치 | 1127298073 | Modern Park Bench |
+| 사탕지팡이(아치 꾸미기) | 11766336375 | Christmas Candy Cane |
+| 숲 | 13986682846 | Low Poly Pine Tree |
+| 숲 | 261980178 | Pine Tree (Snowy) |
+| 숲 | 12016295226 | Low poly snow tree |
+| 눈 언덕 | 17139851600 | Low Poly Hills |
+| 눈 언덕 | 11821992228 | Low Poly Mountain |
+| 맵 둘레 산 | 13883219499 | Mountain border for Terrain maps (Low-Poly) |
+| 바위 | 14566490393 | Low Poly Rock |
+| 모음 팩 | 6286468514 | Low poly Village and Nature Asset Pack |
+| 모음 팩 | 8379202496 | FREE LOW POLY ASSET PACK 2.0 |
+
+### 후보 한꺼번에 꺼내 보기 (Command Bar)
+
+`Workspace`의 `AssetInbox` 폴더에 후보를 한 줄로 늘어놓는다(높이 300 공중, 스크립트는 지움). 고른 것은 `MapDecor` 등으로 옮기고, 끝나면 `AssetInbox`를 통째로 지운다. Explorer에서 `AssetInbox`를 고르고 `F`를 누르면 카메라가 간다.
+
+```lua
+local IDS = {
+	2994923203, 8236432063, 208231531, 18184120049, 2115285171, 5722668698,
+	12606769394, 15480976264, 86392811, 1127298073, 11766336375, 13986682846,
+	261980178, 12016295226, 17139851600, 11821992228, 13883219499, 14566490393,
+	6286468514, 8379202496,
+}
+local GAP = 40
+local inbox = workspace:FindFirstChild("AssetInbox") or Instance.new("Folder")
+inbox.Name = "AssetInbox"
+inbox.Parent = workspace
+for i, id in IDS do
+	local ok, objects = pcall(function()
+		return game:GetObjects("rbxassetid://" .. id)
+	end)
+	if not ok or #objects == 0 then
+		warn("못 불러옴:", id, objects)
+		continue
+	end
+	local holder = Instance.new("Model")
+	holder.Name = string.format("%02d_%d_%s", i, id, objects[1].Name)
+	for _, obj in objects do
+		obj.Parent = holder
+	end
+	local removed = 0
+	for _, d in holder:GetDescendants() do
+		if d:IsA("LuaSourceContainer") then
+			d:Destroy()
+			removed += 1
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	holder.Parent = inbox
+	if holder:FindFirstChildWhichIsA("BasePart", true) then
+		local box = holder:GetBoundingBox()
+		holder:PivotTo(holder:GetPivot() + (Vector3.new((i - 1) * GAP, 300, 0) - box.Position))
+	end
+	print(string.format("꺼냄 %s (스크립트 %d개 지움)", holder.Name, removed))
+end
+```
+
+---
+
 ## 팀 작업 주의
 
 - 맵은 GitHub가 아니라 **플레이스 파일**에 있다. 팀원이 각자 만든 테스트 플레이스에는 맵이 없으므로 트리가 원 모양으로 배치된다(정상).
