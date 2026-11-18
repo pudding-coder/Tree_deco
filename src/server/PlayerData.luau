@@ -454,6 +454,34 @@ local function giveTraitSamples(profile)
 	end
 end
 
+-- Studio 테스트: DecorationModels에 모델이 있는 장식을 하나씩 가방에 넣는다 (모델 확인용)
+local function giveModelSamples(profile)
+	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
+	if not folder or not Catalog.BaseTrait then
+		return
+	end
+	local owned = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 then
+			owned[stack.d] = true
+		end
+	end
+	for _, entry in profile.tree do
+		owned[entry.d] = true
+	end
+	local given = {}
+	for _, deco in Catalog.Decorations do
+		if not owned[deco.id] and folder:FindFirstChild(deco.model or deco.id) then
+			local paint = if deco.paintable then Catalog.RollPaint(sampleRng) else nil
+			PlayerData.AddItem(profile, deco, Catalog.BaseTrait, 1, paint and paint.id)
+			table.insert(given, deco.id)
+		end
+	end
+	if #given > 0 then
+		print(string.format("[PlayerData] Studio 테스트: 모델이 있는 장식 %d개를 가방에 넣었습니다: %s", #given, table.concat(given, ", ")))
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
@@ -481,6 +509,9 @@ local function onPlayerAdded(player: Player)
 	profile.canSave = canSave
 	if IS_STUDIO and Config.STUDIO_GIVE_TRAIT_SAMPLES then
 		giveTraitSamples(profile)
+	end
+	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
+		giveModelSamples(profile)
 	end
 	profiles[player] = profile
 	createLeaderstats(player, profile)
