@@ -151,10 +151,10 @@ for x, z in ((-0.09, 0.86), (-0.045, 0.825), (0.0, 0.852), (0.045, 0.825), (0.09
     mouth.append(Vector((x, face_y(x, z, 0.004), z)))
 tube("Mouth", mouth, 0.014)
 
-# 머리를 왼쪽 아래로 옮기고 옆으로 갸웃 (사진처럼)
+# 머리를 몸 왼쪽 위로 옮긴다 (얼굴은 기울이지 않고 정면)
 HEAD_POS = Vector((-0.36, -0.06, 1.12))
 head_objs = [o for o in all_objects() if o not in before_head]
-move_group(head_objs, HEAD, HEAD_POS, (0, 18, -12))
+move_group(head_objs, HEAD, HEAD_POS, (0, 0, 0))  # 얼굴은 똑바로 정면
 
 # ---------------------------------------------------------------- 나뭇가지 (걸이)
 # 위쪽에서 오른쪽으로 살짝 내려가는 짧은 가지. 뒤쪽 끝(y = BRANCH_Y + 반지름)이 게임에서 트리에 붙는다
