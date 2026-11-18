@@ -76,7 +76,7 @@ return {
 	{ id = "BreadSeullangi", name = "빵 슬랑이", rarity = "Rare", area = "Ornament" }, 
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
-	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament" },
+	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament", out = 0.6 },
 	{ id = "CuteSnowman", name = "귀여운 눈사람", rarity = "Rare", area = "Ornament" },
 	{ id = "PowerDrill", name = "전동 드릴", rarity = "Rare", area = "Ornament" },
 
@@ -86,10 +86,10 @@ return {
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
 
 	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" },
-	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament" },
+	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament", out = 0.6 },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
-	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament" },
+	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament", out = 0.6 },
 
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },

@@ -553,14 +553,41 @@ local function cloneModel(deco)
 		clone.Parent = holder
 		holder.PrimaryPart = clone
 		clone = holder
+	elseif not clone:IsA("Model") and clone:FindFirstChildWhichIsA("BasePart", true) then
+		-- Tool(손에 드는 도구)·Accessory(모자류)처럼 안에 파츠가 든 것도 Model로 감싸서 쓴다
+		local holder = Instance.new("Model")
+		holder.Name = clone.Name
+		clone.Parent = holder
+		clone = holder
 	elseif not clone:IsA("Model") then
-		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", modelName, clone.ClassName)
+		warn("[Tree] 장식 모델 안에 파츠가 없습니다:", modelName, clone.ClassName)
 		return nil
+	end
+	-- 장식은 보기만 하는 것: 줍기·들기·앉기·누르기가 되지 않게 한다
+	-- Tool·Accessory는 닿으면 플레이어가 주워 들 수 있으므로 Model로 바꾸고, 스크립트와 닿음 판정을 없앤다
+	for _, descendant in clone:GetDescendants() do
+		if descendant:IsA("Tool") or descendant:IsA("Accessory") or descendant:IsA("HopperBin") then
+			local plain = Instance.new("Model")
+			plain.Name = descendant.Name
+			for _, child in descendant:GetChildren() do
+				child.Parent = plain
+			end
+			plain.Parent = descendant.Parent
+			descendant:Destroy()
+		end
 	end
 	for _, descendant in clone:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			descendant.CanCollide = false
+			descendant.CanTouch = false
+		elseif
+			descendant:IsA("LuaSourceContainer")
+			or descendant:IsA("TouchTransmitter")
+			or descendant:IsA("ClickDetector")
+			or descendant:IsA("ProximityPrompt")
+		then
+			descendant:Destroy()
 		end
 	end
 	-- 방향 기준: DecorationModels에 놓인 그대로의 월드 방향을 쓴다 (모델 피벗 방향은 무시)
