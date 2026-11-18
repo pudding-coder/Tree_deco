@@ -466,7 +466,7 @@ local function buildOdds(gui)
 		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
 	end
 	create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 10), LayoutOrder = nextOrder(), Parent = list })
-	titleRow("크기 (띠는 보통)")
+	titleRow("크기")
 	for _, size in Catalog.Sizes do
 		local odds = if size.n then Gacha.FormatOdds(1 / size.n) else "나머지"
 		local valueLabel = row(size.name, sizeColor(size))
