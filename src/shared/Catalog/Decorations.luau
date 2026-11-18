@@ -99,7 +99,7 @@ return {
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
-	{ id = "Poop", name = "똥", rarity = "Legendary", area = "Topper" },
+	{ id = "Poop", name = "똥", rarity = "Legendary", area = "Topper", sink = 0.3 },
 
 	{ id = "TralaleroKeyring", name = "트랄랄레로 트랄랄라 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "BallerinaKeyring", name = "발레리나 카푸치나 키링", rarity = "Legendary", area = "Ornament" },
