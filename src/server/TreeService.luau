@@ -612,9 +612,9 @@ local function renderEntry(plot, entry)
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Topper" then
-			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
+			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다. sink만큼(모델 높이 비율) 더 내려 꼭대기에 씌운다
 			local box, boxSize = model:GetBoundingBox()
-			local lift = (cf.Y - 0.3) - (box.Y - boxSize.Y / 2)
+			local lift = (cf.Y - 0.3 - boxSize.Y * deco.sink) - (box.Y - boxSize.Y / 2)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
 		if paint then

@@ -79,6 +79,12 @@ for index, deco in rawDecorations do
 	if deco.turn ~= nil and type(deco.turn) ~= "number" then
 		problem(where, "turn은 숫자(도)여야 해요. 예: turn = 180")
 	end
+	if deco.sink ~= nil and (type(deco.sink) ~= "number" or deco.sink < 0 or deco.sink > 1) then
+		problem(where, "sink는 0에서 1 사이 숫자여야 해요 (0.5면 모델 높이의 절반이 꼭대기 아래로 내려가요)")
+	end
+	if deco.sink ~= nil and deco.area ~= "Topper" then
+		problem(where, "sink는 Topper(꼭대기) 장식에만 쓸 수 있어요")
+	end
 	if deco.paintable ~= nil and type(deco.paintable) ~= "boolean" then
 		problem(where, "paintable은 true 또는 false여야 해요")
 	end
@@ -94,6 +100,8 @@ for index, deco in rawDecorations do
 			paintable = deco.paintable == true,
 			size = deco.size or 1,
 			turn = deco.turn or 0,
+			-- 머리카락(id가 Hair로 끝나는 토퍼)은 꼭대기에 씌운 것처럼 기본으로 절반 내려 둔다
+			sink = deco.sink or ((deco.area == "Topper" and string.sub(deco.id, -4) == "Hair") and 0.5 or 0),
 			retired = deco.retired == true,
 		}
 		table.insert(Catalog.Decorations, entry)
