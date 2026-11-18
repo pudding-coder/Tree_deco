@@ -820,8 +820,17 @@ local function buildTreeWindow(gui)
 	ui.treeTitle = label({
 		Text = "내 트리",
 		TextSize = 20,
-		Size = UDim2.new(1, -40, 0, 30),
+		Size = UDim2.new(1, -200, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
+		Parent = window,
+	})
+	-- 빈자리 자동 채우기 켜고 끄기
+	ui.autoFillButton = button({
+		Text = "자동 채우기: 켬",
+		TextSize = 13,
+		Size = UDim2.fromOffset(150, 30),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -40, 0, 0),
 		Parent = window,
 	})
 	ui.treeClose = button({
@@ -1520,6 +1529,10 @@ end
 
 local function refreshTree()
 	ui.treeTitle.Text = "내 트리 · 가치 " .. Gacha.FormatNumber(state.treeValue) .. "코인"
+	local autoFill = state.autoFill ~= false
+	ui.autoFillButton.Text = if autoFill then "자동 채우기: 켬" else "자동 채우기: 끔"
+	ui.autoFillButton.BackgroundColor3 = if autoFill then COLORS.green else COLORS.panelLight
+	ui.autoFillButton.TextColor3 = if autoFill then COLORS.text else COLORS.subText
 	refreshTreeIncome()
 
 	-- 고른 자리 중 이제 비어 있는 곳은 빼고, 고르는 중인 자리가 채워졌으면 닫는다
@@ -1601,7 +1614,9 @@ local function refreshTree()
 		ui.treeRemove.Visible = true
 		setButton(ui.treeRemove, if #chosen == 1 then "빼기" else string.format("%d개 빼기", #chosen), true, COLORS.panelHover)
 	else
-		ui.treeDetail.Text = "빈 자리를 누르면 장식을 걸 수 있습니다. 걸린 칸을 여러 개 눌러 한 번에 뺄 수 있습니다."
+		ui.treeDetail.Text = if state.autoFill ~= false
+			then "빈자리는 뽑을 때마다 가방에서 등급이 가장 높은 장식으로 채워집니다. 걸린 칸을 여러 개 눌러 한 번에 뺄 수 있습니다."
+			else "빈 자리를 누르면 장식을 걸 수 있습니다. 걸린 칸을 여러 개 눌러 한 번에 뺄 수 있습니다."
 		ui.treeDetail.TextColor3 = COLORS.subText
 		ui.treeRemove.Visible = false
 	end
@@ -2223,6 +2238,16 @@ function GachaUI.Start()
 		setTreeOpen(false)
 	end)
 	ui.treeRemove.Activated:Connect(removeSelectedSlots)
+	ui.autoFillButton.Activated:Connect(function()
+		if not state then
+			return
+		end
+		local turningOn = state.autoFill == false
+		local result = bagRequest(Remotes.SetAutoFill, turningOn)
+		if result and turningOn and (result.placed or 0) > 0 then
+			showToast(string.format("빈자리에 장식 %d개를 걸었습니다", result.placed), COLORS.green)
+		end
+	end)
 	ui.treePickerClose.Activated:Connect(function()
 		pickingSlot = nil
 		refreshTree()

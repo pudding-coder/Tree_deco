@@ -82,6 +82,7 @@ function GachaService.BuildState(player: Player)
 		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
 		autoSellMask = profile.autoSellMask,
+		autoFill = profile.autoFill,
 
 		-- 업그레이드
 		luckLevel = profile.luckLevel,
@@ -213,6 +214,10 @@ local function onSpin(player: Player, kind: any)
 		PlayerData.AddCoins(player, saleCoins)
 	else
 		PlayerData.AddItem(profile, deco, trait, 1, paintId, sizeId)
+		-- 트리 빈자리 자동 채우기 (TreeService가 정한다). 트리 모습은 슬롯이 멈춘 뒤에 바뀐다
+		if GachaService.AfterItemAdded then
+			GachaService.AfterItemAdded(player, profile, reelTime)
+		end
 	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)

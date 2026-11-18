@@ -915,6 +915,86 @@ local function onPlace(player: Player, key: any, index: any)
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
 end
 
+----------------------------------------------------------------
+-- 빈자리 자동 채우기
+----------------------------------------------------------------
+
+-- 가방에서 그 영역에 걸 가장 좋은 장식 칸: 등급이 높은 것, 같으면 가치(특성·크기 포함)가 높은 것
+local function bestStackFor(profile, area: string)
+	local best, bestRarity, bestValue = nil, 0, 0
+	for _, stack in profile.stacks do
+		if stack.c <= 0 or not PlayerData.IsKnownStack(stack) then
+			continue
+		end
+		local deco = Catalog.DecorationById[stack.d]
+		if deco.area ~= area then
+			continue
+		end
+		local value = Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(Catalog.TraitById[stack.t], stack.s))
+		if not best or deco.rarity > bestRarity or (deco.rarity == bestRarity and value > bestValue) then
+			best, bestRarity, bestValue = stack, deco.rarity, value
+		end
+	end
+	return best
+end
+
+-- 트리의 빈자리를 아래 자리부터 가방의 가장 좋은 장식으로 채운다. 채운 개수를 돌려준다 (트리 모습은 바꾸지 않는다)
+local function autoFillProfile(profile): number
+	local placed = 0
+	for area in AREA_CAPACITY do
+		for _, index in slotOrder[area] or {} do
+			if findEntry(profile, area, index) then
+				continue
+			end
+			local stack = bestStackFor(profile, area)
+			if not stack then
+				break -- 이 영역에 걸 장식이 없다
+			end
+			stack.c -= 1
+			table.insert(profile.tree, { a = area, i = index, d = stack.d, t = stack.t, p = stack.p, s = stack.s })
+			placed += 1
+		end
+	end
+	if placed > 0 then
+		PlayerData.RemoveEmptyStacks(profile)
+	end
+	return placed
+end
+
+-- 뽑은 장식이 가방에 들어간 뒤 (GachaService가 부른다). 트리 모습은 슬롯이 멈춘 뒤에 바꿔서 결과를 미리 보여주지 않는다
+local function onItemAdded(player: Player, profile, revealDelay: number)
+	if not profile.autoFill or not plotOf[player] then
+		return
+	end
+	if autoFillProfile(profile) > 0 then
+		task.delay(revealDelay, function()
+			if plotOf[player] then
+				render(player)
+			end
+		end)
+	end
+end
+
+-- 자동 채우기 켜고 끄기. 켜면 지금 빈자리도 바로 채운다
+local function onSetAutoFill(player: Player, enabled: any)
+	if type(enabled) ~= "boolean" then
+		return fail("잘못된 요청입니다")
+	end
+	local profile, reason = getReadyProfile(player)
+	if not profile then
+		return fail(reason)
+	end
+	profile.autoFill = enabled
+	local placed = 0
+	if enabled then
+		placed = autoFillProfile(profile)
+		if placed > 0 then
+			render(player)
+		end
+	end
+	return { ok = true, placed = placed, state = GachaService.BuildState(player) }
+end
+
 -- 트리에서 장식을 빼서 가방에 넣는다. slots = { { a = 영역, i = 자리 번호 }, ... } (여러 개를 한 번에)
 -- 가방 칸이 모자라면 하나도 빼지 않는다
 local function onRemove(player: Player, slots: any)
@@ -1035,6 +1115,8 @@ function TreeService.Init()
 
 	Remotes.PlaceDecoration.OnServerInvoke = onPlace
 	Remotes.RemoveDecoration.OnServerInvoke = onRemove
+	Remotes.SetAutoFill.OnServerInvoke = onSetAutoFill
+	GachaService.AfterItemAdded = onItemAdded
 
 	Players.PlayerAdded:Connect(onPlayerAdded)
 	Players.PlayerRemoving:Connect(onPlayerRemoving)
