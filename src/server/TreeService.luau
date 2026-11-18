@@ -360,6 +360,23 @@ end
 -- 맵에 트리 자리 표시(Workspace.PlotSpots 폴더의 파츠)가 있으면 그 자리를 쓴다 (docs/MAP.md)
 local usingMapSpots = false
 
+-- 투명벽: 편집할 때는 보이게(반투명) 두고, 게임이 시작되면 안 보이게 한다 (docs/MAP.md '투명벽')
+local function hideMapWalls()
+	for _, name in { "MapWalls", "Walls" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			for _, part in folder:GetDescendants() do
+				if part:IsA("BasePart") then
+					part.Transparency = 1
+					part.CanQuery = false
+					part.CastShadow = false
+					part:ClearAllChildren() -- 편집용 글자 표시 등
+				end
+			end
+		end
+	end
+end
+
 local function loadMapSpots()
 	local folder = workspace:FindFirstChild("PlotSpots")
 	if not folder then
@@ -1468,6 +1485,7 @@ function TreeService.RefreshEffects(player: Player)
 end
 
 function TreeService.Init()
+	hideMapWalls()
 	loadMapSpots()
 	loadTreeTemplate()
 	if not treeTemplate then

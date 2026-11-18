@@ -90,6 +90,69 @@
 
 ## 2. 투명벽 (맵 밖으로 못 나가게)
 
+### 자동으로 만들기 (Command Bar)
+
+트리 자리(`PlotSpots`)를 모두 감싸는 네모난 투명벽을 한 번에 세운다. **Play를 멈춘 상태**에서 **View → Command Bar**에 붙여 넣고 Enter.
+
+- 편집할 때는 **빨간 반투명**으로 보여서 위치를 확인하기 좋다. **게임이 시작되면 자동으로 안 보이게** 된다(코드가 `MapWalls`·`Walls` 폴더의 파트를 투명하게 바꾼다).
+- 다시 실행하면 예전 `MapWalls`를 지우고 새로 세운다. 크기를 바꾸려면 맨 위 `MARGIN`(트리 자리 바깥 여유)을 고쳐서 다시 실행한다.
+- 벽을 손으로 옮기거나 늘려도 된다(Scale·Move 도구). 다 됐으면 저장(`Cmd + S`).
+- `PlotSpots`가 없으면 코드가 자동 배치하는 범위(반지름 170)를 감싼다.
+
+```lua
+local MARGIN = 45 -- 트리 자리 가장 바깥에서 벽까지 거리(스터드). 트리 폭 13 + 사람이 서는 앞 14 + 여유
+local HEIGHT = 80 -- 벽 높이 (뛰어넘기 방지)
+local THICK = 4 -- 벽 두께
+
+local minX, maxX, minZ, maxZ, groundY = math.huge, -math.huge, math.huge, -math.huge, math.huge
+local spots = workspace:FindFirstChild("PlotSpots")
+if spots then
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			minX, maxX = math.min(minX, p.Position.X), math.max(maxX, p.Position.X)
+			minZ, maxZ = math.min(minZ, p.Position.Z), math.max(maxZ, p.Position.Z)
+			groundY = math.min(groundY, p.Position.Y - p.Size.Y / 2)
+		end
+	end
+end
+if minX == math.huge then -- 트리 자리 표시가 없으면 자동 배치 범위
+	minX, maxX, minZ, maxZ, groundY = -170, 170, -170, 170, 0
+end
+minX, maxX, minZ, maxZ = minX - MARGIN, maxX + MARGIN, minZ - MARGIN, maxZ + MARGIN
+
+local old = workspace:FindFirstChild("MapWalls")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapWalls"
+folder.Parent = workspace
+
+local cx, cz = (minX + maxX) / 2, (minZ + maxZ) / 2
+local w, d = maxX - minX, maxZ - minZ
+local y = groundY - 5 + HEIGHT / 2 -- 땅속 5스터드부터 세워 바닥 틈을 막는다
+local function wall(name, pos, size)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = true
+	p.CanQuery = false
+	p.CastShadow = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.Color = Color3.fromRGB(255, 80, 80)
+	p.Transparency = 0.7 -- 편집 중에만 보인다. 게임이 시작되면 1이 된다
+	p.Size = size
+	p.Position = pos
+	p.Parent = folder
+end
+-- 모서리가 겹치게 두께만큼 길게
+wall("North", Vector3.new(cx, y, minZ - THICK / 2), Vector3.new(w + THICK * 2, HEIGHT, THICK))
+wall("South", Vector3.new(cx, y, maxZ + THICK / 2), Vector3.new(w + THICK * 2, HEIGHT, THICK))
+wall("West", Vector3.new(minX - THICK / 2, y, cz), Vector3.new(THICK, HEIGHT, d + THICK * 2))
+wall("East", Vector3.new(maxX + THICK / 2, y, cz), Vector3.new(THICK, HEIGHT, d + THICK * 2))
+print(string.format("투명벽을 세웠습니다: 가로 %d × 세로 %d, 높이 %d (MapWalls)", w, d, HEIGHT))
+```
+
+### 손으로 만들기
+
 1. `Workspace`에 **Folder** `Walls`를 만든다 (정리용, 이름은 자유).
 2. **Part**를 넣고 맵 가장자리를 따라 세운다.
    - 크기 예: 두께 2, 높이 60 이상 (점프·뛰어넘기 방지)
