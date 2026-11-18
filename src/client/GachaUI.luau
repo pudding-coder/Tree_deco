@@ -202,6 +202,17 @@ local function buildSlot(gui)
 		Parent = slot,
 	})
 
+	-- 오른쪽 위: 지금 행운 배수와 한 번 돌리는 데 걸리는 시간 (업그레이드·물약이 반영된 값)
+	ui.spinStats = label({
+		Text = "",
+		TextSize = 13,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(0.5, 0, 0, 28),
+		Position = UDim2.fromScale(0.5, 0),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = slot,
+	})
+
 	-- 슬롯 3칸: 등급 · 장식 · 특성
 	local reels = create("Frame", {
 		Name = "Reels",
@@ -1591,8 +1602,13 @@ local function refreshAutoSell()
 	end
 end
 
+local function refreshSpinStats()
+	ui.spinStats.Text = string.format("행운 ×%.2f · 회전 %.1f초", state.luck or 1, state.reelTime or Config.REEL_STOP_TIME)
+end
+
 local function applyState(newState)
 	state = newState
+	refreshSpinStats()
 	refreshAutoSell()
 	refreshCoins()
 	refreshOdds()
