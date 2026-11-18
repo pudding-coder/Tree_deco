@@ -520,13 +520,14 @@ end
 -- 임시 공(오너먼트 1.4, 토퍼 2.4)보다 크다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
 local MODEL_SIZE = { Topper = 4, Ornament = 2.3 }
 -- 오너먼트 모델이 가지에 매달린 것처럼 보이게 윗부분을 트리 쪽으로 기울인다(도). 장식 목록의 lean으로 장식마다 바꿀 수 있다
-local ORNAMENT_LEAN = 20
+local ORNAMENT_LEAN = 10
 -- 오너먼트 모델의 가장 안쪽(트리 쪽 끝)이 자리보다 이만큼 바깥에 오게 한다(스터드. 음수면 안쪽)
 -- 자리는 트리 겉면 +0.6, 띠 전구 가운데는 겉면 +0.35라서 -0.25면 트리 쪽 끝이 전구 가운데 깊이에 온다
 local ORNAMENT_GAP = -0.25
 -- 위 계산은 어림이라, 놓은 뒤 실제 트리 겉면까지 광선으로 재서 다시 붙인다
 -- 모델의 트리 쪽 끝이 실제 겉면에서 이만큼 바깥에 온다(스터드). 띠 전구 가운데가 겉면 +0.35
-local ORNAMENT_SURFACE_GAP = 0.35
+-- 음수면 그만큼 트리 안으로 파묻는다. 충돌 모양이 보이는 겉면보다 조금 바깥이라 살짝 파묻어야 붙어 보인다
+local ORNAMENT_SURFACE_GAP = -0.3
 
 local function cloneModel(deco)
 	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
@@ -639,6 +640,7 @@ end
 -- 오너먼트 모델 뒷면 윗부분 여러 점에서 트리 쪽으로 광선을 쏴 실제 겉면까지 거리를 재고, 가장 가까운 점이 ORNAMENT_SURFACE_GAP에 오게 옮긴다
 -- 윗부분만 재는 이유: 트리는 층마다 아래 가지가 튀어나와서, 아랫부분까지 재면 그 가지에 걸려 윗부분이 떠 보인다.
 -- 매달린 장식처럼 윗부분(고리 쪽)을 트리에 붙이고, 아랫부분은 아래 가지에 살짝 걸쳐도 둔다. 광선이 하나도 안 맞으면 그대로 둔다
+local snapMissWarned = {} -- 같은 경고를 한 번만 띄운다
 local function snapToTree(model: Model, plot, cf: CFrame)
 	local treeParts = {}
 	for _, child in plot.model:GetChildren() do
@@ -669,6 +671,9 @@ local function snapToTree(model: Model, plot, cf: CFrame)
 	end
 	if nearest < math.huge then
 		model:PivotTo(model:GetPivot() + inward * (nearest - ORNAMENT_SURFACE_GAP))
+	elseif not snapMissWarned[model.Name] then
+		snapMissWarned[model.Name] = true
+		warn("[Tree] 오너먼트를 트리에 붙이지 못했습니다(광선이 트리에 안 맞음). 계산한 위치에 둡니다:", model.Name)
 	end
 end
 
