@@ -50,7 +50,15 @@
   - 토퍼: 꼭대기 끝에 앉는다.
   - 띠: 층마다 겉면을 **비스듬히** 한 바퀴 두르는 전구 줄이다 (`GARLAND_TIERS` 순서: 4층, 2층, 5층). 기울기는 `TreeService.luau`의 `GARLAND_TILT`.
   - 오너먼트: 띠 3줄을 따라 트리 둘레 360도에 고르게 매달려 사선으로 이어진다 (`ORNAMENT_SPOTS`에서 띠 번호와 각도). 띠를 안 걸어도 그 자리를 따른다. 걸면 트리에서 낮은 자리부터 채워진다(내 트리 창 번호 1, 2, 3 ... 순서).
-- 층마다 밖으로 보이는 경사면 높이는 `TreeService.luau`의 `TEMPLATE_TIER_BANDS`에 적혀 있다 (`assets/models/ChristmasTree.fbx`를 재서 정함). **트리 모델 모양을 바꾸면 Claude에게 다시 재 달라고 한다.** 띠가 떠 보이면 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다.
+- 층마다 밖으로 보이는 경사면 높이는 `TreeService.luau`의 `TEMPLATE_TIER_BANDS`에 적혀 있다 (`assets/models/ChristmasTree.fbx`를 재서 정함). **트리 모델 모양을 바꾸면 Claude에게 다시 재 달라고 한다.**
+- **장식·띠가 트리에서 떠 보이면** 트리 MeshPart의 `CollisionFidelity`를 `PreciseConvexDecomposition`으로 바꾼다. 장식 위치는 광선으로 트리 겉면을 재서 정하는데, 광선은 보이는 모양이 아니라 충돌 모양에 맞는다. 기본값(덩어리 모양)이면 층 사이 오목한 곳을 못 재서 떠 보인다. Play를 멈춘 상태에서 Command Bar에 아래를 실행하고 저장(`Cmd + S`)한다. 안 돼 있으면 Play할 때 Output에 경고가 나온다.
+  ```lua
+  local t = game.ServerStorage:FindFirstChild("TreeTemplate") or workspace:FindFirstChild("TreeTemplate")
+  for _, p in t:GetDescendants() do
+  	if p:IsA("MeshPart") then p.CollisionFidelity = Enum.CollisionFidelity.PreciseConvexDecomposition end
+  end
+  print("바꿈")
+  ```
 - `ServerStorage`는 Rojo가 건드리지 않으므로 모델은 플레이스 파일에 저장된다 (`Cmd + S`).
 - 편집할 때는 `TreeTemplate`을 `Workspace`에 꺼내 둬도 된다. 게임이 시작되면 Workspace에 있는 원본은 자동으로 치워지고 트리 자리마다 복제된다.
 

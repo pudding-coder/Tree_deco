@@ -267,11 +267,23 @@ local function loadTreeTemplate()
 	end
 
 	local parts = {}
+	local roughMeshes = 0
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
 			descendant.Anchored = true
 			table.insert(parts, descendant)
+			if descendant:IsA("MeshPart") and descendant.CollisionFidelity ~= Enum.CollisionFidelity.PreciseConvexDecomposition then
+				roughMeshes += 1
+			end
 		end
+	end
+	if roughMeshes > 0 then
+		-- 장식을 붙일 때 광선으로 겉면을 재는데, 광선은 보이는 모양이 아니라 충돌 모양에 맞는다
+		-- 충돌 모양이 덩어리(Default·Hull·Box)면 층 사이 오목한 곳을 못 재서 장식·띠가 떠 보인다
+		warn(string.format(
+			"[Tree] TreeTemplate의 MeshPart %d개가 CollisionFidelity = PreciseConvexDecomposition이 아닙니다. 장식이 트리에서 떠 보입니다. docs/MAP.md를 보고 바꿔 주세요.",
+			roughMeshes
+		))
 	end
 	if #parts == 0 then
 		warn("[Tree] ServerStorage.TreeTemplate 안에 파츠가 없습니다. 원기둥 트리를 씁니다.")
