@@ -47,7 +47,7 @@ return {
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 	{ id = "Snowflake", name = "눈꽃", rarity = "Common", area = "Ornament" },
 	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
-	{ id = "Apple", name = "사과", rarity = "Common", area = "Ornament" },
+	{ id = "Apple", name = "사과", rarity = "Common", area = "Ornament", size = 0.6 },
 
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
@@ -88,7 +88,7 @@ return {
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
 
 	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" },
-	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament", out = 0.6 },
+	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament", out = 0.6, size = 1.5 },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
 	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament", out = 0.6 },
