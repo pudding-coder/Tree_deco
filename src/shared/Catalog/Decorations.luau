@@ -12,6 +12,7 @@
 	size    (선택) 모델 크기 배수. 안 쓰면 1 (오너먼트 2.3 · 토퍼 4스터드에 맞춰진다). 1.3이면 1.3배 크게
 	turn    (선택) 모델을 옆으로 돌리는 각도(도). 트리에 걸었을 때 뒤나 옆을 보고 있으면 180, 90, -90 등으로 고친다
 	lean    (선택, 오너먼트만) 모델 윗부분을 트리 쪽으로 기울이는 각도(도). 안 쓰면 10. 0이면 똑바로 선다
+	out     (선택, 오너먼트만) 트리에 너무 묻히면 바깥으로 띄우는 거리(스터드). 안 쓰면 0. 0.4면 0.4스터드 바깥으로
 	sink    (선택, 토퍼만) 모델 높이 중 꼭대기 아래로 내려가는 비율(0~1). 모자·머리처럼 트리에 씌우는 장식에 쓴다.
 	        안 쓰면 0 (꼭대기 위에 올라앉음). 단 id가 Hair로 끝나는 토퍼는 안 써도 0.5
 	paintable (선택) true면 뽑을 때 Paints.luau의 색이 랜덤으로 정해져 모델의 Paint 파트에 칠해진다.
@@ -31,7 +32,7 @@ return {
 
 	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
-	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament" },
+	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament", out = 0.4 },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
@@ -40,7 +41,7 @@ return {
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
-	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament" },
+	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },

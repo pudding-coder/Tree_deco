@@ -641,7 +641,7 @@ end
 -- 윗부분만 재는 이유: 트리는 층마다 아래 가지가 튀어나와서, 아랫부분까지 재면 그 가지에 걸려 윗부분이 떠 보인다.
 -- 매달린 장식처럼 윗부분(고리 쪽)을 트리에 붙이고, 아랫부분은 아래 가지에 살짝 걸쳐도 둔다. 광선이 하나도 안 맞으면 그대로 둔다
 local snapMissWarned = {} -- 같은 경고를 한 번만 띄운다
-local function snapToTree(model: Model, plot, cf: CFrame)
+local function snapToTree(model: Model, deco, plot, cf: CFrame)
 	local treeParts = {}
 	for _, child in plot.model:GetChildren() do
 		if child ~= plot.decorations and child.Name ~= "Sign" and child.Name ~= "Ground" then
@@ -670,7 +670,7 @@ local function snapToTree(model: Model, plot, cf: CFrame)
 		end
 	end
 	if nearest < math.huge then
-		model:PivotTo(model:GetPivot() + inward * (nearest - ORNAMENT_SURFACE_GAP))
+		model:PivotTo(model:GetPivot() + inward * (nearest - ORNAMENT_SURFACE_GAP - deco.out))
 	elseif not snapMissWarned[model.Name] then
 		snapMissWarned[model.Name] = true
 		warn("[Tree] 오너먼트를 트리에 붙이지 못했습니다(광선이 트리에 안 맞음). 계산한 위치에 둡니다:", model.Name)
@@ -691,7 +691,7 @@ local function renderEntry(plot, entry)
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Ornament" then
-			snapToTree(model, plot, cf)
+			snapToTree(model, deco, plot, cf)
 		end
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다. sink만큼(모델 높이 비율) 더 내려 꼭대기에 씌운다
