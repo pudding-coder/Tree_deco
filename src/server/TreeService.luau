@@ -845,9 +845,17 @@ local function tryHold(model: Model, deco, hit: BasePart)
 			releaseHold(player)
 		end
 	end)
-	-- 다른 이유로 도구가 사라지면(죽음 등) 표시를 지운다
-	tool.AncestryChanged:Connect(function(_, parent)
-		if parent ~= character and character.Parent then
+	-- 손에서 떨어지면(아래 도구 칸을 눌러 내려놓기, 죽음 등) 바로 없앤다
+	-- 가방(Backpack)에 남겨 두면 다시 들 때 엉뚱한 자리에 매달리고, 또 닿으면 사본이 하나 더 생긴다
+	tool.AncestryChanged:Connect(function()
+		if tool.Parent == character then
+			return
+		end
+		if tool.Parent then
+			tool:Destroy()
+		end
+		holdCooldown[player] = os.clock() + HOLD_COOLDOWN
+		if character.Parent then
 			character:SetAttribute("HoldingTree", nil)
 		end
 	end)
