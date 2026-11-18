@@ -52,6 +52,7 @@ return {
 
 	-- 언커먼
 	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper" },
+	{ id = "IceBingsu", name = "빙수", rarity = "Uncommon", area = "Topper" },
 
 	{ id = "Gingerbread", name = "진저브레드맨", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Snowman", name = "눈사람", rarity = "Uncommon", area = "Ornament" },
@@ -61,8 +62,10 @@ return {
 	{ id = "NoEntrySign", name = "관계자 외 출입금지 표지판", rarity = "Uncommon", area = "Ornament" },
 	{ id = "EggDog", name = "에그독", rarity = "Uncommon", area = "Ornament" },
 	{ id = "PinkStrawberry", name = "핑크 딸기", rarity = "Uncommon", area = "Ornament" },
+	{ id = "Donut", name = "도넛", rarity = "Uncommon", area = "Ornament" },
 
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
+	{ id = "DonutGarland", name = "도넛 띠", rarity = "Uncommon", area = "Garland" },
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
