@@ -256,8 +256,14 @@ local function fromModel(fx, ctx)
 		holder.Name = model.Name
 		model.Parent = holder
 		model = holder
+	elseif not model:IsA("Model") and model:FindFirstChildWhichIsA("BasePart", true) then
+		-- Accessory·Tool·Folder처럼 안에 파츠가 든 것도 Model로 감싸서 쓴다
+		local holder = Instance.new("Model")
+		holder.Name = model.Name
+		model.Parent = holder
+		model = holder
 	elseif not model:IsA("Model") then
-		warn("[TreeFx] 트리 효과 모델은 Model이나 Part여야 합니다:", fx.id, model.ClassName)
+		warn("[TreeFx] 트리 효과 모델 안에 파츠가 없습니다:", fx.id, model.ClassName)
 		return nil
 	end
 	for _, d in model:GetDescendants() do
