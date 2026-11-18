@@ -507,6 +507,10 @@ end
 -- 장식 모델 크기: 모델에서 가장 긴 변을 이 길이(스터드)에 맞춘다. 장식 목록의 size로 장식마다 배수를 줄 수 있다
 -- 임시 공 크기와 같다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
 local MODEL_SIZE = { Topper = 2.4, Ornament = 1.4 }
+-- 오너먼트 모델이 가지에 매달린 것처럼 보이게: 윗부분을 트리 쪽으로 기울이고(도), 트리 쪽으로 당겨 붙인다(스터드)
+-- 기울기는 장식 목록의 lean으로 장식마다 바꿀 수 있다
+local ORNAMENT_LEAN = 20
+local ORNAMENT_INSET = 0.4
 
 local function cloneModel(deco)
 	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
@@ -589,7 +593,10 @@ local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScal
 	local facing = cf
 	if area == "Ornament" then
 		-- 오너먼트 자리는 트리 쪽을 바라본다. 모델 정면(-Z)이 바깥을 보게 뒤집는다
-		facing = cf * CFrame.Angles(0, math.pi, 0)
+		-- 트리 쪽(자리의 앞 방향)으로 당겨 겉면에 붙인다
+		facing = (cf + cf.LookVector * ORNAMENT_INSET) * CFrame.Angles(0, math.pi, 0)
+		-- 윗부분을 트리 쪽(+Z)으로 기울인다. turn보다 먼저 해서 모델을 돌려도 트리 쪽으로 기운다
+		facing *= CFrame.Angles(math.rad(deco.lean or ORNAMENT_LEAN), 0, 0)
 	end
 	facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
 
