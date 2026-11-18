@@ -710,103 +710,159 @@ local function snapToTree(model: Model, deco, plot, cf: CFrame)
 end
 
 ----------------------------------------------------------------
--- 잡을 수 있는 장식 (holdable): 누르면 그 사람이 장식을 잡은 채 트리에 그대로 붙는다
--- 장식은 트리에서 빠지지 않는다. 점프하면 놓고 내려온다
+-- 잡을 수 있는 장식 (holdable): 캐릭터가 장식에 닿으면 손을 뻗어 잡은 채 트리에 그대로 붙는다
+-- 보이지 않는 사본 Tool을 장식 자리에 고정해 두고 캐릭터가 그것을 든다(도구 드는 팔 자세).
+-- 손잡이가 고정돼 있어서 캐릭터가 트리에 매달린다. 점프하면 놓고 내려온다. 장식은 트리에서 빠지지 않는다
 ----------------------------------------------------------------
 
-local HOLD_ATTRIBUTE = "HoldDecoId" -- '잡기' 버튼에 장식 id를 붙여 둔다
-local HOLD_WELD = "TreeHoldWeld" -- 잡은 사람의 몸을 장식에 붙이는 연결
-local HOLD_OUT = 1.6 -- 잡은 사람의 몸 가운데가 장식에서 트리 바깥쪽으로 떨어진 거리(스터드)
-local HOLD_DROP = 0.4 -- 몸 가운데가 장식보다 이만큼 아래에 온다
+local HOLD_ATTRIBUTE = "HoldDecoId" -- 잡기용 사본 Tool에 붙여 둔다
+local HOLD_COOLDOWN = 1.5 -- 놓은 뒤 이 시간(초) 동안은 닿아도 다시 잡지 않는다 (내려올 수 있게)
+local holdCooldown = {} -- [Player] = 다시 잡을 수 있는 시각
 
--- 트리에 걸린 모델에 '잡기' 버튼을 단다. center: 트리 밑동 가운데 (바깥 방향을 정하는 데 쓴다)
-local function addHoldPrompt(model: Model, deco, center: Vector3)
-	local target = model.PrimaryPart
-	if not target then
-		local biggest = 0
-		for _, part in model:GetDescendants() do
-			if part:IsA("BasePart") and part.Size.Magnitude > biggest then
-				target, biggest = part, part.Size.Magnitude
-			end
+-- 사본 Tool: DecorationModels 원본(안에 Tool이 있으면 그 Tool) 모양 그대로, 보이지 않게
+local function buildHoldTool(deco): Tool?
+	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
+	local template = folder and folder:FindFirstChild(deco.model or deco.id)
+	if not template then
+		return nil
+	end
+	local source = if template:IsA("Tool") then template else template:FindFirstChildWhichIsA("Tool", true)
+	local tool = Instance.new("Tool")
+	tool.Name = deco.name
+	tool.CanBeDropped = false
+	tool.RequiresHandle = true
+	tool.ManualActivationOnly = true
+	tool:SetAttribute(HOLD_ATTRIBUTE, deco.id)
+	if source then
+		tool.Grip = source.Grip
+	end
+	local root = (source or template):Clone()
+	if root:IsA("BasePart") then
+		root.Parent = tool
+	else
+		for _, child in root:GetChildren() do
+			child.Parent = tool
+		end
+		root:Destroy()
+	end
+	local parts = {}
+	for _, d in tool:GetDescendants() do
+		if
+			d:IsA("LuaSourceContainer")
+			or d:IsA("ProximityPrompt")
+			or d:IsA("ClickDetector")
+			or d:IsA("Decal")
+			or d:IsA("Texture")
+		then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			table.insert(parts, d)
 		end
 	end
-	if not target then
-		return
+	if #parts == 0 then
+		tool:Destroy()
+		return nil
 	end
-	local prompt = Instance.new("ProximityPrompt")
-	prompt.Name = "HoldPrompt"
-	prompt.ActionText = "잡기"
-	prompt.ObjectText = deco.name
-	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 12
-	prompt.RequiresLineOfSight = false
-	prompt:SetAttribute(HOLD_ATTRIBUTE, deco.id)
-	prompt:SetAttribute("TreeCenter", center)
-	prompt.Parent = target
+	local handle = tool:FindFirstChild("Handle")
+	if not (handle and handle:IsA("BasePart")) then
+		table.sort(parts, function(x, y)
+			return x.Size.Magnitude > y.Size.Magnitude
+		end)
+		handle = parts[1]
+		handle.Name = "Handle"
+		handle.Parent = tool
+	end
+	for _, part in parts do
+		part.Transparency = 1 -- 트리의 장식이 보이므로 사본은 숨긴다
+		part.CanCollide = false
+		part.CanTouch = false
+		part.CanQuery = false
+		part.Massless = true
+		part.Anchored = part == handle -- 손잡이만 고정: 이걸 쥔 캐릭터가 그 자리에 매달린다
+		if part ~= handle then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = handle
+			weld.Part1 = part
+			weld.Parent = handle
+		end
+	end
+	return tool
 end
 
--- 잡은 것을 놓는다 (점프했을 때, 다른 것을 잡을 때)
-local function releaseHold(character: Model?)
+-- 잡은 것을 놓는다 (점프했을 때)
+local function releaseHold(player: Player)
+	local character = player.Character
 	if not character then
 		return
 	end
-	local root = character:FindFirstChild("HumanoidRootPart")
-	local weld = root and root:FindFirstChild(HOLD_WELD)
-	if weld then
-		weld:Destroy()
-	end
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	if humanoid then
-		humanoid.AutoRotate = true
+	for _, item in character:GetChildren() do
+		if item:IsA("Tool") and item:GetAttribute(HOLD_ATTRIBUTE) then
+			item:Destroy()
+			holdCooldown[player] = os.clock() + HOLD_COOLDOWN
+		end
 	end
 	character:SetAttribute("HoldingTree", nil)
 end
 
-local function onHoldPrompt(prompt: ProximityPrompt, player: Player)
-	local decoId = prompt:GetAttribute(HOLD_ATTRIBUTE)
-	local deco = type(decoId) == "string" and Catalog.DecorationById[decoId]
-	local anchor = prompt.Parent
-	if not deco or not deco.holdable or not (anchor and anchor:IsA("BasePart")) then
+-- 캐릭터가 트리의 holdable 장식에 닿았다
+local function tryHold(model: Model, deco, hit: BasePart)
+	local character = hit:FindFirstAncestorOfClass("Model")
+	local player = character and Players:GetPlayerFromCharacter(character)
+	if not player or not model.Parent then
 		return
 	end
-	local character = player.Character
-	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	local root = character and character:FindFirstChild("HumanoidRootPart")
-	if not humanoid or humanoid.Health <= 0 or not root then
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if not humanoid or humanoid.Health <= 0 or character:GetAttribute("HoldingTree") then
 		return
 	end
-	releaseHold(character)
-
-	-- 장식 가운데에서 트리 바깥쪽으로 조금 떨어진 곳에, 트리(장식)를 바라보게 붙인다
-	local model = anchor:FindFirstAncestorOfClass("Model") or anchor
-	local holdPos = if model:IsA("Model") then model:GetBoundingBox().Position else anchor.Position
-	local center = prompt:GetAttribute("TreeCenter")
-	local out = Vector3.new(0, 0, -1)
-	if typeof(center) == "Vector3" then
-		local flat = Vector3.new(holdPos.X - center.X, 0, holdPos.Z - center.Z)
-		if flat.Magnitude > 0.01 then
-			out = flat.Unit
+	if os.clock() < (holdCooldown[player] or 0) then
+		return
+	end
+	-- 트리 장식의 손잡이 자리 (원본이 Tool이면 Handle, 아니면 가장 큰 파츠)
+	local anchor = model:FindFirstChild("Handle", true)
+	if not (anchor and anchor:IsA("BasePart")) then
+		local biggest = 0
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Size.Magnitude > biggest then
+				anchor, biggest = part, part.Size.Magnitude
+			end
 		end
 	end
-	local bodyPos = holdPos + out * HOLD_OUT - Vector3.new(0, HOLD_DROP, 0)
-	humanoid.Sit = false
-	humanoid.AutoRotate = false
-	root.AssemblyLinearVelocity = Vector3.zero
-	character:PivotTo(CFrame.lookAt(bodyPos, Vector3.new(holdPos.X, bodyPos.Y, holdPos.Z)))
-
-	-- 장식(고정된 파츠)에 몸을 붙인다. 점프하면 클라이언트가 ReleaseHold를 보내 놓는다
-	local weld = Instance.new("WeldConstraint")
-	weld.Name = HOLD_WELD
-	weld.Part0 = anchor
-	weld.Part1 = root
-	weld.Parent = root
+	if not anchor then
+		return
+	end
+	local tool = buildHoldTool(deco)
+	if not tool then
+		return
+	end
 	character:SetAttribute("HoldingTree", true)
-	-- 장식이 빠지면(빼기·트리 다시 그리기) 같이 놓는다
-	anchor.AncestryChanged:Connect(function(_, parent)
-		if parent == nil and weld.Parent then
-			releaseHold(character)
+	humanoid:UnequipTools() -- 다른 도구를 들고 있으면 내려놓는다
+	tool.Handle.CFrame = anchor.CFrame
+	tool.Parent = character -- 들면 손과 손잡이가 이어지고, 손잡이가 고정돼 있어 트리에 매달린다
+	-- 장식이 트리에서 빠지면 같이 놓는다
+	model.AncestryChanged:Connect(function(_, parent)
+		if parent == nil and tool.Parent then
+			releaseHold(player)
 		end
 	end)
+	-- 다른 이유로 도구가 사라지면(죽음 등) 표시를 지운다
+	tool.AncestryChanged:Connect(function(_, parent)
+		if parent ~= character and character.Parent then
+			character:SetAttribute("HoldingTree", nil)
+		end
+	end)
+end
+
+-- 트리에 걸린 holdable 장식이 닿으면 잡히게 한다
+local function makeHoldable(model: Model, deco)
+	for _, part in model:GetDescendants() do
+		if part:IsA("BasePart") then
+			part.CanTouch = true
+			part.Touched:Connect(function(hit)
+				tryHold(model, deco, hit)
+			end)
+		end
+	end
 end
 
 local function renderEntry(plot, entry)
@@ -837,7 +893,7 @@ local function renderEntry(plot, entry)
 		end
 		TraitEffects.Apply(model, trait)
 		if deco.holdable then
-			addHoldPrompt(model, deco, plot.cframe.Position)
+			makeHoldable(model, deco)
 		end
 		model.Parent = plot.decorations
 		return
@@ -1420,13 +1476,9 @@ function TreeService.Init()
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
 
-	game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, player)
-		if prompt:GetAttribute(HOLD_ATTRIBUTE) then
-			onHoldPrompt(prompt, player)
-		end
-	end)
-	Remotes.ReleaseHold.OnServerEvent:Connect(function(player)
-		releaseHold(player.Character)
+	Remotes.ReleaseHold.OnServerEvent:Connect(releaseHold)
+	Players.PlayerRemoving:Connect(function(player)
+		holdCooldown[player] = nil
 	end)
 	Remotes.PlaceDecoration.OnServerInvoke = onPlace
 	Remotes.RemoveDecoration.OnServerInvoke = onRemove
