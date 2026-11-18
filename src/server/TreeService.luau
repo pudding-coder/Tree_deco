@@ -540,6 +540,39 @@ local function cloneModel(deco)
 	return clone
 end
 
+-- 서버 시작 때 장식 모델 연결 상태를 Output에 알린다 (모델이 안 보일 때 원인 찾기용)
+local function reportDecorationModels()
+	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
+	if not folder then
+		warn("[Tree] ReplicatedStorage에 DecorationModels 폴더가 없습니다. 모든 장식이 임시 모양으로 보입니다.")
+		return
+	end
+	local linked, missing = {}, {}
+	local used = {}
+	for _, deco in Catalog.Decorations do
+		local modelName = deco.model or deco.id
+		if folder:FindFirstChild(modelName) then
+			table.insert(linked, deco.id)
+			used[modelName] = true
+		elseif deco.model then
+			table.insert(missing, deco.id .. "(" .. deco.model .. ")")
+		end
+	end
+	local unused = {}
+	for _, child in folder:GetChildren() do
+		if not used[child.Name] then
+			table.insert(unused, child.Name)
+		end
+	end
+	print(string.format("[Tree] 장식 모델 %d개 연결: %s", #linked, table.concat(linked, ", ")))
+	if #missing > 0 then
+		warn("[Tree] model에 적었지만 폴더에 없는 모델: " .. table.concat(missing, ", "))
+	end
+	if #unused > 0 then
+		warn("[Tree] 이름이 어떤 장식 id와도 맞지 않는 모델: " .. table.concat(unused, ", "))
+	end
+end
+
 -- 모델을 자리에 맞춰 놓는다: 크기를 맞추고, 정면이 바깥을 보게 돌리고, 모델 가운데가 자리에 오게 한다
 -- (FBX로 들여온 모델은 피벗이 가운데가 아닌 경우가 많아서 피벗 대신 모델 상자 가운데를 기준으로 한다)
 -- sizeScale: 뽑을 때 정해진 크기 배수 (Config.SIZES의 scale)
@@ -1110,6 +1143,7 @@ function TreeService.Init()
 		buildSlotPositions(bands, cylinderSurfaceRadius)
 	end
 	publishSlotOrder()
+	reportDecorationModels()
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
