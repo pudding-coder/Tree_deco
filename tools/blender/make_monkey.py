@@ -1,6 +1,8 @@
 """트리에 매달리는 원숭이 오너먼트를 만들어 .blend / .fbx 로 저장한다.
 
-나뭇가지에 두 손과 한 발로 매달린 모습: 위쪽 작은 나뭇가지를 잡고 몸은 아래로 늘어뜨리고, 머리는 옆으로 갸웃 기울여 앞을 본다.
+나뭇가지에 거꾸로 매달린 모습: 두 발과 꼬리로 위쪽 작은 나뭇가지를 잡고, 몸과 머리는 아래로 늘어뜨린다.
+얼굴은 거꾸로(위아래가 뒤집혀) 앞을 보고, 두 팔은 머리 아래로 대롱대롱.
+(만들 때는 똑바로 선 원숭이 발밑에 가지를 두고 만든 뒤, 전체를 앞뒤 축으로 180도 돌린다)
 나뭇가지가 걸이 역할이라 게임에서 트리에 붙는 뒷면(+Y)은 나뭇가지 뒤쪽이다.
 색마다 오브젝트를 나눠 두어 Roblox에서 파트별 색이 유지된다.
 
@@ -151,63 +153,46 @@ for x, z in ((-0.09, 0.86), (-0.045, 0.825), (0.0, 0.852), (0.045, 0.825), (0.09
     mouth.append(Vector((x, face_y(x, z, 0.004), z)))
 tube("Mouth", mouth, 0.014)
 
-# 머리를 몸 왼쪽 위로 옮긴다 (얼굴은 기울이지 않고 정면)
-HEAD_POS = Vector((-0.36, -0.06, 1.12))
-head_objs = [o for o in all_objects() if o not in before_head]
-move_group(head_objs, HEAD, HEAD_POS, (0, 0, 0))  # 얼굴은 똑바로 정면
-
-# ---------------------------------------------------------------- 나뭇가지 (걸이)
-# 위쪽에서 오른쪽으로 살짝 내려가는 짧은 가지. 뒤쪽 끝(y = BRANCH_Y + 반지름)이 게임에서 트리에 붙는다
-BRANCH_Y = 0.36
+# ---------------------------------------------------------------- 몸 (똑바로 선 상태로 만든다)
+BRANCH_Y = 0.36  # 가지 뒤쪽 끝(y = BRANCH_Y + 반지름)이 게임에서 트리에 붙는다
 BRANCH_R = 0.1
-def branch_z(x):
-    return 2.0 - 0.12 * x
-tube("Branch", [Vector((-1.15, BRANCH_Y, branch_z(-1.15))), Vector((0.0, BRANCH_Y, branch_z(0.0) + 0.02)), Vector((1.2, BRANCH_Y, branch_z(1.2)))], BRANCH_R)
-tube("Branch", [Vector((-0.75, BRANCH_Y, branch_z(-0.75))), Vector((-0.95, BRANCH_Y - 0.05, branch_z(-0.75) + 0.28))], 0.045)  # 잔가지
+BRANCH_Z = -0.45  # 똑바로 선 상태에서 발밑. 뒤집으면 맨 위가 된다
 
-# ---------------------------------------------------------------- 몸 (오른쪽 아래로 늘어진다)
-BODY = Vector((0.3, 0.12, 0.82))
-sphere("Fur", BODY, (0.36, 0.3, 0.5), rot=(0, math.radians(-15), 0))
-sphere("Face", BODY + Vector((-0.02, -0.17, -0.04)), (0.23, 0.18, 0.33), rot=(0, math.radians(-15), 0))  # 배
+BODY = Vector((0, 0.12, 0.42))
+sphere("Fur", BODY, (0.36, 0.3, 0.42))
+sphere("Face", BODY + Vector((0, -0.17, -0.02)), (0.23, 0.18, 0.29))  # 배
 
+# 두 팔: 만세 (뒤집으면 머리 아래로 늘어진다)
+for s in (-1, 1):
+    shoulder = Vector((s * 0.3, 0.08, 0.62))
+    paw = Vector((s * 0.78, -0.08, 1.38))
+    tube("Fur", [shoulder, Vector((s * 0.62, 0.0, 0.88)), paw], 0.09)
+    sphere("Fur", paw, (0.11, 0.1, 0.12))
+    sphere("Face", paw + Vector((0, -0.08, 0.02)), (0.07, 0.03, 0.07))  # 손바닥
 
-def grip(x, side_scale=1.0):
-    """나뭇가지를 감싸 쥔 손발: 가지 앞쪽과 위쪽에 둥근 덩어리"""
-    z = branch_z(x)
-    sphere("Fur", (x, BRANCH_Y - 0.09, z + 0.02), (0.11 * side_scale, 0.08, 0.12))
-    sphere("Face", (x, BRANCH_Y - 0.15, z - 0.02), (0.08 * side_scale, 0.04, 0.07))  # 밝은 손바닥·손가락
+# 두 다리: 아래로 뻗어 가지를 감싸 쥔다 (뒤집으면 위에서 가지를 잡고 있다)
+for s in (-1, 1):
+    hip = Vector((s * 0.17, 0.12, 0.12))
+    foot = Vector((s * 0.26, BRANCH_Y - 0.12, BRANCH_Z + 0.06))
+    tube("Fur", [hip, Vector((s * 0.24, 0.1, -0.12)), foot], 0.095)
+    sphere("Fur", foot, (0.12, 0.1, 0.11))
+    # 가지 앞쪽을 지나 아래로 감은 발가락
+    sphere("Face", (s * 0.26, BRANCH_Y - BRANCH_R - 0.03, BRANCH_Z - 0.04), (0.08, 0.04, 0.08))
 
+# 꼬리: 엉덩이에서 내려와 가지를 한 바퀴 감는다
+tail = [Vector((0, 0.4, 0.22)), Vector((0.05, 0.47, -0.1)), Vector((0.08, BRANCH_Y + 0.16, BRANCH_Z + 0.06))]
+for k in range(7):  # 가지 둘레를 뒤 → 아래 → 앞으로
+    a = math.radians(90 + k * 40)
+    r = BRANCH_R + 0.06
+    tail.append(Vector((0.1 + k * 0.012, BRANCH_Y + math.cos(a - math.pi / 2) * r * -1, BRANCH_Z + math.sin(a - math.pi / 2) * r * -1)))
+tube("Fur", tail, 0.05, resolution=12)
 
-# 두 팔: 어깨에서 위로 뻗어 가지를 잡는다
-for shoulder, hand_x in ((Vector((0.12, 0.1, 1.2)), 0.05), (Vector((0.48, 0.1, 1.16)), 0.58)):
-    hand = Vector((hand_x, BRANCH_Y - 0.08, branch_z(hand_x) - 0.06))
-    mid = (shoulder + hand) / 2 + Vector((0.06, -0.06, 0))
-    tube("Fur", [shoulder, mid, hand], 0.095)
-    grip(hand_x)
+# 나뭇가지 (걸이)
+tube("Branch", [Vector((-0.95, BRANCH_Y, BRANCH_Z + 0.04)), Vector((0.0, BRANCH_Y, BRANCH_Z)), Vector((0.95, BRANCH_Y, BRANCH_Z - 0.05))], BRANCH_R)
+tube("Branch", [Vector((0.62, BRANCH_Y, BRANCH_Z - 0.03)), Vector((0.8, BRANCH_Y - 0.05, BRANCH_Z - 0.3))], 0.045)  # 잔가지 (뒤집으면 위로)
 
-# 오른발: 무릎을 굽혀 위로 올려 가지를 잡는다
-foot_x = 1.0
-hip = Vector((0.5, 0.12, 0.45))
-knee = Vector((0.95, 0.0, 0.85))
-foot = Vector((foot_x, BRANCH_Y - 0.08, branch_z(foot_x) - 0.08))
-tube("Fur", [hip, knee, foot], 0.09)
-grip(foot_x, 1.1)
-
-# 왼발: 아래로 대롱대롱
-tube("Fur", [Vector((0.2, 0.12, 0.42)), Vector((0.22, 0.04, 0.12)), Vector((0.28, -0.02, -0.06))], 0.09)
-sphere("Fur", (0.29, -0.08, -0.1), (0.11, 0.14, 0.09))
-sphere("Face", (0.29, -0.2, -0.1), (0.07, 0.03, 0.06))
-
-# 꼬리: 엉덩이 뒤에서 아래로 내려와 돌돌
-tail = [
-    Vector((0.45, 0.38, 0.45)),
-    Vector((0.65, 0.42, 0.15)),
-    Vector((0.6, 0.42, -0.2)),
-    Vector((0.38, 0.4, -0.3)),
-    Vector((0.32, 0.38, -0.12)),
-    Vector((0.45, 0.36, -0.08)),
-]
-tube("Fur", tail, 0.055, resolution=12)
+# ---------------------------------------------------------------- 거꾸로 뒤집기: 앞뒤 축(Y)으로 180도
+move_group(all_objects(), Vector((0, 0, 0.5)), Vector((0, 0, 0.5)), (0, 180, 0))
 
 # ---------------------------------------------------------------- 색마다 하나로 합치기
 final = []
