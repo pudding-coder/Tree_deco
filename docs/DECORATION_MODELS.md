@@ -105,6 +105,8 @@ Explorer에서 `Workspace → DecorationPreview`를 클릭하고 화면에서 **
 
 ### 3. 다시 넣기
 
+> 이 단계를 빼고 Play하면 모델이 전부 사라진 것처럼 보인다(게임은 `DecorationModels`만 본다). Output에 `DecorationPreview가 남아 있습니다` 경고가 나온다.
+
 Command Bar에 아래를 붙여 넣고 Enter. 빨간 판은 지워지고 모델만 `DecorationModels`로 돌아간다.
 
 ```lua

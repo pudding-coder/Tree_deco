@@ -552,6 +552,9 @@ end
 
 -- 서버 시작 때 장식 모델 연결 상태를 Output에 알린다 (모델이 안 보일 때 원인 찾기용)
 local function reportDecorationModels()
+	if workspace:FindFirstChild("DecorationPreview") then
+		warn("[Tree] Workspace에 DecorationPreview가 남아 있습니다. 꺼내 둔 모델은 게임에 쓰이지 않습니다. Play를 멈추고 docs/DECORATION_MODELS.md의 3번(다시 넣기) 스크립트를 실행해 주세요.")
+	end
 	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
 	if not folder then
 		warn("[Tree] ReplicatedStorage에 DecorationModels 폴더가 없습니다. 모든 장식이 임시 모양으로 보입니다.")
