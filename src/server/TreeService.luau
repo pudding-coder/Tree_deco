@@ -710,13 +710,17 @@ local function snapToTree(model: Model, deco, plot, cf: CFrame)
 end
 
 ----------------------------------------------------------------
--- 잡을 수 있는 장식 (holdable): 누르면 같은 모양의 사본을 손에 든다. 트리의 장식은 그대로 남는다
+-- 잡을 수 있는 장식 (holdable): 누르면 그 사람이 장식을 잡은 채 트리에 그대로 붙는다
+-- 장식은 트리에서 빠지지 않는다. 점프하면 놓고 내려온다
 ----------------------------------------------------------------
 
-local HOLD_ATTRIBUTE = "HeldDecoId" -- 손에 든 사본(Tool)에 붙여 한 사람당 하나만 갖게 한다
+local HOLD_ATTRIBUTE = "HoldDecoId" -- '잡기' 버튼에 장식 id를 붙여 둔다
+local HOLD_WELD = "TreeHoldWeld" -- 잡은 사람의 몸을 장식에 붙이는 연결
+local HOLD_OUT = 1.6 -- 잡은 사람의 몸 가운데가 장식에서 트리 바깥쪽으로 떨어진 거리(스터드)
+local HOLD_DROP = 0.4 -- 몸 가운데가 장식보다 이만큼 아래에 온다
 
--- 트리에 걸린 모델에 '잡기' 버튼을 단다
-local function addHoldPrompt(model: Model, deco)
+-- 트리에 걸린 모델에 '잡기' 버튼을 단다. center: 트리 밑동 가운데 (바깥 방향을 정하는 데 쓴다)
+local function addHoldPrompt(model: Model, deco, center: Vector3)
 	local target = model.PrimaryPart
 	if not target then
 		local biggest = 0
@@ -737,96 +741,72 @@ local function addHoldPrompt(model: Model, deco)
 	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt:SetAttribute(HOLD_ATTRIBUTE, deco.id)
+	prompt:SetAttribute("TreeCenter", center)
 	prompt.Parent = target
 end
 
--- DecorationModels의 원본으로 손에 들 Tool을 만든다 (원본 안에 Tool이 있으면 그 모양 그대로, 없으면 모델 전체를 묶어서)
-local function buildHeldTool(deco): Tool?
-	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
-	local template = folder and folder:FindFirstChild(deco.model or deco.id)
-	if not template then
-		return nil
+-- 잡은 것을 놓는다 (점프했을 때, 다른 것을 잡을 때)
+local function releaseHold(character: Model?)
+	if not character then
+		return
 	end
-	local source = if template:IsA("Tool") then template else template:FindFirstChildWhichIsA("Tool", true)
-	local tool = Instance.new("Tool")
-	tool.Name = deco.name
-	tool.CanBeDropped = false -- 바닥에 떨어뜨려 쌓이지 않게
-	tool.RequiresHandle = true
-	tool:SetAttribute(HOLD_ATTRIBUTE, deco.id)
-	local root = (source or template):Clone()
-	if root:IsA("BasePart") then
-		root.Parent = tool -- 파츠 하나짜리 원본은 그 파츠를 그대로 넣는다
-	else
-		for _, child in root:GetChildren() do
-			child.Parent = tool
-		end
-		root:Destroy()
+	local root = character:FindFirstChild("HumanoidRootPart")
+	local weld = root and root:FindFirstChild(HOLD_WELD)
+	if weld then
+		weld:Destroy()
 	end
-	if source then
-		tool.Grip = source.Grip
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.AutoRotate = true
 	end
-	-- 스크립트·주울 수 있는 판정은 빼고, 파츠를 손잡이(Handle)에 모두 붙인다
-	local parts = {}
-	for _, d in tool:GetDescendants() do
-		if d:IsA("LuaSourceContainer") or d:IsA("ProximityPrompt") or d:IsA("ClickDetector") then
-			d:Destroy()
-		elseif d:IsA("BasePart") then
-			table.insert(parts, d)
-		end
-	end
-	if #parts == 0 then
-		tool:Destroy()
-		return nil
-	end
-	local handle = tool:FindFirstChild("Handle")
-	if not (handle and handle:IsA("BasePart")) then
-		table.sort(parts, function(a, b)
-			return a.Size.Magnitude > b.Size.Magnitude
-		end)
-		handle = parts[1]
-		handle.Name = "Handle"
-		handle.Parent = tool
-	end
-	for _, part in parts do
-		part.Anchored = false
-		part.CanCollide = false
-		part.Massless = true
-		if part ~= handle then
-			local weld = Instance.new("WeldConstraint")
-			weld.Part0 = handle
-			weld.Part1 = part
-			weld.Parent = handle
-		end
-	end
-	return tool
+	character:SetAttribute("HoldingTree", nil)
 end
 
 local function onHoldPrompt(prompt: ProximityPrompt, player: Player)
 	local decoId = prompt:GetAttribute(HOLD_ATTRIBUTE)
 	local deco = type(decoId) == "string" and Catalog.DecorationById[decoId]
-	if not deco or not deco.holdable then
+	local anchor = prompt.Parent
+	if not deco or not deco.holdable or not (anchor and anchor:IsA("BasePart")) then
 		return
 	end
 	local character = player.Character
 	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-	local backpack = player:FindFirstChildOfClass("Backpack")
-	if not humanoid or humanoid.Health <= 0 or not backpack then
+	local root = character and character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or humanoid.Health <= 0 or not root then
 		return
 	end
-	-- 이미 가지고 있으면 새로 주지 않고 손에 든다
-	for _, container in { character, backpack } do
-		for _, item in container:GetChildren() do
-			if item:IsA("Tool") and item:GetAttribute(HOLD_ATTRIBUTE) == deco.id then
-				humanoid:EquipTool(item)
-				return
-			end
+	releaseHold(character)
+
+	-- 장식 가운데에서 트리 바깥쪽으로 조금 떨어진 곳에, 트리(장식)를 바라보게 붙인다
+	local model = anchor:FindFirstAncestorOfClass("Model") or anchor
+	local holdPos = if model:IsA("Model") then model:GetBoundingBox().Position else anchor.Position
+	local center = prompt:GetAttribute("TreeCenter")
+	local out = Vector3.new(0, 0, -1)
+	if typeof(center) == "Vector3" then
+		local flat = Vector3.new(holdPos.X - center.X, 0, holdPos.Z - center.Z)
+		if flat.Magnitude > 0.01 then
+			out = flat.Unit
 		end
 	end
-	local tool = buildHeldTool(deco)
-	if tool then
-		tool.Parent = backpack
-		humanoid:EquipTool(tool)
-	end
+	local bodyPos = holdPos + out * HOLD_OUT - Vector3.new(0, HOLD_DROP, 0)
+	humanoid.Sit = false
+	humanoid.AutoRotate = false
+	root.AssemblyLinearVelocity = Vector3.zero
+	character:PivotTo(CFrame.lookAt(bodyPos, Vector3.new(holdPos.X, bodyPos.Y, holdPos.Z)))
+
+	-- 장식(고정된 파츠)에 몸을 붙인다. 점프하면 클라이언트가 ReleaseHold를 보내 놓는다
+	local weld = Instance.new("WeldConstraint")
+	weld.Name = HOLD_WELD
+	weld.Part0 = anchor
+	weld.Part1 = root
+	weld.Parent = root
+	character:SetAttribute("HoldingTree", true)
+	-- 장식이 빠지면(빼기·트리 다시 그리기) 같이 놓는다
+	anchor.AncestryChanged:Connect(function(_, parent)
+		if parent == nil and weld.Parent then
+			releaseHold(character)
+		end
+	end)
 end
 
 local function renderEntry(plot, entry)
@@ -857,7 +837,7 @@ local function renderEntry(plot, entry)
 		end
 		TraitEffects.Apply(model, trait)
 		if deco.holdable then
-			addHoldPrompt(model, deco)
+			addHoldPrompt(model, deco, plot.cframe.Position)
 		end
 		model.Parent = plot.decorations
 		return
@@ -1444,6 +1424,9 @@ function TreeService.Init()
 		if prompt:GetAttribute(HOLD_ATTRIBUTE) then
 			onHoldPrompt(prompt, player)
 		end
+	end)
+	Remotes.ReleaseHold.OnServerEvent:Connect(function(player)
+		releaseHold(player.Character)
 	end)
 	Remotes.PlaceDecoration.OnServerInvoke = onPlace
 	Remotes.RemoveDecoration.OnServerInvoke = onRemove
