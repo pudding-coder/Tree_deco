@@ -506,11 +506,11 @@ end
 -- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.장식id 또는 model에 적은 이름)
 -- 장식 모델 크기: 모델에서 가장 긴 변을 이 길이(스터드)에 맞춘다. 장식 목록의 size로 장식마다 배수를 줄 수 있다
 -- 임시 공(오너먼트 1.4, 토퍼 2.4)보다 크다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
-local MODEL_SIZE = { Topper = 4.7, Ornament = 2.7 } -- 예전 큰 크기(1.3배)의 1.5배를 보통으로 잡았다
--- 오너먼트 모델이 가지에 매달린 것처럼 보이게: 윗부분을 트리 쪽으로 기울이고(도), 트리 쪽으로 당겨 붙인다(스터드)
--- 기울기는 장식 목록의 lean으로 장식마다 바꿀 수 있다
+local MODEL_SIZE = { Topper = 4, Ornament = 2.3 }
+-- 오너먼트 모델이 가지에 매달린 것처럼 보이게 윗부분을 트리 쪽으로 기울인다(도). 장식 목록의 lean으로 장식마다 바꿀 수 있다
 local ORNAMENT_LEAN = 20
-local ORNAMENT_INSET = 0.4
+-- 오너먼트 모델의 가장 안쪽(트리 쪽 끝)이 자리보다 이만큼 바깥에 오게 한다(스터드). 자리는 띠 전구 바로 바깥이라 띠에 묻히지 않는다
+local ORNAMENT_GAP = 0.1
 
 local function cloneModel(deco)
 	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
@@ -601,11 +601,17 @@ local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScal
 
 	local facing = cf
 	if area == "Ornament" then
-		-- 오너먼트 자리는 트리 쪽을 바라본다. 모델 정면(-Z)이 바깥을 보게 뒤집는다
-		-- 트리 쪽(자리의 앞 방향)으로 당겨 겉면에 붙인다
-		facing = (cf + cf.LookVector * ORNAMENT_INSET) * CFrame.Angles(0, math.pi, 0)
+		local lean = math.rad(deco.lean or ORNAMENT_LEAN)
+		-- 모델 앞뒤 두께(turn으로 돌린 뒤 기준)와 기울였을 때 윗부분이 트리 쪽으로 들어오는 만큼 바깥으로 밀어
+		-- 모델이 띠·트리에 묻히지 않게 한다
+		local _, boxSize = model:GetBoundingBox()
+		local t = math.rad(deco.turn)
+		local depth = math.abs(math.cos(t)) * boxSize.Z + math.abs(math.sin(t)) * boxSize.X
+		local out = depth / 2 + boxSize.Y / 2 * math.abs(math.sin(lean)) + ORNAMENT_GAP
+		-- 오너먼트 자리는 트리 쪽을 바라본다(LookVector가 트리 쪽). 바깥으로 밀고, 모델 정면(-Z)이 바깥을 보게 뒤집는다
+		facing = (cf - cf.LookVector * out) * CFrame.Angles(0, math.pi, 0)
 		-- 윗부분을 트리 쪽(+Z)으로 기울인다. turn보다 먼저 해서 모델을 돌려도 트리 쪽으로 기운다
-		facing *= CFrame.Angles(math.rad(deco.lean or ORNAMENT_LEAN), 0, 0)
+		facing *= CFrame.Angles(lean, 0, 0)
 	end
 	facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
 
