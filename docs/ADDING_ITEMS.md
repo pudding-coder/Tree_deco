@@ -124,10 +124,10 @@ Candy = Color3.fromRGB(255, 150, 200),
 1. Blender에서 **File → Export → FBX**로 내보낸다.
 2. Studio **Home → Import 3D**로 FBX를 불러온다. Workspace에 Model이 생긴다.
 3. Explorer의 `ReplicatedStorage` 안에 `DecorationModels` 폴더를 만들고(처음 한 번), 모델을 그 안으로 옮긴다. (Rojo는 이 폴더를 건드리지 않는다)
-4. 모델 이름을 영문으로 바꾼다. 장식 `id`와 같게 하면 헷갈리지 않는다. 예: `TungSahurKeyring`
-5. `Decorations.luau`의 그 장식 줄에 `model = "모델 이름"`을 붙인다.
+4. 모델 이름을 장식 `id`와 **똑같이**(대소문자까지) 바꾼다. 예: `TungSahurKeyring`. 그러면 자동으로 연결되고 `Decorations.luau`는 고칠 필요가 없다.
+5. (모델 이름을 `id`와 다르게 지었을 때만) 그 장식 줄에 `model = "모델 이름"`을 붙인다.
    ```lua
-   { id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", model = "TungSahurKeyring" },
+   { id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", model = "TungSahurKeyringV2" },
    ```
 6. Play해서 트리에 걸어 본다. 확인이 끝나면 플레이스를 저장(`Cmd + S`, Publish)한다. 모델은 GitHub가 아니라 플레이스 파일에 저장된다.
 
@@ -138,10 +138,10 @@ Candy = Color3.fromRGB(255, 150, 200),
 | 너무 작거나 크다 | `size = 1.3` (1.3배), `size = 0.8` (0.8배) |
 | 뒤를 보고 있다 | `turn = 180` |
 | 옆을 보고 있다 | `turn = 90` 또는 `turn = -90` |
-| 모델이 안 보이고 공이 나온다 | `model` 이름과 `DecorationModels` 안의 이름이 같은지(대소문자까지) 확인. Output에 `장식 모델을 찾지 못했습니다`가 나온다 |
+| 모델이 안 보이고 공이 나온다 | `DecorationModels` 안의 모델 이름이 장식 `id`(또는 적어 둔 `model`)와 대소문자까지 같은지 확인. `model`을 적었는데 못 찾으면 Output에 `장식 모델을 찾지 못했습니다`가 나온다 |
 
 ```lua
-{ id = "TungSahurKeyring", ..., model = "TungSahurKeyring", size = 1.2, turn = 180 },
+{ id = "TungSahurKeyring", ..., size = 1.2, turn = 180 },
 ```
 
 띠(Garland) 모델은 줄 모양이라 트리를 감싸는 방식이 따로 필요하다. 지금은 오너먼트와 토퍼만 모델을 권한다.
@@ -151,7 +151,7 @@ Candy = Color3.fromRGB(255, 150, 200),
 모델은 **장식마다 하나만** 만든다. 색별로 따로 만들 필요 없다.
 
 1. 색을 바꿀 부분(머리, 리본 등)은 **파트 이름을 `Paint`로 시작**하게 짓는다. 예: `PaintHair`, `PaintRibbon`. 여러 개여도 된다.
-2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., model = "MikuKeyring", paintable = true },`
+2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., paintable = true },`
 3. 뽑을 때 `src/shared/Catalog/Paints.luau`의 색 중 하나가 랜덤으로 정해지고, `Paint` 파트만 그 색으로 칠해진다. 나머지 파트(눈, 고리 등)는 원래 색 그대로다.
 
 - 색이 다르면 가방 칸이 따로 생긴다. 그래서 `Paint` 파트가 있는 모델에만 `paintable`을 켠다.

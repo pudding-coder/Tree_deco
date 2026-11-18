@@ -503,19 +503,20 @@ local function decorateLook(part: BasePart, deco, trait, withExtras: boolean?)
 	TraitEffects.Apply(part, trait, withExtras)
 end
 
--- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.모델이름)
+-- Studio에서 만든 모델이 있으면 그걸 쓴다 (ReplicatedStorage.DecorationModels.장식id 또는 model에 적은 이름)
 -- 장식 모델 크기: 모델에서 가장 긴 변을 이 길이(스터드)에 맞춘다. 장식 목록의 size로 장식마다 배수를 줄 수 있다
 -- 임시 공 크기와 같다. 띠는 모델이 줄 모양이라 아직 크기를 맞추지 않는다
 local MODEL_SIZE = { Topper = 2.4, Ornament = 1.4 }
 
 local function cloneModel(deco)
-	if not deco.model then
-		return nil
-	end
+	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
+	local modelName = deco.model or deco.id
 	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
-	local template = folder and folder:FindFirstChild(deco.model)
+	local template = folder and folder:FindFirstChild(modelName)
 	if not template then
-		warn("[Tree] 장식 모델을 찾지 못했습니다:", deco.model)
+		if deco.model then -- 직접 적은 이름만 경고한다 (모델이 아직 없는 장식은 임시 모양으로 보인다)
+			warn("[Tree] 장식 모델을 찾지 못했습니다:", deco.model)
+		end
 		return nil
 	end
 	local clone = template:Clone()
@@ -527,7 +528,7 @@ local function cloneModel(deco)
 		holder.PrimaryPart = clone
 		clone = holder
 	elseif not clone:IsA("Model") then
-		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", deco.model, clone.ClassName)
+		warn("[Tree] 장식 모델은 Model이나 Part여야 합니다:", modelName, clone.ClassName)
 		return nil
 	end
 	for _, descendant in clone:GetDescendants() do
