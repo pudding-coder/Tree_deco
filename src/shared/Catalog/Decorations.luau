@@ -70,7 +70,7 @@ return {
 	{ id = "Angel", name = "천사", rarity = "Epic", area = "Topper" },
 
 	{ id = "BukangiKeyring", name = "부캉이 키링", rarity = "Epic", area = "Ornament" },
-	{ id = "67Brainrot", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament" },
+	{ id = "Brainrot67", name = "67 브래인롯 캐릭터", rarity = "Epic", area = "Ornament" },
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
 	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament" },
