@@ -43,6 +43,9 @@ return {
 	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
+	{ id = "Snowflake", name = "눈꽃", rarity = "Common", area = "Ornament" },
+	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
+	{ id = "Apple", name = "사과", rarity = "Common", area = "Ornament" },
 
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
@@ -57,6 +60,7 @@ return {
 	{ id = "LuckyFish", name = "액막이 명태", rarity = "Uncommon", area = "Ornament" },
 	{ id = "NoEntrySign", name = "관계자 외 출입금지 표지판", rarity = "Uncommon", area = "Ornament" },
 	{ id = "EggDog", name = "에그독", rarity = "Uncommon", area = "Ornament" },
+	{ id = "PinkStrawberry", name = "핑크 딸기", rarity = "Uncommon", area = "Ornament" },
 
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 
@@ -70,6 +74,7 @@ return {
 	{ id = "DubaiCookieKeyring", name = "두바이 쫀득쿠키 키링", rarity = "Rare", area = "Ornament" },
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
 	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament" },
+	{ id = "CuteSnowman", name = "귀여운 눈사람", rarity = "Rare", area = "Ornament" },
 
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
@@ -84,9 +89,11 @@ return {
 
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
+	{ id = "CCTVCamera", name = "CCTV 카메라", rarity = "Epic", area = "Garland" },
 
 	-- 레전더리
 	{ id = "BombardiroTopper", name = "봄바르디로 크로코딜로", rarity = "Legendary", area = "Topper" },
+	{ id = "Poop", name = "똥", rarity = "Legendary", area = "Topper" },
 
 	{ id = "TralaleroKeyring", name = "트랄랄레로 트랄랄라 키링", rarity = "Legendary", area = "Ornament" },
 	{ id = "BallerinaKeyring", name = "발레리나 카푸치나 키링", rarity = "Legendary", area = "Ornament" },
