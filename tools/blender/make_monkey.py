@@ -1,6 +1,8 @@
 """트리에 매달리는 원숭이 오너먼트를 만들어 .blend / .fbx 로 저장한다.
 
-사진처럼 트리에 착 달라붙은 모습: 팔다리를 뒤(트리 쪽)로 뻗어 끌어안고, 꼬리는 트리 면을 따라 말린다. 색마다 오브젝트를 나눠 두어 Roblox에서 파트별 색이 유지된다.
+나뭇가지에 두 손과 한 발로 매달린 모습: 위쪽 작은 나뭇가지를 잡고 몸은 아래로 늘어뜨리고, 머리는 옆으로 갸웃 기울여 앞을 본다.
+나뭇가지가 걸이 역할이라 게임에서 트리에 붙는 뒷면(+Y)은 나뭇가지 뒤쪽이다.
+색마다 오브젝트를 나눠 두어 Roblox에서 파트별 색이 유지된다.
 
 실행:
   /Applications/Blender.app/Contents/MacOS/Blender -b -P tools/blender/make_monkey.py -- assets/models/decorations [preview.png]
@@ -13,7 +15,7 @@ import os
 import sys
 
 import bpy
-from mathutils import Vector
+from mathutils import Euler, Matrix, Vector
 
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 OUT_DIR = os.path.abspath(argv[0] if argv else "assets/models/decorations")
@@ -30,6 +32,7 @@ COLORS = {
     "EyeShine": (1.0, 1.0, 1.0),
     "Cheeks": (1.0, 0.55, 0.62),
     "Mouth": (0.25, 0.14, 0.13),
+    "Branch": (0.36, 0.24, 0.14),
 }
 
 # 처음 장면(정육면체 등)을 비운다
@@ -91,8 +94,22 @@ def tube(group, points, radius, resolution=8):
     return finish(obj, group)
 
 
-# ---------------------------------------------------------------- 머리
-HEAD = Vector((0, -0.08, 1.05))  # 뒤통수(y 0.47)가 손발과 같은 뒷면에 오게 앞으로
+def all_objects():
+    return [o for objs in parts.values() for o in objs]
+
+
+def move_group(objs, pivot, target, rot_deg):
+    """objs를 pivot 기준으로 rot_deg(x, y, z 도)만큼 돌리고 pivot이 target에 오게 옮긴다"""
+    bpy.context.view_layer.update()  # 방금 바꾼 크기·위치를 matrix_world에 반영
+    rot = Euler(tuple(math.radians(a) for a in rot_deg)).to_matrix().to_4x4()
+    m = Matrix.Translation(target) @ rot @ Matrix.Translation(-Vector(pivot))
+    for o in objs:
+        o.matrix_world = m @ o.matrix_world
+
+
+# ---------------------------------------------------------------- 머리 (원점 근처에서 만들고 나중에 옮긴다)
+HEAD = Vector((0, -0.08, 1.05))
+before_head = set(all_objects())
 sphere("Fur", HEAD, (0.62, 0.55, 0.56), segments=40, rings=20)
 # 귀
 for s in (-1, 1):
@@ -134,33 +151,61 @@ for x, z in ((-0.09, 0.86), (-0.045, 0.825), (0.0, 0.852), (0.045, 0.825), (0.09
     mouth.append(Vector((x, face_y(x, z, 0.004), z)))
 tube("Mouth", mouth, 0.014)
 
-# ---------------------------------------------------------------- 몸
-# 트리(뒤쪽 +Y)에 착 달라붙은 자세: 팔다리를 뒤로 뻗어 트리를 끌어안고, 꼬리는 트리 면을 따라 말린다
-# 뒤쪽 끝(손발·꼬리)은 y = BACK 평면에 모여 있어서 게임에서 트리 겉면에 붙는다
-BACK = 0.47
-sphere("Fur", (0, 0.15, 0.42), (0.38, 0.3, 0.4))
-sphere("Face", (0, -0.03, 0.38), (0.25, 0.19, 0.27))  # 배
+# 머리를 왼쪽 아래로 옮기고 옆으로 갸웃 (사진처럼)
+HEAD_POS = Vector((-0.36, -0.06, 1.12))
+head_objs = [o for o in all_objects() if o not in before_head]
+move_group(head_objs, HEAD, HEAD_POS, (0, 18, -12))
 
-# 팔: 어깨에서 옆·뒤·위로 뻗어 트리를 잡는다
-for s in (-1, 1):
-    arm = [Vector((s * 0.3, 0.1, 0.6)), Vector((s * 0.6, 0.22, 0.62)), Vector((s * 0.8, BACK - 0.04, 0.66))]
-    tube("Fur", arm, 0.085)
-    sphere("Fur", (s * 0.83, BACK, 0.67), (0.12, 0.06, 0.12))  # 트리에 붙은 손
+# ---------------------------------------------------------------- 나뭇가지 (걸이)
+# 위쪽에서 오른쪽으로 살짝 내려가는 짧은 가지. 뒤쪽 끝(y = BRANCH_Y + 반지름)이 게임에서 트리에 붙는다
+BRANCH_Y = 0.36
+BRANCH_R = 0.1
+def branch_z(x):
+    return 2.0 - 0.12 * x
+tube("Branch", [Vector((-1.15, BRANCH_Y, branch_z(-1.15))), Vector((0.0, BRANCH_Y, branch_z(0.0) + 0.02)), Vector((1.2, BRANCH_Y, branch_z(1.2)))], BRANCH_R)
+tube("Branch", [Vector((-0.75, BRANCH_Y, branch_z(-0.75))), Vector((-0.95, BRANCH_Y - 0.05, branch_z(-0.75) + 0.28))], 0.045)  # 잔가지
 
-# 다리: 엉덩이에서 옆·뒤로 벌려 트리를 감싼다
-for s in (-1, 1):
-    leg = [Vector((s * 0.18, 0.12, 0.14)), Vector((s * 0.42, 0.26, 0.0)), Vector((s * 0.56, BACK - 0.04, -0.06))]
-    tube("Fur", leg, 0.09)
-    sphere("Fur", (s * 0.59, BACK, -0.07), (0.12, 0.06, 0.14))  # 트리에 붙은 발
+# ---------------------------------------------------------------- 몸 (오른쪽 아래로 늘어진다)
+BODY = Vector((0.3, 0.12, 0.82))
+sphere("Fur", BODY, (0.36, 0.3, 0.5), rot=(0, math.radians(-15), 0))
+sphere("Face", BODY + Vector((-0.02, -0.17, -0.04)), (0.23, 0.18, 0.33), rot=(0, math.radians(-15), 0))  # 배
 
-# 꼬리: 등에서 나와 트리 면을 따라 옆으로 돌돌 말린다
+
+def grip(x, side_scale=1.0):
+    """나뭇가지를 감싸 쥔 손발: 가지 앞쪽과 위쪽에 둥근 덩어리"""
+    z = branch_z(x)
+    sphere("Fur", (x, BRANCH_Y - 0.09, z + 0.02), (0.11 * side_scale, 0.08, 0.12))
+    sphere("Face", (x, BRANCH_Y - 0.15, z - 0.02), (0.08 * side_scale, 0.04, 0.07))  # 밝은 손바닥·손가락
+
+
+# 두 팔: 어깨에서 위로 뻗어 가지를 잡는다
+for shoulder, hand_x in ((Vector((0.12, 0.1, 1.2)), 0.05), (Vector((0.48, 0.1, 1.16)), 0.58)):
+    hand = Vector((hand_x, BRANCH_Y - 0.08, branch_z(hand_x) - 0.06))
+    mid = (shoulder + hand) / 2 + Vector((0.06, -0.06, 0))
+    tube("Fur", [shoulder, mid, hand], 0.095)
+    grip(hand_x)
+
+# 오른발: 무릎을 굽혀 위로 올려 가지를 잡는다
+foot_x = 1.0
+hip = Vector((0.5, 0.12, 0.45))
+knee = Vector((0.95, 0.0, 0.85))
+foot = Vector((foot_x, BRANCH_Y - 0.08, branch_z(foot_x) - 0.08))
+tube("Fur", [hip, knee, foot], 0.09)
+grip(foot_x, 1.1)
+
+# 왼발: 아래로 대롱대롱
+tube("Fur", [Vector((0.2, 0.12, 0.42)), Vector((0.22, 0.04, 0.12)), Vector((0.28, -0.02, -0.06))], 0.09)
+sphere("Fur", (0.29, -0.08, -0.1), (0.11, 0.14, 0.09))
+sphere("Face", (0.29, -0.2, -0.1), (0.07, 0.03, 0.06))
+
+# 꼬리: 엉덩이 뒤에서 아래로 내려와 돌돌
 tail = [
-    Vector((0, 0.42, 0.2)),
-    Vector((0.2, BACK, -0.12)),
-    Vector((0.55, BACK, -0.28)),
-    Vector((0.9, BACK, -0.18)),
-    Vector((0.95, BACK, 0.08)),
-    Vector((0.78, BACK, 0.12)),
+    Vector((0.45, 0.38, 0.45)),
+    Vector((0.65, 0.42, 0.15)),
+    Vector((0.6, 0.42, -0.2)),
+    Vector((0.38, 0.4, -0.3)),
+    Vector((0.32, 0.38, -0.12)),
+    Vector((0.45, 0.36, -0.08)),
 ]
 tube("Fur", tail, 0.055, resolution=12)
 
@@ -218,8 +263,8 @@ if PREVIEW:
     cam = bpy.data.objects.new("Cam", bpy.data.cameras.new("Cam"))
     cam.data.lens = 70
     scene.collection.objects.link(cam)
-    cam.location = (6.4, -0.6, 1.4) if SIDE else (2.2, -6.2, 1.6)
-    direction = Vector((0, 0, 0.85)) - cam.location
+    cam.location = (7.2, -0.6, 1.4) if SIDE else (1.2, -7.2, 1.5)
+    direction = Vector((0.05, 0, 0.95)) - cam.location
     cam.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
     scene.camera = cam
 
