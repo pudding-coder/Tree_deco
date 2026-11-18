@@ -16,7 +16,9 @@
         "BuyPotion": { "$className": "RemoteFunction" },
         "PlaceDecoration": { "$className": "RemoteFunction" },
         "RemoveDecoration": { "$className": "RemoteFunction" },
-        "SetAutoFill": { "$className": "RemoteFunction" }
+        "SetAutoFill": { "$className": "RemoteFunction" },
+        "BuyTreeEffect": { "$className": "RemoteFunction" },
+        "SetTreeEffect": { "$className": "RemoteFunction" }
       }
     },
     "ServerScriptService": {

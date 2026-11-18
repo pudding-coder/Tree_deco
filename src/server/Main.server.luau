@@ -8,11 +8,13 @@ local GachaService = require(script.Parent.GachaService)
 local BagService = require(script.Parent.BagService)
 local UpgradeService = require(script.Parent.UpgradeService)
 local TreeService = require(script.Parent.TreeService)
+local TreeEffectService = require(script.Parent.TreeEffectService)
 
 PlayerData.Init()
 GachaService.Init()
 BagService.Init()
 UpgradeService.Init()
 TreeService.Init()
+TreeEffectService.Init()
 
 print("[Tree_deco] 서버 시작")

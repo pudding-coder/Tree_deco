@@ -1,4 +1,4 @@
-# 장식 모델 방향·모양 한꺼번에 맞추기 (Studio)
+# 장식 모델 넣기·바꾸기·방향 맞추기 (Studio)
 
 장식 3D 모델은 GitHub가 아니라 **플레이스 파일**의 `ReplicatedStorage.DecorationModels`에 있다.
 방향은 Studio에서 모델을 직접 돌려서 맞추고, 크기와 위치는 게임이 자동으로 맞춘다.
@@ -25,7 +25,38 @@
 
 ---
 
-## 작업 순서
+## 새 모델 넣기 · 기존 모델 바꾸기
+
+> Play 중에 바꾼 것은 멈추면 사라진다. **꼭 Play를 멈춘 상태**에서 한다.
+
+게임은 `DecorationModels` 안에서 **장식 `id`와 이름이 같은 모델**을 찾아 쓴다. 그래서 모델을 바꿀 때는 같은 이름으로 갈아 끼우기만 하면 되고, 코드(`Decorations.luau`)는 고치지 않아도 된다.
+
+### 가져오기
+
+| 어디서 받았나 | 가져오는 법 |
+| --- | --- |
+| **파일** (`.fbx`, `.obj`, `.glb` 등. 우리가 Blender로 만든 것 포함) | **Home(또는 File) → Import 3D** → 파일 고르기 → 창에서 **Import**. Workspace에 Model이 생긴다 |
+| **Toolbox / Creator Store** (내 Inventory) | Toolbox → Inventory에서 클릭해 꺼낸다. 여러 개면 처음 넣을 때 쓴 일괄 넣기 스크립트(에셋 ID 목록)를 쓰면 이름까지 한 번에 맞춰진다 |
+| **`.rbxm` / `.rbxmx` 파일** | Explorer에서 `DecorationModels` 오른쪽 클릭 → **Insert from File...** |
+
+### 넣기 (새 모델)
+
+1. 생긴 Model을 Explorer에서 `ReplicatedStorage → DecorationModels` 안으로 끌어다 놓는다.
+2. 이름을 장식 `id`와 **똑같이**(대소문자까지) 바꾼다. 예: `Donut`
+3. 안에 `Script`·`LocalScript`가 있으면 지운다(무료 모델의 악성 스크립트 방지).
+4. 아래 '작업 순서'로 방향을 맞추고 저장한다.
+5. 아직 장식 목록에 없는 새 장식이면 `Decorations.luau`에 한 줄 추가한다(또는 Claude에게 id·이름·등급을 알려 준다).
+
+### 바꾸기 (같은 장식의 모델 교체)
+
+1. `DecorationModels` 안의 **기존 모델을 지운다**(오른쪽 클릭 → Delete). 이름이 같은 모델이 두 개 있으면 어느 쪽이 쓰일지 알 수 없다.
+2. 새 모델을 넣고 이름을 기존 모델과 **같은 이름**(장식 `id`)으로 바꾼다.
+3. 방향을 다시 맞춘다(새 모델은 앞이 다른 쪽일 수 있다).
+4. Play로 확인하고 저장(Publish)한다. 이미 그 장식을 가진 플레이어도 새 모델로 보인다.
+
+---
+
+## 작업 순서 (방향 한꺼번에 맞추기)
 
 > Play 중에 바꾼 것은 멈추면 사라진다. **꼭 Play를 멈춘 상태**에서 한다.
 

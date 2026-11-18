@@ -17,9 +17,10 @@
 | 게임 규칙 | `GAME_RULES.md` |
 | 밸런스 값 | `src/shared/Config.luau` |
 | 장식·특성·칠하기 색 목록 | `src/shared/Catalog/Decorations.luau`, `Traits.luau`, `Paints.luau` (추가 방법: `docs/ADDING_ITEMS.md`) |
+| 트리 효과 상점 목록 | `src/shared/Catalog/TreeEffects.luau` (가격은 `Config.luau`, 기본 효과 모양은 `src/server/TreeFx.luau`) |
 | 등급 이름·색 | `src/shared/Rarity.luau` (확률·가치는 `Config.luau`) |
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |
 | 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
-| 장식 3D 모델 방향 맞추기(Studio) | `docs/DECORATION_MODELS.md` (모델은 플레이스 파일의 `ReplicatedStorage.DecorationModels`) |
+| 장식 3D 모델 넣기·바꾸기·방향 맞추기(Studio) | `docs/DECORATION_MODELS.md` (모델은 플레이스 파일의 `ReplicatedStorage.DecorationModels`) |
 | 맵·트리 자리·투명벽 | `docs/MAP.md` (맵은 플레이스 파일에 있고 Rojo는 Workspace를 건드리지 않음) |
