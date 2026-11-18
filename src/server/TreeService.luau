@@ -709,6 +709,126 @@ local function snapToTree(model: Model, deco, plot, cf: CFrame)
 	end
 end
 
+----------------------------------------------------------------
+-- 잡을 수 있는 장식 (holdable): 누르면 같은 모양의 사본을 손에 든다. 트리의 장식은 그대로 남는다
+----------------------------------------------------------------
+
+local HOLD_ATTRIBUTE = "HeldDecoId" -- 손에 든 사본(Tool)에 붙여 한 사람당 하나만 갖게 한다
+
+-- 트리에 걸린 모델에 '잡기' 버튼을 단다
+local function addHoldPrompt(model: Model, deco)
+	local target = model.PrimaryPart
+	if not target then
+		local biggest = 0
+		for _, part in model:GetDescendants() do
+			if part:IsA("BasePart") and part.Size.Magnitude > biggest then
+				target, biggest = part, part.Size.Magnitude
+			end
+		end
+	end
+	if not target then
+		return
+	end
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "HoldPrompt"
+	prompt.ActionText = "잡기"
+	prompt.ObjectText = deco.name
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt:SetAttribute(HOLD_ATTRIBUTE, deco.id)
+	prompt.Parent = target
+end
+
+-- DecorationModels의 원본으로 손에 들 Tool을 만든다 (원본 안에 Tool이 있으면 그 모양 그대로, 없으면 모델 전체를 묶어서)
+local function buildHeldTool(deco): Tool?
+	local folder = ReplicatedStorage:FindFirstChild("DecorationModels")
+	local template = folder and folder:FindFirstChild(deco.model or deco.id)
+	if not template then
+		return nil
+	end
+	local source = if template:IsA("Tool") then template else template:FindFirstChildWhichIsA("Tool", true)
+	local tool = Instance.new("Tool")
+	tool.Name = deco.name
+	tool.CanBeDropped = false -- 바닥에 떨어뜨려 쌓이지 않게
+	tool.RequiresHandle = true
+	tool:SetAttribute(HOLD_ATTRIBUTE, deco.id)
+	local root = (source or template):Clone()
+	if root:IsA("BasePart") then
+		root.Parent = tool -- 파츠 하나짜리 원본은 그 파츠를 그대로 넣는다
+	else
+		for _, child in root:GetChildren() do
+			child.Parent = tool
+		end
+		root:Destroy()
+	end
+	if source then
+		tool.Grip = source.Grip
+	end
+	-- 스크립트·주울 수 있는 판정은 빼고, 파츠를 손잡이(Handle)에 모두 붙인다
+	local parts = {}
+	for _, d in tool:GetDescendants() do
+		if d:IsA("LuaSourceContainer") or d:IsA("ProximityPrompt") or d:IsA("ClickDetector") then
+			d:Destroy()
+		elseif d:IsA("BasePart") then
+			table.insert(parts, d)
+		end
+	end
+	if #parts == 0 then
+		tool:Destroy()
+		return nil
+	end
+	local handle = tool:FindFirstChild("Handle")
+	if not (handle and handle:IsA("BasePart")) then
+		table.sort(parts, function(a, b)
+			return a.Size.Magnitude > b.Size.Magnitude
+		end)
+		handle = parts[1]
+		handle.Name = "Handle"
+		handle.Parent = tool
+	end
+	for _, part in parts do
+		part.Anchored = false
+		part.CanCollide = false
+		part.Massless = true
+		if part ~= handle then
+			local weld = Instance.new("WeldConstraint")
+			weld.Part0 = handle
+			weld.Part1 = part
+			weld.Parent = handle
+		end
+	end
+	return tool
+end
+
+local function onHoldPrompt(prompt: ProximityPrompt, player: Player)
+	local decoId = prompt:GetAttribute(HOLD_ATTRIBUTE)
+	local deco = type(decoId) == "string" and Catalog.DecorationById[decoId]
+	if not deco or not deco.holdable then
+		return
+	end
+	local character = player.Character
+	local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+	local backpack = player:FindFirstChildOfClass("Backpack")
+	if not humanoid or humanoid.Health <= 0 or not backpack then
+		return
+	end
+	-- 이미 가지고 있으면 새로 주지 않고 손에 든다
+	for _, container in { character, backpack } do
+		for _, item in container:GetChildren() do
+			if item:IsA("Tool") and item:GetAttribute(HOLD_ATTRIBUTE) == deco.id then
+				humanoid:EquipTool(item)
+				return
+			end
+		end
+	end
+	local tool = buildHeldTool(deco)
+	if tool then
+		tool.Parent = backpack
+		humanoid:EquipTool(tool)
+	end
+end
+
 local function renderEntry(plot, entry)
 	local deco = Catalog.DecorationById[entry.d]
 	local trait = Catalog.TraitById[entry.t]
@@ -736,6 +856,9 @@ local function renderEntry(plot, entry)
 			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
 		end
 		TraitEffects.Apply(model, trait)
+		if deco.holdable then
+			addHoldPrompt(model, deco)
+		end
 		model.Parent = plot.decorations
 		return
 	end
@@ -1317,6 +1440,11 @@ function TreeService.Init()
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
 
+	game:GetService("ProximityPromptService").PromptTriggered:Connect(function(prompt, player)
+		if prompt:GetAttribute(HOLD_ATTRIBUTE) then
+			onHoldPrompt(prompt, player)
+		end
+	end)
 	Remotes.PlaceDecoration.OnServerInvoke = onPlace
 	Remotes.RemoveDecoration.OnServerInvoke = onRemove
 	Remotes.SetAutoFill.OnServerInvoke = onSetAutoFill

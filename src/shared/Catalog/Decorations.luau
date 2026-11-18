@@ -17,6 +17,8 @@
 	        안 쓰면 0 (꼭대기 위에 올라앉음). 단 id가 Hair로 끝나는 토퍼는 안 써도 0.5
 	paintable (선택) true면 뽑을 때 Paints.luau의 색이 랜덤으로 정해져 모델의 Paint 파트에 칠해진다.
 	        색이 다르면 가방 칸이 따로 생기므로, Paint 파트가 있는 모델에만 켠다.
+	holdable (선택) true면 트리에 걸린 이 장식에 '잡기' 버튼이 생기고, 누르면 같은 모양의 사본을 손에 든다(누구나, 한 사람당 하나).
+	        트리의 장식은 그대로 남는다. 모델 안에 Tool이 있으면 그 Tool 모양을 쓴다
 	retired (선택) true면 더 이상 뽑히지 않는다. 이미 가진 사람은 그대로 갖는다. (삭제 대신 이걸 쓸 것)
 
 	※ 초안: GAME_RULES.md에 확정되기 전 목록이다.
@@ -78,7 +80,7 @@ return {
 	{ id = "HanMochi", name = "한정선 찹쌀떡", rarity = "Rare", area = "Ornament" },
 	{ id = "MinecraftZombie", name = "마인크래프트 좀비", rarity = "Rare", area = "Ornament", out = 0.6 },
 	{ id = "CuteSnowman", name = "귀여운 눈사람", rarity = "Rare", area = "Ornament" },
-	{ id = "PowerDrill", name = "전동 드릴", rarity = "Rare", area = "Ornament" },
+	{ id = "PowerDrill", name = "전동 드릴", rarity = "Rare", area = "Ornament", holdable = true },
 
 	{ id = "KeycapGarland", name = "키캡 줄", rarity = "Rare", area = "Garland" },
 
