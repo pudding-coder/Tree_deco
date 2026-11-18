@@ -14,7 +14,7 @@ function Income.GetTreeValue(profile): number
 		local deco = Catalog.DecorationById[entry.d]
 		local trait = Catalog.TraitById[entry.t]
 		if deco and trait then
-			total += Gacha.GetItemValue(deco.rarity, trait.mult)
+			total += Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, entry.s))
 		end
 	end
 	return total

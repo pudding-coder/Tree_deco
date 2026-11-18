@@ -48,6 +48,18 @@ Config.LUCK_MIN_RARITY = 3 -- 행운 배수가 적용되는 최소 등급 (레�
 Config.BOOST_LUCK_CAP = 2 -- 물약·게임패스 등 부스트 행운 합계 상한 (게임패스 ×1.5 × 물약 ×1.5 = ×2.25를 ×2로 묶음)
 Config.LUCK_TOTAL_CAP = 8 -- 최종 행운 배수 상한 (×8일 때 언커먼 이상 합계 약 60%)
 
+-- 크기 (룰렛 두 번째 칸). 특성처럼 장식과 따로 굴린다 (행운 미적용). 띠는 항상 보통
+-- id   저장용 이름 (한 번 정하면 바꾸지 않기)
+-- n    확률 분모 (20이면 1/20). 보통은 n이 없고 나머지 확률을 가져간다
+-- scale 트리에 걸었을 때 크기 배수 (오너먼트 1.6배 넘으면 옆 장식과 겹치기 쉽다)
+-- mult 가치 배수 (특성 배수와 곱한다)
+Config.SIZES = {
+	{ id = "Small", name = "작은", n = 20, scale = 0.7, mult = 1.2 },
+	{ id = "Normal", name = "보통", scale = 1, mult = 1 },
+	{ id = "Big", name = "큰", n = 8, scale = 1.3, mult = 1.5 },
+	{ id = "Huge", name = "거대", n = 50, scale = 1.6, mult = 3 },
+}
+
 -- 연출·공지
 Config.EFFECT_MIN_RARITY = 3 -- 이 등급 이상: 본인 화면 연출 (레어)
 Config.SERVER_ANNOUNCE_MIN_RARITY = 4 -- 이 등급 이상: 서버 전체 공지 (에픽)
@@ -65,7 +77,7 @@ Config.SELL_RATE = 0.25 -- 판매 가격 = 장식 가치 × SELL_RATE (소수점
 Config.AUTO_SELL_MAX_OPTION = 5 -- 자동 판매를 켤 수 있는 최고 등급 (레전더리). 이보다 높은 등급은 항상 잠겨 있다
 Config.DEFAULT_LOCK_MIN_RARITY = 5 -- 처음부터 잠겨 있는 최소 등급 (레전더리 이상)
 Config.SELL_CONFIRM_MIN_RARITY = 4 -- 모두 판매에 이 등급 이상이 섞이면 한 번 더 눌러야 판다 (에픽)
-Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙은 장식(반짝이 등)은 자동 판매하지 않는다
+Config.AUTO_SELL_ONLY_BASE_TRAIT = true -- true면 특성이 붙거나 크기가 보통이 아닌 장식은 자동 판매하지 않는다
 
 ----------------------------------------------------------------
 -- 트리·서버

@@ -541,13 +541,14 @@ end
 
 -- 모델을 자리에 맞춰 놓는다: 크기를 맞추고, 정면이 바깥을 보게 돌리고, 모델 가운데가 자리에 오게 한다
 -- (FBX로 들여온 모델은 피벗이 가운데가 아닌 경우가 많아서 피벗 대신 모델 상자 가운데를 기준으로 한다)
-local function placeModel(model: Model, area: string, deco, cf: CFrame)
+-- sizeScale: 뽑을 때 정해진 크기 배수 (Config.SIZES의 scale)
+local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScale: number)
 	local target = MODEL_SIZE[area]
 	if target then
 		local _, boxSize = model:GetBoundingBox()
 		local longest = math.max(boxSize.X, boxSize.Y, boxSize.Z)
 		if longest > 0 then
-			model:ScaleTo(model:GetScale() * target * deco.size / longest)
+			model:ScaleTo(model:GetScale() * target * deco.size * sizeScale / longest)
 		end
 	end
 
@@ -572,9 +573,10 @@ local function renderEntry(plot, entry)
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
 
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
+	local sizeScale = Catalog.SizeOf(entry.s).scale -- 뽑을 때 정해진 크기 (띠는 항상 보통)
 	local model = cloneModel(deco)
 	if model then
-		placeModel(model, entry.a, deco, cf)
+		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다
 			local box, boxSize = model:GetBoundingBox()
@@ -658,7 +660,7 @@ local function renderEntry(plot, entry)
 		end
 		holder.Parent = plot.decorations
 	else
-		local size = if entry.a == "Topper" then 2.4 else 1.4
+		local size = (if entry.a == "Topper" then 2.4 else 1.4) * sizeScale
 		local part = newPart({
 			Name = deco.id,
 			Shape = Enum.PartType.Ball,
@@ -907,7 +909,7 @@ local function onPlace(player: Player, key: any, index: any)
 
 	stack.c -= 1
 	PlayerData.RemoveEmptyStacks(profile)
-	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, p = stack.p })
+	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, p = stack.p, s = stack.s })
 	render(player)
 
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
@@ -954,7 +956,7 @@ local function onRemove(player: Player, slots: any)
 	local newKeys = {}
 	local needed = 0
 	for _, entry in entries do
-		local key = PlayerData.StackKey(entry.d, entry.t, entry.p)
+		local key = PlayerData.StackKey(entry.d, entry.t, entry.p, entry.s)
 		if not PlayerData.FindStack(profile, key) and not newKeys[key] then
 			newKeys[key] = true
 			needed += 1
@@ -972,13 +974,13 @@ local function onRemove(player: Player, slots: any)
 		end
 		local deco = Catalog.DecorationById[entry.d]
 		local trait = Catalog.TraitById[entry.t]
-		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.p))
+		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.p, entry.s))
 		if existing then
 			existing.c += 1
 		elseif deco and trait then
-			PlayerData.AddItem(profile, deco, trait, 1, entry.p)
+			PlayerData.AddItem(profile, deco, trait, 1, entry.p, entry.s)
 		else
-			table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, c = 1, l = false })
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, s = entry.s, c = 1, l = false })
 		end
 	end
 	render(player)
