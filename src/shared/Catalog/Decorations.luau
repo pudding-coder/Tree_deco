@@ -57,7 +57,7 @@ return {
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
-	{ id = "SpinningMaxWellTheCat", name = "산타 ", rarity = "Rare", area = "Topper" },
+	{ id = "SpinningMaxWellTheCat", name = "빙글빙글 맥스웰", rarity = "Rare", area = "Topper" },
 
 
 	{ id = "TakeLKeycap", name = "L을 가져가 키캡", rarity = "Rare", area = "Ornament" },
