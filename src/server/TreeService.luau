@@ -512,6 +512,9 @@ local ORNAMENT_LEAN = 20
 -- 오너먼트 모델의 가장 안쪽(트리 쪽 끝)이 자리보다 이만큼 바깥에 오게 한다(스터드. 음수면 안쪽)
 -- 자리는 트리 겉면 +0.6, 띠 전구 가운데는 겉면 +0.35라서 -0.25면 트리 쪽 끝이 전구 가운데 깊이에 온다
 local ORNAMENT_GAP = -0.25
+-- 위 계산은 어림이라, 놓은 뒤 실제 트리 겉면까지 광선으로 재서 다시 붙인다
+-- 모델의 트리 쪽 끝이 실제 겉면에서 이만큼 바깥에 온다(스터드). 띠 전구 가운데가 겉면 +0.35
+local ORNAMENT_SURFACE_GAP = 0.35
 
 local function cloneModel(deco)
 	-- model을 적지 않았으면 장식 id와 같은 이름의 모델을 쓴다
@@ -621,6 +624,41 @@ local function placeModel(model: Model, area: string, deco, cf: CFrame, sizeScal
 	model:PivotTo(facing * pivotFromBox)
 end
 
+-- 오너먼트 모델 뒷면 여러 점에서 트리 쪽으로 광선을 쏴 실제 겉면까지 거리를 재고, 가장 가까운 점이 ORNAMENT_SURFACE_GAP에 오게 옮긴다
+-- 트리 모양(층마다 튀어나온 가지 등) 때문에 뜨거나 묻히는 것을 막는다. 광선이 하나도 안 맞으면 그대로 둔다
+local function snapToTree(model: Model, plot, cf: CFrame)
+	local treeParts = {}
+	for _, child in plot.model:GetChildren() do
+		if child ~= plot.decorations and child.Name ~= "Sign" and child.Name ~= "Ground" then
+			table.insert(treeParts, child)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = treeParts
+
+	local inward = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	if inward.Magnitude < 1e-3 then
+		return
+	end
+	inward = inward.Unit
+	local box, size = model:GetBoundingBox() -- 놓은 방향(기울기 포함)을 따른 상자. +Z가 트리 쪽
+	local nearest = math.huge
+	for _, u in { -0.4, 0, 0.4 } do
+		for _, v in { -0.45, -0.15, 0.15, 0.45 } do
+			local point = box:PointToWorldSpace(Vector3.new(u * size.X, v * size.Y, size.Z / 2))
+			local origin = point - inward * 5 -- 모델이 트리에 묻혀 있어도 바깥에서 쏜다
+			local hit = workspace:Raycast(origin, inward * 20, params)
+			if hit then
+				nearest = math.min(nearest, (hit.Position - point):Dot(inward))
+			end
+		end
+	end
+	if nearest < math.huge then
+		model:PivotTo(model:GetPivot() + inward * (nearest - ORNAMENT_SURFACE_GAP))
+	end
+end
+
 local function renderEntry(plot, entry)
 	local deco = Catalog.DecorationById[entry.d]
 	local trait = Catalog.TraitById[entry.t]
@@ -634,6 +672,9 @@ local function renderEntry(plot, entry)
 	local model, primary = cloneModel(deco)
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
+		if entry.a == "Ornament" then
+			snapToTree(model, plot, cf)
+		end
 		if entry.a == "Topper" then
 			-- 모델 밑면이 꼭대기 끝에 살짝 걸치게 올린다. sink만큼(모델 높이 비율) 더 내려 꼭대기에 씌운다
 			local box, boxSize = model:GetBoundingBox()
