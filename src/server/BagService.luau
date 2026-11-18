@@ -35,7 +35,7 @@ end
 local function sellPrice(stack): number
 	local deco = Catalog.DecorationById[stack.d]
 	local trait = Catalog.TraitById[stack.t]
-	return Gacha.GetSellPrice(deco.rarity, trait.mult)
+	return Gacha.GetSellPrice(deco.rarity, Catalog.ValueMult(trait, stack.s))
 end
 
 -- key가 없으면 잠기지 않은 칸을 모두 팔고, 있으면 그 칸만 전부 판다
@@ -54,7 +54,7 @@ local function onSell(player: Player, key: any)
 		if stack.c <= 0 or stack.l or not PlayerData.IsKnownStack(stack) then
 			continue
 		end
-		if key ~= nil and PlayerData.StackKey(stack.d, stack.t, stack.p) ~= key then
+		if key ~= nil and PlayerData.StackKey(stack.d, stack.t, stack.p, stack.s) ~= key then
 			continue
 		end
 		sold += stack.c

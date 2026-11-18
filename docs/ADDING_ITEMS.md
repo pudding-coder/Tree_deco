@@ -107,12 +107,44 @@ Candy = Color3.fromRGB(255, 150, 200),
 
 ---
 
-## 6. 3D 모델 연결 (트리 꾸미기 작업 이후)
+## 6. 3D 모델 연결
 
-1. Studio에서 장식 모델을 만들거나 Toolbox에서 가져온다.
-2. Explorer의 `ReplicatedStorage` 안에 `DecorationModels` 폴더를 만들고 모델을 넣는다. (Rojo는 이 폴더를 건드리지 않는다)
-3. 모델 이름을 장식 줄의 `model`에 적는다. 예: `model = "SnowflakeKeyring"`
-4. 플레이스를 저장(Publish)한다. 모델은 GitHub가 아니라 플레이스 파일에 저장된다.
+모델이 없는 장식은 등급 색 공으로 보인다. 모델을 연결하면 그 모델이 트리에 걸린다.
+
+### 만들기
+
+- Blender나 Studio에서 만든다. Toolbox 모델도 된다(직접 만든 게 아니면 사용 조건 확인).
+- **크기는 아무래도 된다.** 게임이 가장 긴 변을 오너먼트 1.4스터드, 토퍼 2.4스터드에 맞춘다.
+- **정면**이 있는 장식(얼굴, 글자)은 정면이 모델의 앞(Studio에서 Front)이 되게 만든다. 걸었을 때 뒤나 옆을 보면 아래 `turn`으로 고친다.
+- 오너먼트는 모델 가운데가 자리에 온다. 고리(걸이)는 위쪽에 두면 자연스럽다.
+- 파트를 너무 많이 쓰지 않는다. 트리 하나에 오너먼트 10개, 서버에 트리 여러 개가 있다. 장식 하나에 파트 10개 안쪽을 권한다.
+
+### Studio에 넣기
+
+1. Blender에서 **File → Export → FBX**로 내보낸다.
+2. Studio **Home → Import 3D**로 FBX를 불러온다. Workspace에 Model이 생긴다.
+3. Explorer의 `ReplicatedStorage` 안에 `DecorationModels` 폴더를 만들고(처음 한 번), 모델을 그 안으로 옮긴다. (Rojo는 이 폴더를 건드리지 않는다)
+4. 모델 이름을 영문으로 바꾼다. 장식 `id`와 같게 하면 헷갈리지 않는다. 예: `TungSahurKeyring`
+5. `Decorations.luau`의 그 장식 줄에 `model = "모델 이름"`을 붙인다.
+   ```lua
+   { id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", model = "TungSahurKeyring" },
+   ```
+6. Play해서 트리에 걸어 본다. 확인이 끝나면 플레이스를 저장(`Cmd + S`, Publish)한다. 모델은 GitHub가 아니라 플레이스 파일에 저장된다.
+
+### 걸었을 때 고치기 (장식 줄에 추가)
+
+| 문제 | 고치는 법 |
+| --- | --- |
+| 너무 작거나 크다 | `size = 1.3` (1.3배), `size = 0.8` (0.8배) |
+| 뒤를 보고 있다 | `turn = 180` |
+| 옆을 보고 있다 | `turn = 90` 또는 `turn = -90` |
+| 모델이 안 보이고 공이 나온다 | `model` 이름과 `DecorationModels` 안의 이름이 같은지(대소문자까지) 확인. Output에 `장식 모델을 찾지 못했습니다`가 나온다 |
+
+```lua
+{ id = "TungSahurKeyring", ..., model = "TungSahurKeyring", size = 1.2, turn = 180 },
+```
+
+띠(Garland) 모델은 줄 모양이라 트리를 감싸는 방식이 따로 필요하다. 지금은 오너먼트와 토퍼만 모델을 권한다.
 
 ### 랜덤 색이 칠해지는 곳 (Paint 파트)
 

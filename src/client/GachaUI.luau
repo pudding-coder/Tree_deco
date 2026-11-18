@@ -42,6 +42,18 @@ local TRAIT_COLORS = {
 	Smoge = Color3.fromRGB(150, 150, 150),
 }
 
+-- 크기 글자색 (룰렛 크기 칸, 확률표)
+local SIZE_COLORS = {
+	Small = Color3.fromRGB(150, 210, 255),
+	Normal = Color3.fromRGB(160, 172, 190),
+	Big = Color3.fromRGB(255, 170, 80),
+	Huge = Color3.fromRGB(255, 90, 90),
+}
+
+local function sizeColor(size): Color3
+	return SIZE_COLORS[size.id] or Color3.fromRGB(242, 245, 250)
+end
+
 local function traitColor(trait): Color3
 	return TRAIT_COLORS[trait.id] or COLORS.text
 end
@@ -56,13 +68,13 @@ local ui = {}
 ----------------------------------------------------------------
 
 -- "반짝이 분홍 공" (기본 특성이면 특성 이름 없이, 색이 없으면 색 이름 없이)
-local function itemName(deco, trait, paintId: string?): string
-	return Catalog.ItemName(deco, trait, paintId)
+local function itemName(deco, trait, paintId: string?, sizeId: string?): string
+	return Catalog.ItemName(deco, trait, paintId, sizeId)
 end
 
 -- "분홍 공" (특성 이름 없이)
-local function paintedName(deco, paintId: string?): string
-	return Catalog.ItemName(deco, Catalog.BaseTrait, paintId)
+local function paintedName(deco, paintId: string?, sizeId: string?): string
+	return Catalog.ItemName(deco, Catalog.BaseTrait, paintId, sizeId)
 end
 
 local function stackInfo(stack)
@@ -70,12 +82,12 @@ local function stackInfo(stack)
 end
 
 local function stackKey(stack): string
-	return Catalog.StackKey(stack.d, stack.t, stack.p)
+	return Catalog.StackKey(stack.d, stack.t, stack.p, stack.s)
 end
 
 local function stackSellPrice(stack): number
 	local deco, trait = stackInfo(stack)
-	return Gacha.GetSellPrice(deco.rarity, trait.mult)
+	return Gacha.GetSellPrice(deco.rarity, Catalog.ValueMult(trait, stack.s))
 end
 
 ----------------------------------------------------------------
@@ -173,7 +185,7 @@ end
 -- 화면 만들기
 ----------------------------------------------------------------
 
-local REEL_TITLES = { "등급", "장식", "특성" }
+local REEL_TITLES = { "특성", "크기", "장식" } -- 왼쪽부터 멈추고, 장식(아래 작게 등급)이 마지막에 멈춘다
 
 local function buildSlot(gui)
 	local slot = panel({
@@ -202,6 +214,17 @@ local function buildSlot(gui)
 		Parent = slot,
 	})
 
+	-- 오른쪽 위: 지금 행운 배수와 한 번 돌리는 데 걸리는 시간 (업그레이드·물약이 반영된 값)
+	ui.spinStats = label({
+		Text = "",
+		TextSize = 13,
+		TextColor3 = COLORS.subText,
+		Size = UDim2.new(0.5, 0, 0, 28),
+		Position = UDim2.fromScale(0.5, 0),
+		TextXAlignment = Enum.TextXAlignment.Right,
+		Parent = slot,
+	})
+
 	-- 슬롯 3칸: 등급 · 장식 · 특성
 	local reels = create("Frame", {
 		Name = "Reels",
@@ -217,7 +240,7 @@ local function buildSlot(gui)
 		Parent = reels,
 	})
 	ui.reels = {}
-	local widths = { 0.27, 0.46, 0.27 } -- 장식 이름이 길어서 가운데 칸을 넓게
+	local widths = { 0.27, 0.27, 0.46 } -- 장식 이름이 길어서 오른쪽 칸을 넓게
 	for i, title in REEL_TITLES do
 		local cell = create("Frame", {
 			Name = "Reel" .. i,
@@ -242,11 +265,21 @@ local function buildSlot(gui)
 		local text = scaledLabel({
 			Text = "?",
 			Font = Enum.Font.GothamBlack,
-			Size = UDim2.new(1, -12, 0, 60),
+			Size = UDim2.new(1, -12, 0, if i == 3 then 46 else 60),
 			Position = UDim2.fromOffset(6, 26),
 			Parent = cell,
 		}, 30, 10)
-		ui.reels[i] = { stroke = stroke, text = text, scale = create("UIScale", { Parent = text }) }
+		-- 장식 칸만: 이름 아래 작게 등급 이름
+		local sub = if i == 3
+			then label({
+				Text = "",
+				TextSize = 13,
+				Size = UDim2.new(1, 0, 0, 16),
+				Position = UDim2.fromOffset(0, 74),
+				Parent = cell,
+			})
+			else nil
+		ui.reels[i] = { stroke = stroke, text = text, sub = sub, scale = create("UIScale", { Parent = text }) }
 	end
 
 	ui.reelSub = label({
@@ -362,7 +395,7 @@ local function buildOdds(gui)
 			traitCount += 1
 		end
 	end
-	local height = 30 + Rarity.Count * rowHeight + 10 + 30 + traitCount * rowHeight + 24
+	local height = 30 + Rarity.Count * rowHeight + 10 + 30 + traitCount * rowHeight + 10 + 30 + #Catalog.Sizes * rowHeight + 24
 
 	local frame = panel({
 		Name = "Odds",
@@ -431,6 +464,13 @@ local function buildOdds(gui)
 		local odds = if trait.n then Gacha.FormatOdds(1 / trait.n) else "나머지"
 		local valueLabel = row(trait.name, traitColor(trait))
 		valueLabel.Text = string.format("%s · ×%s", odds, tostring(trait.mult))
+	end
+	create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 10), LayoutOrder = nextOrder(), Parent = list })
+	titleRow("크기 (띠는 보통)")
+	for _, size in Catalog.Sizes do
+		local odds = if size.n then Gacha.FormatOdds(1 / size.n) else "나머지"
+		local valueLabel = row(size.name, sizeColor(size))
+		valueLabel.Text = string.format("%s · ×%s", odds, tostring(size.mult))
 	end
 end
 
@@ -1102,12 +1142,12 @@ local function sortedStacks()
 		if decoA.rarity ~= decoB.rarity then
 			return decoA.rarity > decoB.rarity
 		end
-		local valueA = Gacha.GetItemValue(decoA.rarity, traitA.mult)
-		local valueB = Gacha.GetItemValue(decoB.rarity, traitB.mult)
+		local valueA = Gacha.GetItemValue(decoA.rarity, Catalog.ValueMult(traitA, a.s))
+		local valueB = Gacha.GetItemValue(decoB.rarity, Catalog.ValueMult(traitB, b.s))
 		if valueA ~= valueB then
 			return valueA > valueB
 		end
-		return itemName(decoA, traitA, a.p) < itemName(decoB, traitB, b.p)
+		return itemName(decoA, traitA, a.p, a.s) < itemName(decoB, traitB, b.p, b.s)
 	end)
 	return list
 end
@@ -1177,8 +1217,8 @@ local function refreshSellButtons()
 	end
 	local deco, trait = stackInfo(stack)
 	local r = Rarity.List[deco.rarity]
-	local value = Gacha.GetItemValue(deco.rarity, trait.mult)
-	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait, stack.p), Gacha.FormatNumber(stack.c))
+	local value = Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, stack.s))
+	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait, stack.p, stack.s), Gacha.FormatNumber(stack.c))
 	ui.detailName.TextColor3 = r.color
 	ui.detailInfo.Text = string.format(
 		"%s · %s · 가치 %s코인 · 1개 판매 %s코인",
@@ -1246,7 +1286,7 @@ local function makeCell(stack, order: number)
 		})
 	end
 	scaledLabel({
-		Text = paintedName(deco, stack.p),
+		Text = paintedName(deco, stack.p, stack.s),
 		TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
 		Size = UDim2.new(1, -10, 0, 44),
 		Position = UDim2.fromOffset(5, 24),
@@ -1451,7 +1491,7 @@ local function refreshPicker()
 		corner(row, 8)
 		create("UIStroke", { Color = r.color, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = row })
 		scaledLabel({
-			Text = string.format("%s ×%s", itemName(deco, trait, stack.p), Gacha.FormatNumber(stack.c)),
+			Text = string.format("%s ×%s", itemName(deco, trait, stack.p, stack.s), Gacha.FormatNumber(stack.c)),
 			TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
 			Size = UDim2.new(1, -110, 1, 0),
 			Position = UDim2.fromOffset(10, 0),
@@ -1501,7 +1541,7 @@ local function refreshTree()
 				or (pickingSlot ~= nil and pickingSlot.area == area.id and pickingSlot.index == index)
 			if deco and trait then
 				local color = Rarity.List[deco.rarity].color
-				cell.name.Text = paintedName(deco, entry.p)
+				cell.name.Text = paintedName(deco, entry.p, entry.s)
 				cell.name.TextColor3 = color
 				cell.trait.Text = if trait == Catalog.BaseTrait then "" else trait.name
 				cell.trait.TextColor3 = traitColor(trait)
@@ -1538,9 +1578,9 @@ local function refreshTree()
 			local r = Rarity.List[deco.rarity]
 			ui.treeDetail.Text = string.format(
 				"%s [%s] 가치 %s코인",
-				itemName(deco, trait, entry.p),
+				itemName(deco, trait, entry.p, entry.s),
 				r.name,
-				Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, trait.mult))
+				Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, entry.s)))
 			)
 			ui.treeDetail.TextColor3 = r.color
 		end
@@ -1551,7 +1591,7 @@ local function refreshTree()
 			local deco = entry and Catalog.DecorationById[entry.d]
 			local trait = entry and Catalog.TraitById[entry.t]
 			if deco and trait then
-				total += Gacha.GetItemValue(deco.rarity, trait.mult)
+				total += Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, entry.s))
 			end
 		end
 		ui.treeDetail.Text = string.format("%d개를 골랐습니다 · 가치 합 %s코인", #chosen, Gacha.FormatNumber(total))
@@ -1591,8 +1631,13 @@ local function refreshAutoSell()
 	end
 end
 
+local function refreshSpinStats()
+	ui.spinStats.Text = string.format("행운 ×%.2f · 회전 %.1f초", state.luck or 1, state.reelTime or Config.REEL_STOP_TIME)
+end
+
 local function applyState(newState)
 	state = newState
+	refreshSpinStats()
 	refreshAutoSell()
 	refreshCoins()
 	refreshOdds()
@@ -1654,17 +1699,20 @@ local function setReel(i: number, text: string, color: Color3)
 	reel.stroke.Color = color
 end
 
-local function showRarityReel(index: number)
-	local r = Rarity.List[index]
-	setReel(1, r.name, r.color)
-end
-
-local function showDecoReel(deco)
-	setReel(2, deco.name, Rarity.List[deco.rarity].color)
-end
-
 local function showTraitReel(trait)
-	setReel(3, trait.name, traitColor(trait))
+	setReel(1, trait.name, traitColor(trait))
+end
+
+local function showSizeReel(size)
+	setReel(2, size.name, sizeColor(size))
+end
+
+-- 장식 칸: 이름과 그 아래 작게 등급 (둘 다 등급색)
+local function showDecoReel(deco)
+	local r = Rarity.List[deco.rarity]
+	setReel(3, deco.name, r.color)
+	ui.reels[3].sub.Text = r.name
+	ui.reels[3].sub.TextColor3 = r.color
 end
 
 local function popReel(i: number, size: number, duration: number, style: Enum.EasingStyle?)
@@ -1693,17 +1741,17 @@ local function randomFrom(list)
 	return list[math.random(1, #list)]
 end
 
--- 슬롯 3칸이 같이 돌다가 등급·장식이 함께 멈추고, 마지막에 특성이 멈춘다 (전체 시간의 75% · 75% · 100% 지점)
--- 등급이 먼저 멈추면 나올 수 없는 장식이 계속 지나가서 기대가 없으므로 둘을 같은 순간에 멈춘다
--- 도는 동안에는 두 칸이 따로 무작위로 돌고, 멈출 때만 실제 결과로 맞춰진다
+-- 슬롯 3칸이 같이 돌다가 왼쪽부터 특성 → 크기 → 장식 순서로 멈춘다 (전체 시간의 40% · 60% · 100% 지점)
+-- 장식 칸(이름 아래 작게 등급)이 혼자 남는 시간(5초면 2초)에 한 칸씩 뜸을 들여 긴장감을 준다
+-- 세 칸은 서로 따로 굴러간다(특성·크기는 장식과 따로 뽑으므로 거짓 결과를 보여 주지 않는다)
 -- 전체 시간은 서버가 정한다(REEL_STOP_TIME). 여기서는 칸이 넘어가는 간격만 정한다
-local REEL_STOP_FRACTIONS = { 0.75, 0.75, 1.0 }
+local REEL_STOP_FRACTIONS = { 0.4, 0.6, 1.0 }
 local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(초)
 -- 멈추기 직전 마지막 간격(그 칸이 멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값
--- 특성 칸(3번)은 마지막 간격이 길어서 끝에서 한 칸씩 뜸을 들이며 넘어간다 (5초면 0.6초)
+-- 장식 칸(3번)은 마지막 간격이 길어서 끝에서 한 칸씩 뜸을 들이며 넘어간다 (5초면 0.5 → 0.64 → 0.8초)
 -- 비율이라 속도 업그레이드로 전체 시간이 줄어도 느려지는 느낌은 같다
-local REEL_LAST_GAP = { 0.08, 0.08, 0.12 }
-local REEL_GAP_RATIO = { 0.75, 0.75, 0.78 }
+local REEL_LAST_GAP = { 0.1, 0.08, 0.16 }
+local REEL_GAP_RATIO = { 0.75, 0.75, 0.8 }
 
 -- 칸이 바뀌는 시각들 (마지막이 stopTime). 끝에서부터 간격을 늘려 가며 거꾸로 만든다
 local function reelTimes(stopTime: number, lastGapFraction: number, ratio: number): { number }
@@ -1725,18 +1773,18 @@ local function reelTimes(stopTime: number, lastGapFraction: number, ratio: numbe
 	return times
 end
 
-local function playReel(rarityIndex: number, deco, trait, duration: number)
-	local finals = { rarityIndex, deco, trait }
-	local showers = { showRarityReel, showDecoReel, showTraitReel }
+local function playReel(deco, trait, size, duration: number)
+	local finals = { trait, size, deco }
+	local showers = { showTraitReel, showSizeReel, showDecoReel }
 	local pickers = {
 		function()
-			return math.random(1, Rarity.Count)
+			return randomFrom(activeTraits)
+		end,
+		function()
+			return randomFrom(Catalog.Sizes)
 		end,
 		function()
 			return randomFrom(activeDecos)
-		end,
-		function()
-			return randomFrom(activeTraits)
 		end,
 	}
 
@@ -1762,7 +1810,7 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 	end
 
 	ui.reelSub.Text = ""
-	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 특성 칸만 남았을 때
+	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 장식 칸만 남았을 때
 	local start = os.clock()
 	while true do
 		local elapsed = os.clock() - start
@@ -1783,10 +1831,10 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 				reel.shown = step
 				showers[i](reel.sequence[step])
 				if step == reel.steps then
-					-- 멈춘 칸은 크게 튕긴다. 특성 칸은 더 크게
+					-- 멈춘 칸은 크게 튕긴다. 장식 칸은 더 크게
 					popReel(i, if i == 3 then 1.45 else 1.3, if i == 3 then 0.45 else 0.3, Enum.EasingStyle.Back)
 				elseif i == 3 and elapsed >= slowStart then
-					popReel(i, 1.14, 0.15) -- 특성 칸만 남으면 넘어갈 때마다 쿵쿵 크게 뛴다
+					popReel(i, 1.14, 0.15) -- 장식 칸만 남으면 넘어갈 때마다 쿵쿵 크게 뛴다
 				else
 					popReel(i, 1.08, 0.08)
 				end
@@ -1804,10 +1852,10 @@ local function playReel(rarityIndex: number, deco, trait, duration: number)
 	end
 end
 
-local function playResultEffect(rarityIndex: number, deco, trait, paintId: string?)
+local function playResultEffect(rarityIndex: number, deco, trait, paintId: string?, sizeId: string?)
 	local r = Rarity.List[rarityIndex]
 	local probs = Gacha.GetProbabilities(state.luck)
-	local value = Gacha.GetItemValue(rarityIndex, trait.mult)
+	local value = Gacha.GetItemValue(rarityIndex, Catalog.ValueMult(trait, sizeId))
 	ui.reelSub.Text = string.format("%s · 가치 %s코인", Gacha.FormatOdds(probs[rarityIndex]), Gacha.FormatNumber(value))
 
 	if rarityIndex < Config.EFFECT_MIN_RARITY then
@@ -1828,7 +1876,7 @@ local function playResultEffect(rarityIndex: number, deco, trait, paintId: strin
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
 	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait, paintId), r.name), r.color)
+		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait, paintId, sizeId), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
@@ -1840,12 +1888,13 @@ local function playResultEffect(rarityIndex: number, deco, trait, paintId: strin
 				for i = 1, 3 do
 					ui.reels[i].stroke.Color = color
 				end
-				ui.reels[1].text.TextColor3 = color
+				ui.reels[3].text.TextColor3 = color
+				ui.reels[3].sub.TextColor3 = color
 				RunService.RenderStepped:Wait()
 			end
-			showRarityReel(rarityIndex)
-			showDecoReel(deco)
 			showTraitReel(trait)
+			showSizeReel(Catalog.SizeOf(sizeId))
+			showDecoReel(deco)
 		end)
 	end
 end
@@ -1884,9 +1933,9 @@ local function spin(kind: string)
 	state.nextFreeSpinAt = result.state.nextFreeSpinAt
 	refreshCoins()
 
-	playReel(result.rarity, deco, trait, result.reelTime)
+	playReel(deco, trait, Catalog.SizeOf(result.sizeId), result.reelTime)
 	applyState(result.state)
-	playResultEffect(result.rarity, deco, trait, result.paintId)
+	playResultEffect(result.rarity, deco, trait, result.paintId, result.sizeId)
 	if result.autoSold then
 		ui.reelSub.Text = string.format("자동 판매 +%s코인", Gacha.FormatNumber(result.saleCoins))
 	end
@@ -2095,7 +2144,7 @@ local function onAnnounce(data)
 			"%s %s님이 뽑았습니다: %s [%s] (%s)",
 			prefix,
 			tostring(data.playerName),
-			itemName(deco, trait),
+			itemName(deco, trait, nil, if type(data.sizeId) == "string" then data.sizeId else nil),
 			r.name,
 			Gacha.FormatOdds(1 / r.n)
 		),

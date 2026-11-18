@@ -8,6 +8,8 @@
 	area    "Topper"(꼭대기) "Ornament"(가지에 거는 것) "Garland"(띠)
 	weight  (선택) 같은 등급 안에서 나오는 비율. 안 쓰면 1. 2면 다른 장식보다 2배 잘 나온다.
 	model   (선택) ReplicatedStorage.DecorationModels 안의 3D 모델 이름. 트리 꾸미기 작업 때 연결.
+	size    (선택) 모델 크기 배수. 안 쓰면 1 (오너먼트 1.4 · 토퍼 2.4스터드에 맞춰진다). 1.3이면 1.3배 크게
+	turn    (선택) 모델을 옆으로 돌리는 각도(도). 트리에 걸었을 때 뒤나 옆을 보고 있으면 180, 90, -90 등으로 고친다
 	paintable (선택) true면 뽑을 때 Paints.luau의 색이 랜덤으로 정해져 모델의 Paint 파트에 칠해진다.
 	        색이 다르면 가방 칸이 따로 생기므로, Paint 파트가 있는 모델에만 켠다.
 	retired (선택) true면 더 이상 뽑히지 않는다. 이미 가진 사람은 그대로 갖는다. (삭제 대신 이걸 쓸 것)
@@ -55,7 +57,7 @@ return {
 
 	-- 레어
 	{ id = "SantaHat", name = "산타 모자", rarity = "Rare", area = "Topper" },
-	{ id = "SpinningMaxWellTheCat", name = "산타 ", rarity = "Rare", area = "Topper" },
+	{ id = "SpinningMaxWellTheCat", name = "빙글빙글 맥스웰", rarity = "Rare", area = "Topper" },
 
 
 	{ id = "TakeLKeycap", name = "L을 가져가 키캡", rarity = "Rare", area = "Ornament" },

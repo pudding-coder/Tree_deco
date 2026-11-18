@@ -1,6 +1,7 @@
 -- 장식·특성 카탈로그: Decorations.luau와 Traits.luau를 읽고 검사한다.
 -- 잘못 적은 곳이 있으면 게임이 시작될 때 Output에 빨간 글씨로 어디가 틀렸는지 알려준다.
 local Rarity = require(script.Parent.Rarity)
+local Config = require(script.Parent.Config)
 
 local rawDecorations = require(script.Decorations)
 local rawTraits = require(script.Traits)
@@ -72,6 +73,12 @@ for index, deco in rawDecorations do
 	if deco.model ~= nil and not isNonEmptyString(deco.model) then
 		problem(where, "model은 모델 이름(글자)이어야 해요")
 	end
+	if deco.size ~= nil and (type(deco.size) ~= "number" or deco.size <= 0) then
+		problem(where, "size는 0보다 큰 숫자여야 해요 (1이면 기본 크기, 1.5면 1.5배)")
+	end
+	if deco.turn ~= nil and type(deco.turn) ~= "number" then
+		problem(where, "turn은 숫자(도)여야 해요. 예: turn = 180")
+	end
 	if deco.paintable ~= nil and type(deco.paintable) ~= "boolean" then
 		problem(where, "paintable은 true 또는 false여야 해요")
 	end
@@ -85,6 +92,8 @@ for index, deco in rawDecorations do
 			weight = deco.weight or 1,
 			model = deco.model,
 			paintable = deco.paintable == true,
+			size = deco.size or 1,
+			turn = deco.turn or 0,
 			retired = deco.retired == true,
 		}
 		table.insert(Catalog.Decorations, entry)
@@ -227,6 +236,47 @@ if needsPaint and #paintPool == 0 then
 	problem("Paints.luau", "paintable 장식이 있는데 뽑힐 수 있는 색이 하나도 없어요")
 end
 
+----------------------------------------------------------------
+-- 크기 (Config.SIZES)
+----------------------------------------------------------------
+
+Catalog.Sizes = {} -- Config에 적힌 순서
+Catalog.SizeById = {}
+Catalog.BaseSize = nil -- n이 없는 기본 크기 (보통)
+
+local sizeBaseCount = 0
+local sizeProbabilitySum = 0
+for index, size in Config.SIZES do
+	local where = string.format("Config.SIZES %d번째 줄(id=%s)", index, tostring(type(size) == "table" and size.id))
+	if type(size) ~= "table" or not isValidId(size.id) or Catalog.SizeById[size.id] then
+		problem(where, "id가 없거나 겹쳐요")
+		continue
+	end
+	if not isNonEmptyString(size.name) then
+		problem(where, "name이 비어 있어요")
+	end
+	if type(size.scale) ~= "number" or size.scale <= 0 or type(size.mult) ~= "number" or size.mult <= 0 then
+		problem(where, "scale과 mult는 0보다 큰 숫자여야 해요")
+	end
+	if size.n ~= nil and (type(size.n) ~= "number" or size.n <= 1) then
+		problem(where, "n은 1보다 큰 숫자여야 해요")
+	end
+	table.insert(Catalog.Sizes, size)
+	Catalog.SizeById[size.id] = size
+	if size.n == nil then
+		sizeBaseCount += 1
+		Catalog.BaseSize = size
+	else
+		sizeProbabilitySum += 1 / size.n
+	end
+end
+if sizeBaseCount ~= 1 then
+	problem("Config.SIZES", string.format("n을 비워 둔 기본 크기가 정확히 1개여야 해요 (지금 %d개)", sizeBaseCount))
+end
+if sizeProbabilitySum >= 1 then
+	problem("Config.SIZES", "크기 확률(1/n)을 모두 더하면 100%를 넘어요")
+end
+
 if #problems > 0 then
 	error("\n[카탈로그 오류] 아래를 고쳐 주세요\n- " .. table.concat(problems, "\n- "), 0)
 end
@@ -268,20 +318,54 @@ function Catalog.RollPaint(rng: Random)
 	return paintPool[#paintPool]
 end
 
--- 가방 칸 열쇠: 장식·특성·색이 모두 같으면 한 칸에 쌓인다 (서버·클라이언트 공용)
-function Catalog.StackKey(decoId: string, traitId: string, paintId: string?): string
-	if paintId then
-		return decoId .. ":" .. traitId .. ":" .. paintId
+-- 크기 하나를 뽑는다 (띠는 부르지 않고 보통)
+function Catalog.RollSize(rng: Random)
+	local r = rng:NextNumber()
+	local acc = 0
+	for _, size in Catalog.Sizes do
+		if size.n then
+			acc += 1 / size.n
+			if r < acc then
+				return size
+			end
+		end
 	end
-	return decoId .. ":" .. traitId
+	return Catalog.BaseSize
 end
 
--- 화면 이름: "반짝이 분홍 공" (기본 특성·색 없음이면 빈 칸 없이)
-function Catalog.ItemName(deco, trait, paintId: string?): string
+-- 저장된 크기 id → 크기 (없거나 모르는 id면 보통)
+function Catalog.SizeOf(sizeId: string?)
+	return (sizeId and Catalog.SizeById[sizeId]) or Catalog.BaseSize
+end
+
+-- 가치 배수 = 특성 배수 × 크기 배수
+function Catalog.ValueMult(trait, sizeId: string?): number
+	return trait.mult * Catalog.SizeOf(sizeId).mult
+end
+
+-- 가방 칸 열쇠: 장식·특성·색·크기가 모두 같으면 한 칸에 쌓인다 (서버·클라이언트 공용)
+-- 크기가 보통이면 크기를 빼서, 크기가 생기기 전 열쇠와 같다
+function Catalog.StackKey(decoId: string, traitId: string, paintId: string?, sizeId: string?): string
+	local key = decoId .. ":" .. traitId
+	if paintId then
+		key ..= ":" .. paintId
+	end
+	if sizeId and sizeId ~= Catalog.BaseSize.id then
+		key ..= "#" .. sizeId
+	end
+	return key
+end
+
+-- 화면 이름: "반짝이 거대 분홍 공" (기본 특성·보통 크기·색 없음이면 그 말은 빼고)
+function Catalog.ItemName(deco, trait, paintId: string?, sizeId: string?): string
 	local name = deco.name
 	local paint = paintId and Catalog.PaintById[paintId]
 	if paint then
 		name = paint.name .. " " .. name
+	end
+	local size = Catalog.SizeOf(sizeId)
+	if size ~= Catalog.BaseSize then
+		name = size.name .. " " .. name
 	end
 	if trait ~= Catalog.BaseTrait then
 		name = trait.name .. " " .. name

@@ -67,7 +67,7 @@ function GachaService.BuildState(player: Player)
 	local stacks = {}
 	for _, stack in profile.stacks do
 		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
-			table.insert(stacks, { d = stack.d, t = stack.t, p = stack.p, c = stack.c, l = stack.l })
+			table.insert(stacks, { d = stack.d, t = stack.t, p = stack.p, s = stack.s, c = stack.c, l = stack.l })
 		end
 	end
 
@@ -101,16 +101,17 @@ end
 -- 공지
 ----------------------------------------------------------------
 
-local function announceToServer(playerName: string, decoId: string, traitId: string, isGlobal: boolean)
+local function announceToServer(playerName: string, decoId: string, traitId: string, sizeId: string?, isGlobal: boolean)
 	Remotes.Announce:FireAllClients({
 		playerName = playerName,
 		decoId = decoId,
 		traitId = traitId,
+		sizeId = sizeId,
 		global = isGlobal,
 	})
 end
 
-local function publishGlobal(playerName: string, decoId: string, traitId: string)
+local function publishGlobal(playerName: string, decoId: string, traitId: string, sizeId: string?)
 	task.spawn(function()
 		local ok, err = pcall(function()
 			MessagingService:PublishAsync(GLOBAL_TOPIC, {
@@ -118,6 +119,7 @@ local function publishGlobal(playerName: string, decoId: string, traitId: string
 				playerName = playerName,
 				decoId = decoId,
 				traitId = traitId,
+				sizeId = sizeId,
 			})
 		end)
 		if not ok then
@@ -138,7 +140,8 @@ local function onGlobalMessage(message)
 	if not Catalog.DecorationById[data.decoId] or not Catalog.TraitById[data.traitId] then
 		return
 	end
-	announceToServer(tostring(data.playerName), data.decoId, data.traitId, true)
+	local sizeId = if type(data.sizeId) == "string" and Catalog.SizeById[data.sizeId] then data.sizeId else nil
+	announceToServer(tostring(data.playerName), data.decoId, data.traitId, sizeId, true)
 end
 
 ----------------------------------------------------------------
@@ -191,22 +194,25 @@ local function onSpin(player: Player, kind: any)
 	local trait = Catalog.RollTrait(rng)
 	local paint = if deco.paintable then Catalog.RollPaint(rng) else nil
 	local paintId = paint and paint.id
+	-- 크기: 띠는 항상 보통. 보통은 저장하지 않는다(nil)
+	local size = if deco.area == "Garland" then Catalog.BaseSize else Catalog.RollSize(rng)
+	local sizeId = if size ~= Catalog.BaseSize then size.id else nil
 	local coinsAfterCost = profile.coins
 
 	-- 자동 판매: 지정한 등급 이하이고, 그 칸이 잠기지 않았고, (설정에 따라) 특성이 없을 때
-	local key = PlayerData.StackKey(deco.id, trait.id, paintId)
+	local key = PlayerData.StackKey(deco.id, trait.id, paintId, sizeId)
 	local existing = PlayerData.FindStack(profile, key)
 	local isLocked = if existing
 		then existing.l
 		else rarityIndex >= Config.DEFAULT_LOCK_MIN_RARITY
-	local traitAllowed = trait == Catalog.BaseTrait or not Config.AUTO_SELL_ONLY_BASE_TRAIT
+	local traitAllowed = (trait == Catalog.BaseTrait and sizeId == nil) or not Config.AUTO_SELL_ONLY_BASE_TRAIT
 
 	local saleCoins = 0
 	if PlayerData.IsAutoSold(profile, rarityIndex) and not isLocked and traitAllowed then
-		saleCoins = Gacha.GetSellPrice(rarityIndex, trait.mult)
+		saleCoins = Gacha.GetSellPrice(rarityIndex, Catalog.ValueMult(trait, sizeId))
 		PlayerData.AddCoins(player, saleCoins)
 	else
-		PlayerData.AddItem(profile, deco, trait, 1, paintId)
+		PlayerData.AddItem(profile, deco, trait, 1, paintId, sizeId)
 	end
 
 	-- 공지는 슬롯이 멈춘 뒤에 띄운다 (결과를 미리 알리지 않도록)
@@ -214,9 +220,9 @@ local function onSpin(player: Player, kind: any)
 		local playerName = player.DisplayName
 		local isGlobal = rarityIndex >= Config.GLOBAL_ANNOUNCE_MIN_RARITY
 		task.delay(reelTime, function()
-			announceToServer(playerName, deco.id, trait.id, isGlobal)
+			announceToServer(playerName, deco.id, trait.id, sizeId, isGlobal)
 			if isGlobal then
-				publishGlobal(playerName, deco.id, trait.id)
+				publishGlobal(playerName, deco.id, trait.id, sizeId)
 			end
 		end)
 	end
@@ -227,6 +233,7 @@ local function onSpin(player: Player, kind: any)
 		decoId = deco.id,
 		traitId = trait.id,
 		paintId = paintId,
+		sizeId = sizeId,
 		reelTime = reelTime,
 		autoSold = saleCoins > 0,
 		saleCoins = saleCoins,
