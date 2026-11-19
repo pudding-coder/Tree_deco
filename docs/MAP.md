@@ -354,6 +354,59 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 | 리더보드 판 | `Leaderboard.fbx` |
 | 숲 · 눈 언덕 | `PineTree.fbx` · `SnowHill.fbx` |
 
+### 우리 FBX 색 입히기 (Command Bar)
+
+Import 3D로 불러오면 색이 빠져서 **회색**으로 나올 수 있다(텍스처 없이 재질 색만 쓴 모델이라). 파트 이름 끝(`StarPole_Stone`의 `Stone`)을 보고 Blender에서 정한 색을 다시 입힌다. `Glow…`는 빛나는 Neon, `GlowWarm`(가로등·가게 전구)에는 불빛도 단다. **선택한 모델에만** 입히고, 아무것도 선택하지 않으면 Workspace 전체에 입힌다.
+
+```lua
+local COLORS = {
+	Coal = { 24, 24, 28 }, Cream = { 246, 241, 231 }, Glass = { 192, 231, 255 },
+	GlowBlue = { 90, 161, 240 }, GlowGold = { 255, 217, 73 }, GlowGreen = { 121, 231, 191 },
+	GlowRed = { 233, 63, 57 }, GlowWarm = { 255, 227, 151 }, Gold = { 255, 217, 73 },
+	Green = { 43, 155, 92 }, GreenDark = { 32, 107, 74 }, Iron = { 39, 43, 55 },
+	Orange = { 255, 155, 57 }, Potion = { 181, 92, 255 }, Purple = { 139, 92, 240 },
+	Red = { 217, 46, 55 }, Snow = { 244, 248, 255 }, Stone = { 142, 128, 135 },
+	Wood = { 139, 85, 46 }, WoodDark = { 95, 55, 26 }, WoodLight = { 177, 123, 75 },
+}
+local roots = game:GetService("Selection"):Get()
+if #roots == 0 then
+	roots = { workspace }
+end
+local painted = 0
+for _, root in roots do
+	local list = root:GetDescendants()
+	table.insert(list, root)
+	for _, p in list do
+		if not p:IsA("BasePart") then
+			continue
+		end
+		local key = string.match(p.Name, "_([%a]+)$") or p.Name
+		local rgb = COLORS[key]
+		if not rgb then
+			continue
+		end
+		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		if string.sub(key, 1, 4) == "Glow" then
+			p.Material = Enum.Material.Neon
+		elseif key == "Glass" then
+			p.Material = Enum.Material.Glass
+			p.Transparency = 0.4
+		else
+			p.Material = Enum.Material.SmoothPlastic
+		end
+		if key == "GlowWarm" and not p:FindFirstChildOfClass("PointLight") then
+			local light = Instance.new("PointLight")
+			light.Color = p.Color
+			light.Range = 14
+			light.Brightness = 1.5
+			light.Parent = p
+		end
+		painted += 1
+	end
+end
+print("색을 입힌 파트:", painted)
+```
+
 ### 무료 에셋 후보 (Creator Store)
 
 웹 검색으로 찾은 후보다. 품질·라이선스·스크립트 여부는 **직접 확인하지 못했다**. 아래 스크립트로 한꺼번에 꺼내 보고 마음에 드는 것만 남긴다.
