@@ -468,12 +468,12 @@ local function loadMapSpots()
 	local pads = Instance.new("Folder")
 	pads.Name = "PlotSpotPads"
 	pads.Parent = workspace
-	-- 판을 그 자리의 바닥 표면(지형 눈, MapGround·MapPaths 바닥 파트)에 맞춘다. 판이 눈에 묻혀 있거나 떠 있어도
+	-- 판을 그 자리의 바닥 표면(지형 눈, Workspace의 MapGround·MapPaths·MapFloor·Baseplate 안의 바닥 파트)에 맞춘다. 판이 눈에 묻혀 있거나 떠 있어도
 	-- 트리·매트·사람이 서는 곳이 실제 바닥 위가 된다. 바닥을 못 찾으면 판 위치 그대로
 	local floorParams = RaycastParams.new()
 	floorParams.FilterType = Enum.RaycastFilterType.Include
 	local floors = { workspace.Terrain }
-	for _, name in { "MapGround", "MapPaths" } do
+	for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
 		local folder = workspace:FindFirstChild(name)
 		if folder then
 			table.insert(floors, folder)
