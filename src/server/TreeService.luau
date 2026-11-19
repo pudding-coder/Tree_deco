@@ -1143,11 +1143,37 @@ end
 -- 배정
 ----------------------------------------------------------------
 
+-- 트리 앞으로 옮긴다. 바닥(지형 눈 등)이 울퉁불퉁하므로 그 자리의 실제 바닥 표면을 재서 그 위에 세운다
+local SPAWN_HEIGHT = 3 -- 바닥 표면에서 이만큼 위에 내려놓는다(스터드)
+local function groundedSpawn(spawn: CFrame, character: Model): CFrame
+	local ignore = { character, plotsFolder }
+	for _, name in { "PlotSpots", "PlotSpotBorders", "MapWalls", "Walls" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(ignore, folder)
+		end
+	end
+	for _, other in Players:GetPlayers() do
+		if other.Character then
+			table.insert(ignore, other.Character)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	params.RespectCanCollide = true -- 밟을 수 없는 것(장식·투명 표시)은 건너뛴다
+	local hit = workspace:Raycast(spawn.Position + Vector3.new(0, 200, 0), Vector3.new(0, -400, 0), params)
+	if not hit then
+		return spawn
+	end
+	return spawn.Rotation + Vector3.new(spawn.X, hit.Position.Y + SPAWN_HEIGHT, spawn.Z)
+end
+
 local function teleportToPlot(player: Player)
 	local plotIndex = plotOf[player]
 	local character = player.Character
 	if plotIndex and character then
-		character:PivotTo(plots[plotIndex].spawn)
+		character:PivotTo(groundedSpawn(plots[plotIndex].spawn, character))
 	end
 end
 
