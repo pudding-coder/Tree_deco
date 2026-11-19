@@ -23,7 +23,7 @@
    - 게임이 시작되면 표시 파트와 글자는 자동으로 사라진다.
 4. **서버 인원(`SERVER_MAX_PLAYERS`, 지금 20)만큼** 만든다. 모자라면 Output에 경고가 나오고 늦게 온 사람은 트리를 못 받는다.
 
-게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 게임이 시작될 때 판은 **그 자리의 바닥 표면에 자동으로 맞춰진다**(판 안 25곳을 재서 가장 높은 곳에 흙바닥을 맞추고, 가장 낮은 곳까지 흙을 두껍게 채운다. 볼록한 눈이 흙을 뚫고 나오지 않는다)(바닥으로 보는 것: 지형, 그리고 Workspace의 `MapGround`·`MapPaths`·`MapFloor`·`Baseplate` 안의 파트. 무료 바닥 에셋을 쓰면 이 이름 중 하나의 폴더·모델에 넣는다)(눈에 묻혀 있어도 트리는 눈 위에 선다). 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
+게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 트리 자리 매트는 아래 **"트리 자리 매트 만들기: 고정"**으로 플레이스에 만들어 두면 그대로 쓰인다. 만들어 두지 않으면 게임이 시작될 때 판을 **그 자리의 바닥 표면에 맞추고** 매트를 만든다(판 안 25곳을 재서 가장 높은 곳에 흙바닥을 맞추고, 가장 낮은 곳까지 흙을 두껍게 채운다)(바닥으로 보는 것: 지형, 그리고 Workspace의 `MapGround`·`MapPaths`·`MapFloor`·`Baseplate` 안의 파트. 무료 바닥 에셋을 쓰면 이 이름 중 하나의 폴더·모델에 넣는다)(눈에 묻혀 있어도 트리는 눈 위에 선다). 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
 
 ### 원 따라 둥글게 놓기 (Command Bar)
 
@@ -157,18 +157,17 @@ print(string.format("트리 자리 %d개를 %d × %.1f × %d 판으로 바꿨습
 - 겹친다는 경고가 나오면 그 자리를 옮겨 **중심 간격 30 이상**(사이로 지나가려면 36 이상) 띄운다.
 - 판을 돌려 앞(노란 띠)을 통로 쪽으로 맞춘다. 돌릴 때는 판을 선택하고 `Cmd + R`(90도)이나 Rotate 도구.
 
-### 둥근 매트 미리보기 (Command Bar)
+### 트리 자리 매트 만들기: 고정 (Command Bar)
 
-게임에서 트리 자리에 깔리는 **둥근 흙바닥 + 돌 테두리**는 Play할 때 코드가 만든다. 편집 화면에서도 보면서 꾸미려면 아래를 실행한다. **다시 실행하면 지워진다**(켜고 끄기). 판을 옮겼으면 껐다 다시 켜면 새 위치로 그려진다. 미리보기는 잠겨 있어 꾸밀 때 집히지 않고, 게임이 시작되면 자동으로 지워지므로 남겨 둬도 된다.
+판 위치를 정했으면 이걸 실행해 **둥근 흙바닥 + 돌 테두리 매트를 플레이스에 만든다**. 판마다 안쪽 25곳의 바닥 높이를 재서, 가장 높은 곳에 흙바닥을 맞추고 가장 낮은 곳까지 흙을 채운다(볼록한 눈이 흙을 뚫고 나오지 않는다). **편집 화면에 보이는 그대로 게임에 나온다.**
+
+- 게임은 `Workspace.PlotSpotPads`가 있으면 판 높이와 매트를 **건드리지 않고 그대로** 쓴다. 없으면 게임이 시작될 때 스스로 높이를 재서 매트를 만든다(예전 방식).
+- 판을 옮기거나 바닥을 바꿨으면 **다시 실행**한다(예전 매트를 지우고 새로 만든다).
+- 한 자리만 높이를 손보려면 그 판(`PlotSpots`의 숫자)과 매트(`PlotSpotPads`의 `Spot숫자`)를 **같이 선택해서** 옮긴다. 트리는 판 바닥 높이에 선다.
 
 ```lua
--- 다시 실행하면 미리보기를 지운다 (켜고 끄기)
-local old = workspace:FindFirstChild("PlotSpotPadsPreview")
-if old then
-	old:Destroy()
-	print("둥근 매트 미리보기를 지웠습니다")
-	return
-end
+-- 트리 자리 매트 만들기 (고정): 판마다 바닥 높이를 재서 판을 맞추고, 둥근 흙바닥 + 돌 테두리 매트를 플레이스에 만든다
+-- 다시 실행하면 예전 매트를 지우고 새로 만든다. 판을 옮기거나 바닥을 바꿨으면 다시 실행한다
 -- 아래 값은 src/server/TreeService.luau의 SPOT_ 값과 같게
 local DIRT_COLOR = Color3.fromRGB(110, 78, 52)
 local STONE_COLOR = Color3.fromRGB(150, 148, 145)
@@ -178,11 +177,15 @@ local SEGMENTS = 28
 
 local spots = workspace:FindFirstChild("PlotSpots")
 assert(spots, "PlotSpots가 없습니다")
+for _, name in { "PlotSpotPads", "PlotSpotPadsPreview" } do
+	local old = workspace:FindFirstChild(name)
+	if old then old:Destroy() end
+end
 local folder = Instance.new("Folder")
-folder.Name = "PlotSpotPadsPreview"
+folder.Name = "PlotSpotPads"
 folder.Parent = workspace
 
--- 게임처럼 바닥 표면(지형, MapGround, MapPaths)에 맞춘 높이로 보여 준다 (판은 옮기지 않는다)
+-- 바닥으로 보는 것: 지형 + 이 이름의 폴더·모델 안 파트
 local floors = { workspace.Terrain }
 for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
 	local f = workspace:FindFirstChild(name)
@@ -194,26 +197,56 @@ local params = RaycastParams.new()
 params.FilterType = Enum.RaycastFilterType.Include
 params.FilterDescendantsInstances = floors
 
-local count = 0
+local made, missed = 0, 0
 for _, spot in spots:GetChildren() do
 	if not spot:IsA("BasePart") then
 		continue
 	end
-	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0)
-	local hit = workspace:Raycast(base.Position + Vector3.new(0, 300, 0), Vector3.new(0, -800, 0), params)
-	if hit then
-		base += Vector3.new(0, hit.Position.Y - base.Y, 0)
+	-- 판 안 25곳(가운데 + 원 두 겹)의 바닥 높이: 가장 높은 곳에 흙바닥을 맞추고, 가장 낮은 곳까지 흙을 채운다
+	local bottomY = spot.Position.Y - spot.Size.Y / 2
+	local radius = math.min(spot.Size.X, spot.Size.Z) / 2
+	local samples = { Vector3.zero }
+	for ring, scale in { 0.45, 0.9 } do
+		local count = ring * 8
+		for k = 1, count do
+			local a = (k - 1) / count * math.pi * 2
+			table.insert(samples, Vector3.new(math.sin(a), 0, math.cos(a)) * radius * scale)
+		end
 	end
+	local high, low = -math.huge, math.huge
+	for _, offset in samples do
+		local p = spot.Position + offset
+		local hit = workspace:Raycast(Vector3.new(p.X, bottomY + 300, p.Z), Vector3.new(0, -800, 0), params)
+		if hit then
+			high = math.max(high, hit.Position.Y)
+			low = math.min(low, hit.Position.Y)
+		end
+	end
+	local depth = 0
+	if high > -math.huge then
+		spot.CFrame += Vector3.new(0, high - bottomY, 0)
+		depth = high - low
+	else
+		missed += 1
+		warn("밑에 바닥이 없어 판 높이 그대로 둡니다:", spot.Name)
+	end
+
+	-- 판은 안 보이게 (위치 표시 역할은 그대로). 예전 둥근 그림은 지운다
+	spot.Transparency = 1
+	local look = spot:FindFirstChild("RoundLook")
+	if look then look:Destroy() end
+
+	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0) -- 트리가 서는 곳
 	local diameter = math.min(spot.Size.X, spot.Size.Z)
 	local model = Instance.new("Model")
 	model.Name = "Spot" .. spot.Name
 	local function part(props)
 		local p = Instance.new("Part")
 		p.Anchored = true
-		p.CanCollide = false
+		p.CanCollide = true
 		p.CanQuery = false
+		p.CanTouch = false
 		p.CastShadow = false
-		p.Locked = true -- 꾸밀 때 집히지 않게
 		p.TopSurface = Enum.SurfaceType.Smooth
 		p.BottomSurface = Enum.SurfaceType.Smooth
 		for k, v in props do
@@ -221,7 +254,7 @@ for _, spot in spots:GetChildren() do
 		end
 		p.Parent = model
 	end
-	local thick = 2
+	local thick = 2 + depth
 	part({
 		Name = "Dirt",
 		Shape = Enum.PartType.Cylinder,
@@ -245,9 +278,9 @@ for _, spot in spots:GetChildren() do
 		})
 	end
 	model.Parent = folder
-	count += 1
+	made += 1
 end
-print(string.format("둥근 매트 미리보기 %d개를 깔았습니다 (다시 실행하면 지워집니다)", count))
+print(string.format("트리 자리 매트 %d개를 만들었습니다 (바닥 못 찾음 %d개). 저장하면 게임도 이대로 나옵니다", made, missed))
 ```
 
 ### 트리 크기 (자리 사이 간격 잡을 때)

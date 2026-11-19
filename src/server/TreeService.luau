@@ -466,51 +466,58 @@ local function loadMapSpots()
 	if preview then
 		preview:Destroy()
 	end
-	local pads = Instance.new("Folder")
-	pads.Name = "PlotSpotPads"
-	pads.Parent = workspace
-	-- 판을 그 자리의 바닥 표면(지형 눈, Workspace의 MapGround·MapPaths·MapFloor·Baseplate 안의 바닥 파트)에 맞춘다. 판이 눈에 묻혀 있거나 떠 있어도
-	-- 트리·매트·사람이 서는 곳이 실제 바닥 위가 된다. 바닥을 못 찾으면 판 위치 그대로
-	local floorParams = RaycastParams.new()
-	floorParams.FilterType = Enum.RaycastFilterType.Include
-	local floors = { workspace.Terrain }
-	for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
-		local folder = workspace:FindFirstChild(name)
-		if folder then
-			table.insert(floors, folder)
-		end
-	end
-	floorParams.FilterDescendantsInstances = floors
-	-- 판 안 여러 곳(가운데 + 원 둘레 두 겹)의 높이를 재서 가장 높은 곳에 맞춘다. 그래야 볼록한 눈이 흙바닥을 뚫고 나오지 않는다
-	-- 가장 낮은 곳까지는 흙을 두껍게 채워 빈틈을 가린다 (PadDepth 속성으로 addSpotPad에 넘긴다)
-	for _, spot in spots do
-		local bottomY = spot.Position.Y - spot.Size.Y / 2
-		local radius = math.min(spot.Size.X, spot.Size.Z) / 2
-		local samples = { Vector3.zero }
-		for ring, scale in { 0.45, 0.9 } do
-			local count = ring * 8
-			for k = 1, count do
-				local a = (k - 1) / count * math.pi * 2
-				table.insert(samples, Vector3.new(math.sin(a), 0, math.cos(a)) * radius * scale)
+	-- 고정 방식: Studio에서 '트리 자리 매트 만들기'(docs/MAP.md)로 만든 PlotSpotPads가 있으면
+	-- 판 높이와 매트를 그대로 쓴다 (편집 화면 = 게임 화면). 없을 때만 예전처럼 여기서 높이를 재서 매트를 만든다
+	local pads = workspace:FindFirstChild("PlotSpotPads")
+	local baked = pads ~= nil
+	if not baked then
+		pads = Instance.new("Folder")
+		pads.Name = "PlotSpotPads"
+		pads.Parent = workspace
+		-- 판을 그 자리의 바닥 표면(지형 눈, Workspace의 MapGround·MapPaths·MapFloor·Baseplate 안의 바닥 파트)에 맞춘다. 판이 눈에 묻혀 있거나 떠 있어도
+		-- 트리·매트·사람이 서는 곳이 실제 바닥 위가 된다. 바닥을 못 찾으면 판 위치 그대로
+		local floorParams = RaycastParams.new()
+		floorParams.FilterType = Enum.RaycastFilterType.Include
+		local floors = { workspace.Terrain }
+		for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
+			local folder = workspace:FindFirstChild(name)
+			if folder then
+				table.insert(floors, folder)
 			end
 		end
-		local high, low = -math.huge, math.huge
-		for _, offset in samples do
-			local p = spot.Position + offset
-			local hit = workspace:Raycast(Vector3.new(p.X, bottomY + 300, p.Z), Vector3.new(0, -800, 0), floorParams)
-			if hit then
-				high = math.max(high, hit.Position.Y)
-				low = math.min(low, hit.Position.Y)
+		floorParams.FilterDescendantsInstances = floors
+		-- 판 안 여러 곳(가운데 + 원 둘레 두 겹)의 높이를 재서 가장 높은 곳에 맞춘다. 그래야 볼록한 눈이 흙바닥을 뚫고 나오지 않는다
+		-- 가장 낮은 곳까지는 흙을 두껍게 채워 빈틈을 가린다 (PadDepth 속성으로 addSpotPad에 넘긴다)
+		for _, spot in spots do
+			local bottomY = spot.Position.Y - spot.Size.Y / 2
+			local radius = math.min(spot.Size.X, spot.Size.Z) / 2
+			local samples = { Vector3.zero }
+			for ring, scale in { 0.45, 0.9 } do
+				local count = ring * 8
+				for k = 1, count do
+					local a = (k - 1) / count * math.pi * 2
+					table.insert(samples, Vector3.new(math.sin(a), 0, math.cos(a)) * radius * scale)
+				end
+			end
+			local high, low = -math.huge, math.huge
+			for _, offset in samples do
+				local p = spot.Position + offset
+				local hit = workspace:Raycast(Vector3.new(p.X, bottomY + 300, p.Z), Vector3.new(0, -800, 0), floorParams)
+				if hit then
+					high = math.max(high, hit.Position.Y)
+					low = math.min(low, hit.Position.Y)
+				end
+			end
+			if high > -math.huge then
+				spot.CFrame += Vector3.new(0, high - bottomY, 0)
+				spot:SetAttribute("PadDepth", high - low)
 			end
 		end
-		if high > -math.huge then
-			spot.CFrame += Vector3.new(0, high - bottomY, 0)
-			spot:SetAttribute("PadDepth", high - low)
-		end
 	end
-
 	for _, spot in spots do
-		addSpotPad(spot, pads)
+		if not baked then
+			addSpotPad(spot, pads)
+		end
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
 		spot.Transparency = 1
@@ -1222,7 +1229,7 @@ end
 local SPAWN_HEIGHT = 3 -- 바닥 표면에서 이만큼 위에 내려놓는다(스터드)
 local function groundedSpawn(spawn: CFrame, character: Model): CFrame
 	local ignore = { character, plotsFolder }
-	for _, name in { "PlotSpots", "PlotSpotPads", "MapWalls", "Walls" } do
+	for _, name in { "PlotSpots", "MapWalls", "Walls" } do -- 매트(PlotSpotPads)는 밟는 바닥이라 뺀다
 		local folder = workspace:FindFirstChild(name)
 		if folder then
 			table.insert(ignore, folder)
