@@ -346,7 +346,7 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 
 | 초안 | 파일 |
 | --- | --- |
-| 가운데 별 기둥(스폰) | `StarPole.fbx` |
+| 가운데 별 기둥(스폰) | `StarPole.fbx` (별은 면이 깎인 입체 별, 미리보기 `StarPole_preview.png`) |
 | 룰렛·업그레이드·물약 가게 | `StallRoulette.fbx` · `StallUpgrade.fbx` · `StallPotion.fbx` |
 | 포토존 아치 · 벤치 · 눈사람 · 선물상자 | `PhotoArch.fbx` · `Bench.fbx` · `Snowman.fbx` · `GiftBox.fbx` |
 | 길가 가로등 · 전구 줄 | `LampPost.fbx` · `StringLight.fbx`(이어 붙이는 조각) |
@@ -386,7 +386,17 @@ for _, root in roots do
 			continue
 		end
 		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
-		if string.sub(key, 1, 4) == "Glow" then
+		if p.Name == "StarPole_GlowGold" then
+			-- 별 기둥의 별: Neon이면 면 음영이 사라져 모양이 안 보인다. 금속 느낌 + 불빛으로
+			p.Material = Enum.Material.Metal
+			if not p:FindFirstChildOfClass("PointLight") then
+				local light = Instance.new("PointLight")
+				light.Color = p.Color
+				light.Range = 20
+				light.Brightness = 2
+				light.Parent = p
+			end
+		elseif string.sub(key, 1, 4) == "Glow" then
 			p.Material = Enum.Material.Neon
 		elseif key == "Glass" then
 			p.Material = Enum.Material.Glass
