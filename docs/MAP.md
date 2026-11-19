@@ -381,6 +381,40 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 | 모음 팩 | 6286468514 | Low poly Village and Nature Asset Pack |
 | 모음 팩 | 8379202496 | FREE LOW POLY ASSET PACK 2.0 |
 
+### 무료 모델 넣은 뒤 꼭: 숨은 스크립트 검사 (Command Bar)
+
+Toolbox 무료 모델에는 `qTexture`·`TextureConfiguration`·`CoreViewSystem`·`cTextureManager`처럼 **이름을 위장한 백도어 스크립트**가 자주 숨어 있다(다른 사람 코드를 에셋 ID로 몰래 불러오려 한다. Creator Hub 오류에 `cannot require using asset ID (lacking capability LoadUnownedAsset)`로 보인다). 맵에 모델을 넣었으면 아래로 검사한다. 우리 코드(Rojo의 `Server`·`Client`·`Shared`) 밖 스크립트를 모두 찾는다. 처음엔 목록만 보고, 확인 뒤 `DELETE = true`로 다시 실행해 지운 다음 저장·퍼블리시한다.
+
+```lua
+local DELETE = false -- 목록을 확인한 뒤 true로 바꿔 다시 실행하면 지운다
+local keep = {
+	game.ServerScriptService:FindFirstChild("Server"),
+	game.StarterPlayer.StarterPlayerScripts:FindFirstChild("Client"),
+	game.ReplicatedStorage:FindFirstChild("Shared"),
+}
+local function isOurs(inst)
+	for _, root in keep do
+		if root and (inst == root or inst:IsDescendantOf(root)) then
+			return true
+		end
+	end
+	return false
+end
+local found = 0
+for _, service in { workspace, game.ReplicatedStorage, game.ServerStorage, game.ServerScriptService, game.StarterGui, game.StarterPack, game.StarterPlayer, game.Lighting } do
+	for _, d in service:GetDescendants() do
+		if d:IsA("LuaSourceContainer") and not isOurs(d) then
+			found += 1
+			warn("우리 코드 밖 스크립트:", d:GetFullName(), d.ClassName)
+			if DELETE then
+				d:Destroy()
+			end
+		end
+	end
+end
+print(DELETE and "지움:" or "찾음:", found)
+```
+
 ### 후보 한꺼번에 꺼내 보기 (Command Bar)
 
 `Workspace`의 `AssetInbox` 폴더에 후보를 한 줄로 늘어놓는다(높이 300 공중, 스크립트는 지움). 고른 것은 `MapDecor` 등으로 옮기고, 끝나면 `AssetInbox`를 통째로 지운다. Explorer에서 `AssetInbox`를 고르고 `F`를 누르면 카메라가 간다.
