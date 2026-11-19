@@ -346,7 +346,7 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 
 | 초안 | 파일 |
 | --- | --- |
-| 가운데 별 기둥(스폰) | `StarPole.fbx` (별은 면이 깎인 입체 별, 미리보기 `StarPole_preview.png`) |
+| 가운데 별 기둥(스폰) | `StarPole.fbx` (색 그림 포함: 불러오기만 하면 색이 보인다. 색 입히기 스크립트를 쓰지 않는다. 미리보기 `StarPole_preview.png`, 만드는 스크립트 `tools/blender/make_starpole.py`) |
 | 룰렛·업그레이드·물약 가게 | `StallRoulette.fbx` · `StallUpgrade.fbx` · `StallPotion.fbx` |
 | 포토존 아치 · 벤치 · 눈사람 · 선물상자 | `PhotoArch.fbx` · `Bench.fbx` · `Snowman.fbx` · `GiftBox.fbx` |
 | 길가 가로등 · 전구 줄 | `LampPost.fbx` · `StringLight.fbx`(이어 붙이는 조각) |
