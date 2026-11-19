@@ -323,6 +323,98 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 
 ---
 
+## 2-0. 바닥 깔기: 잔디 + 눈 (Command Bar)
+
+길을 깔기 **전에** 바닥부터 깐다. 투명벽 안쪽(조금 더 넓게)에 **잔디 원판**을 깔고, 그 위에 **눈 무더기**를 흩뿌린다(가장자리일수록 많이). 다시 실행하면 예전 `MapGround`를 지우고 새로 깐다.
+
+- 먼저 **기본 `Baseplate`를 지운다**(잔디와 같은 높이라 겹쳐서 깜빡인다). 맵 밖이 허공이 되므로 투명벽 밖 꾸미기(숲·눈 언덕)는 따로 바닥을 깐다.
+- 눈 무더기는 길보다 얇고 낮게 깔려서, 길을 깔면 길이 눈 위로 보인다. 트리 자리 위에 눈이 겹쳐도 트리가 그 위에 선다.
+- 눈 양은 `SNOW_PATCHES`, 배치는 `SEED`를 바꿔 다시 실행한다. 다 됐으면 `Locked`로 잠근다.
+
+```lua
+local GRASS_COLOR = Color3.fromRGB(104, 150, 82) -- 잔디색
+local SNOW_COLOR = Color3.fromRGB(240, 245, 252) -- 눈색
+local SNOW_PATCHES = 160 -- 눈 무더기 수 (늘리면 눈이 많아진다)
+local SNOW_SIZE = { 6, 22 } -- 눈 무더기 지름 범위(스터드)
+local EDGE_SNOW = 2 -- 클수록 맵 가장자리에 눈이 몰린다 (1이면 고르게)
+local MARGIN = 6 -- 투명벽 밖으로 더 까는 여유
+local SEED = 7 -- 바꾸면 눈 무더기 배치가 달라진다
+
+-- 가운데·바닥 높이·반지름: 트리 자리와 투명벽 기준
+local center, groundY, radius = Vector3.zero, 0, 210
+local spots = workspace:FindFirstChild("PlotSpots")
+if spots then
+	local sum, low, n = Vector3.zero, math.huge, 0
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			sum += p.Position
+			low = math.min(low, p.Position.Y - p.Size.Y / 2)
+			n += 1
+		end
+	end
+	if n > 0 then
+		center, groundY = sum / n, low
+	end
+end
+local walls = workspace:FindFirstChild("MapWalls")
+if walls then
+	local far = 0
+	for _, w in walls:GetChildren() do
+		if w:IsA("BasePart") then
+			far = math.max(far, (Vector3.new(w.Position.X, 0, w.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude)
+		end
+	end
+	if far > 0 then
+		radius = far
+	end
+end
+radius += MARGIN
+
+local old = workspace:FindFirstChild("MapGround")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapGround"
+folder.Parent = workspace
+
+local function disc(name, x, z, diameter, thick, topY, color, material)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Shape = Enum.PartType.Cylinder
+	p.Anchored = true
+	p.CanCollide = true
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = material
+	p.Color = color
+	p.Size = Vector3.new(thick, diameter, diameter)
+	p.CFrame = CFrame.new(x, topY - thick / 2, z) * CFrame.Angles(0, 0, math.pi / 2)
+	p.Parent = folder
+	return p
+end
+
+-- 잔디 원판: 윗면이 트리 자리 바닥 높이보다 아주 조금 위 (길은 이 위에 얹힌다)
+disc("Grass", center.X, center.Z, radius * 2, 4, groundY + 0.02, GRASS_COLOR, Enum.Material.Grass)
+
+-- 눈 무더기: 원 몇 개를 겹쳐 울퉁불퉁한 모양으로. 가장자리일수록 많이
+local rng = Random.new(SEED)
+for i = 1, SNOW_PATCHES do
+	local r = radius * (rng:NextNumber() ^ (1 / (EDGE_SNOW + 1)))
+	local a = rng:NextNumber() * math.pi * 2
+	local x, z = center.X + math.sin(a) * r, center.Z - math.cos(a) * r
+	local size = rng:NextNumber(SNOW_SIZE[1], SNOW_SIZE[2])
+	for k = 1, rng:NextInteger(2, 4) do
+		local ox, oz = rng:NextNumber(-0.4, 0.4) * size, rng:NextNumber(-0.4, 0.4) * size
+		local d = size * rng:NextNumber(0.5, 1)
+		-- 원판 밖으로 나가지 않게
+		if (Vector3.new(x + ox, 0, z + oz) - Vector3.new(center.X, 0, center.Z)).Magnitude + d / 2 < radius then
+			disc("Snow" .. i .. "_" .. k, x + ox, z + oz, d, 0.3, groundY + 0.06 + k * 0.01, SNOW_COLOR, Enum.Material.Snow)
+		end
+	end
+end
+print(string.format("바닥을 깔았습니다: 잔디 반지름 %.0f, 눈 무더기 %d곳 (MapGround)", radius, SNOW_PATCHES))
+```
+
 ## 2-1. 길 깔기 (Command Bar)
 
 맵 분위기 초안의 길을 한 번에 깐다. **트리 자리를 원 따라 놓은 뒤** 실행한다(트리 자리 원을 기준으로 길 크기를 정한다). 다시 실행하면 예전 `MapPaths`를 지우고 새로 깐다.
