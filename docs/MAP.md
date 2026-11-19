@@ -23,7 +23,7 @@
    - 게임이 시작되면 표시 파트와 글자는 자동으로 사라진다.
 4. **서버 인원(`SERVER_MAX_PLAYERS`, 지금 20)만큼** 만든다. 모자라면 Output에 경고가 나오고 늦게 온 사람은 트리를 못 받는다.
 
-게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
+게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 게임이 시작될 때 판은 **그 자리의 바닥 표면(지형 눈, `MapGround`·`MapPaths`)에 자동으로 맞춰진다**(눈에 묻혀 있어도 트리는 눈 위에 선다). 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
 
 ### 원 따라 둥글게 놓기 (Command Bar)
 

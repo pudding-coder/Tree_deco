@@ -463,6 +463,26 @@ local function loadMapSpots()
 	local pads = Instance.new("Folder")
 	pads.Name = "PlotSpotPads"
 	pads.Parent = workspace
+	-- 판을 그 자리의 바닥 표면(지형 눈, MapGround·MapPaths 바닥 파트)에 맞춘다. 판이 눈에 묻혀 있거나 떠 있어도
+	-- 트리·매트·사람이 서는 곳이 실제 바닥 위가 된다. 바닥을 못 찾으면 판 위치 그대로
+	local floorParams = RaycastParams.new()
+	floorParams.FilterType = Enum.RaycastFilterType.Include
+	local floors = { workspace.Terrain }
+	for _, name in { "MapGround", "MapPaths" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(floors, folder)
+		end
+	end
+	floorParams.FilterDescendantsInstances = floors
+	for _, spot in spots do
+		local bottomY = spot.Position.Y - spot.Size.Y / 2
+		local hit = workspace:Raycast(Vector3.new(spot.Position.X, bottomY + 300, spot.Position.Z), Vector3.new(0, -800, 0), floorParams)
+		if hit and math.abs(hit.Position.Y - bottomY) > 0.05 then
+			spot.CFrame += Vector3.new(0, hit.Position.Y - bottomY, 0)
+		end
+	end
+
 	for _, spot in spots do
 		addSpotPad(spot, pads)
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
