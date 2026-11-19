@@ -212,11 +212,11 @@ else
 end
 
 -- 반지름: 이웃 매트가 SPACING만큼 떨어지고, 포토존 쪽에 PHOTO_GAP이 남게
--- 매트 COUNT개 + 포토존 한 칸이 원 둘레를 나눠 갖는다: COUNT*(PAD+SPACING) + PHOTO_GAP + PAD = 둘레
-local circumference = COUNT * (PAD + SPACING) + PHOTO_GAP + PAD
+-- 매트 사이 (COUNT-1)칸 + 포토존 한 칸이 원 둘레를 나눠 갖는다 (중심 사이 거리 기준)
+local circumference = (COUNT - 1) * (PAD + SPACING) + PHOTO_GAP + PAD
 local radius = circumference / (2 * math.pi)
 local step = (PAD + SPACING) / radius -- 이웃 매트 사이 각도
-local first = photo + (PHOTO_GAP + PAD) / 2 / radius + step / 2 -- 포토존 오른쪽 첫 자리
+local first = photo + (PHOTO_GAP + PAD) / 2 / radius -- 포토존 오른쪽 첫 자리
 
 -- 판: 번호순으로 다시 쓰고, 모자라면 만들고, 남으면 지운다
 table.sort(parts, function(a, b)
