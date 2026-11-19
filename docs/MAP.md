@@ -157,6 +157,99 @@ print(string.format("트리 자리 %d개를 %d × %.1f × %d 판으로 바꿨습
 - 겹친다는 경고가 나오면 그 자리를 옮겨 **중심 간격 30 이상**(사이로 지나가려면 36 이상) 띄운다.
 - 판을 돌려 앞(노란 띠)을 통로 쪽으로 맞춘다. 돌릴 때는 판을 선택하고 `Cmd + R`(90도)이나 Rotate 도구.
 
+### 둥근 매트 미리보기 (Command Bar)
+
+게임에서 트리 자리에 깔리는 **둥근 흙바닥 + 돌 테두리**는 Play할 때 코드가 만든다. 편집 화면에서도 보면서 꾸미려면 아래를 실행한다. **다시 실행하면 지워진다**(켜고 끄기). 판을 옮겼으면 껐다 다시 켜면 새 위치로 그려진다. 미리보기는 잠겨 있어 꾸밀 때 집히지 않고, 게임이 시작되면 자동으로 지워지므로 남겨 둬도 된다.
+
+```lua
+-- 다시 실행하면 미리보기를 지운다 (켜고 끄기)
+local old = workspace:FindFirstChild("PlotSpotPadsPreview")
+if old then
+	old:Destroy()
+	print("둥근 매트 미리보기를 지웠습니다")
+	return
+end
+-- 아래 값은 src/server/TreeService.luau의 SPOT_ 값과 같게
+local DIRT_COLOR = Color3.fromRGB(110, 78, 52)
+local STONE_COLOR = Color3.fromRGB(150, 148, 145)
+local RIM_WIDTH = 1.6
+local RIM_HEIGHT = 0.7
+local SEGMENTS = 28
+
+local spots = workspace:FindFirstChild("PlotSpots")
+assert(spots, "PlotSpots가 없습니다")
+local folder = Instance.new("Folder")
+folder.Name = "PlotSpotPadsPreview"
+folder.Parent = workspace
+
+-- 게임처럼 바닥 표면(지형, MapGround, MapPaths)에 맞춘 높이로 보여 준다 (판은 옮기지 않는다)
+local floors = { workspace.Terrain }
+for _, name in { "MapGround", "MapPaths" } do
+	local f = workspace:FindFirstChild(name)
+	if f then
+		table.insert(floors, f)
+	end
+end
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Include
+params.FilterDescendantsInstances = floors
+
+local count = 0
+for _, spot in spots:GetChildren() do
+	if not spot:IsA("BasePart") then
+		continue
+	end
+	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0)
+	local hit = workspace:Raycast(base.Position + Vector3.new(0, 300, 0), Vector3.new(0, -800, 0), params)
+	if hit then
+		base += Vector3.new(0, hit.Position.Y - base.Y, 0)
+	end
+	local diameter = math.min(spot.Size.X, spot.Size.Z)
+	local model = Instance.new("Model")
+	model.Name = "Spot" .. spot.Name
+	local function part(props)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CastShadow = false
+		p.Locked = true -- 꾸밀 때 집히지 않게
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		for k, v in props do
+			p[k] = v
+		end
+		p.Parent = model
+	end
+	local thick = 2
+	part({
+		Name = "Dirt",
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Ground,
+		Color = DIRT_COLOR,
+		Size = Vector3.new(thick, diameter - RIM_WIDTH, diameter - RIM_WIDTH),
+		CFrame = base * CFrame.new(0, 0.15 - thick / 2, 0) * CFrame.Angles(0, 0, math.pi / 2),
+	})
+	local r = diameter / 2 - RIM_WIDTH / 2
+	local length = 2 * (r + RIM_WIDTH / 2) * math.tan(math.pi / SEGMENTS) + 0.1
+	local rimHeight = thick + RIM_HEIGHT
+	for i = 1, SEGMENTS do
+		local a = (i - 1) / SEGMENTS * math.pi * 2
+		local pos = base * CFrame.new(math.sin(a) * r, 0.15 + RIM_HEIGHT - rimHeight / 2, -math.cos(a) * r)
+		part({
+			Name = "Rim" .. i,
+			Material = Enum.Material.Slate,
+			Color = STONE_COLOR,
+			Size = Vector3.new(length, rimHeight, RIM_WIDTH),
+			CFrame = CFrame.lookAt(pos.Position, base.Position + Vector3.new(0, pos.Y - base.Y, 0)),
+		})
+	end
+	model.Parent = folder
+	count += 1
+end
+print(string.format("둥근 매트 미리보기 %d개를 깔았습니다 (다시 실행하면 지워집니다)", count))
+```
+
 ### 트리 크기 (자리 사이 간격 잡을 때)
 
 | 항목 | 크기 (스터드) |

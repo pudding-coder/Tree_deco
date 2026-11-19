@@ -460,6 +460,11 @@ local function loadMapSpots()
 	end)
 
 	plotPositions = {}
+	-- 편집 화면용 미리보기 매트(docs/MAP.md '둥근 매트 미리보기')가 남아 있으면 지운다 (게임에서 겹치지 않게)
+	local preview = workspace:FindFirstChild("PlotSpotPadsPreview")
+	if preview then
+		preview:Destroy()
+	end
 	local pads = Instance.new("Folder")
 	pads.Name = "PlotSpotPads"
 	pads.Parent = workspace
