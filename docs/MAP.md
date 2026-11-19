@@ -336,6 +336,196 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 2. Play → Output에 `PlotSpots에 자리가 N개뿐입니다` 경고가 없는지 확인.
 3. **Test** 탭에서 플레이어를 2~3명으로 두고 Start → 트리가 1번, 2번, 3번 자리에 차례로 생기는지 확인.
 
+## 5. 꾸미기 에셋
+
+맵 분위기 초안(원형 광장 · 가운데 별 기둥 스폰 · 룰렛/업그레이드/물약 가게 · 세 갈래 길 · 트리 구경 둘레길 · 포토존 아치 · 리더보드 · 숲 · 눈 언덕)에 맞춘 에셋.
+
+### 우리가 만든 에셋 (먼저 쓰기)
+
+`assets/models/map/`의 FBX 14종은 이 초안에 맞춰 만든 것이다. **Home → Import 3D**로 하나씩 불러온다(1단위 = 1스터드).
+
+| 초안 | 파일 |
+| --- | --- |
+| 가운데 별 기둥(스폰) | `StarPole.fbx` (별은 면이 깎인 입체 별, 미리보기 `StarPole_preview.png`) |
+| 룰렛·업그레이드·물약 가게 | `StallRoulette.fbx` · `StallUpgrade.fbx` · `StallPotion.fbx` |
+| 포토존 아치 · 벤치 · 눈사람 · 선물상자 | `PhotoArch.fbx` · `Bench.fbx` · `Snowman.fbx` · `GiftBox.fbx` |
+| 길가 가로등 · 전구 줄 | `LampPost.fbx` · `StringLight.fbx`(이어 붙이는 조각) |
+| 각자의 트리 자리 받침 | `PlotBase.fbx` |
+| 리더보드 판 | `Leaderboard.fbx` |
+| 숲 · 눈 언덕 | `PineTree.fbx` · `SnowHill.fbx` |
+
+### 우리 FBX 색 입히기 (Command Bar)
+
+Import 3D로 불러오면 색이 빠져서 **회색**으로 나올 수 있다(텍스처 없이 재질 색만 쓴 모델이라). 파트 이름 끝(`StarPole_Stone`의 `Stone`)을 보고 Blender에서 정한 색을 다시 입힌다. `Glow…`는 빛나는 Neon, `GlowWarm`(가로등·가게 전구)에는 불빛도 단다. **선택한 모델에만** 입히고, 아무것도 선택하지 않으면 Workspace 전체에 입힌다.
+
+```lua
+local COLORS = {
+	Coal = { 24, 24, 28 }, Cream = { 246, 241, 231 }, Glass = { 192, 231, 255 },
+	GlowBlue = { 90, 161, 240 }, GlowGold = { 255, 217, 73 }, GlowGreen = { 121, 231, 191 },
+	GlowRed = { 233, 63, 57 }, GlowWarm = { 255, 227, 151 }, Gold = { 255, 217, 73 },
+	Green = { 43, 155, 92 }, GreenDark = { 32, 107, 74 }, Iron = { 39, 43, 55 },
+	Orange = { 255, 155, 57 }, Potion = { 181, 92, 255 }, Purple = { 139, 92, 240 },
+	Red = { 217, 46, 55 }, Snow = { 244, 248, 255 }, Stone = { 142, 128, 135 },
+	Wood = { 139, 85, 46 }, WoodDark = { 95, 55, 26 }, WoodLight = { 177, 123, 75 },
+}
+local roots = game:GetService("Selection"):Get()
+if #roots == 0 then
+	roots = { workspace }
+end
+local painted = 0
+for _, root in roots do
+	local list = root:GetDescendants()
+	table.insert(list, root)
+	for _, p in list do
+		if not p:IsA("BasePart") then
+			continue
+		end
+		local key = string.match(p.Name, "_([%a]+)$") or p.Name
+		local rgb = COLORS[key]
+		if not rgb then
+			continue
+		end
+		p.Color = Color3.fromRGB(rgb[1], rgb[2], rgb[3])
+		if p.Name == "StarPole_GlowGold" then
+			-- 별 기둥의 별: Neon이면 면 음영이 사라져 모양이 안 보인다. 금속 느낌 + 불빛으로
+			p.Material = Enum.Material.Metal
+			if not p:FindFirstChildOfClass("PointLight") then
+				local light = Instance.new("PointLight")
+				light.Color = p.Color
+				light.Range = 20
+				light.Brightness = 2
+				light.Parent = p
+			end
+		elseif string.sub(key, 1, 4) == "Glow" then
+			p.Material = Enum.Material.Neon
+		elseif key == "Glass" then
+			p.Material = Enum.Material.Glass
+			p.Transparency = 0.4
+		else
+			p.Material = Enum.Material.SmoothPlastic
+		end
+		if key == "GlowWarm" and not p:FindFirstChildOfClass("PointLight") then
+			local light = Instance.new("PointLight")
+			light.Color = p.Color
+			light.Range = 14
+			light.Brightness = 1.5
+			light.Parent = p
+		end
+		painted += 1
+	end
+end
+print("색을 입힌 파트:", painted)
+```
+
+### 무료 에셋 후보 (Creator Store)
+
+웹 검색으로 찾은 후보다. 품질·라이선스·스크립트 여부는 **직접 확인하지 못했다**. 아래 스크립트로 한꺼번에 꺼내 보고 마음에 드는 것만 남긴다.
+
+| 용도 | 에셋 ID | 이름 |
+| --- | --- | --- |
+| 가게 | 2994923203 | Shop Model (FREE!) |
+| 전구 줄 | 8236432063 | Christmas Lights - Decoration |
+| 전구 줄 | 208231531 | Simple Christmas Lights |
+| 가로등 | 18184120049 | Old Roblox Lamp Post |
+| 눈사람 | 2115285171 | Snowman |
+| 눈사람 | 5722668698 | Snowman Couple |
+| 선물상자 | 12606769394 | Gift Box (MrCat) |
+| 선물상자 | 15480976264 | Gift box |
+| 벤치 | 86392811 | Park Bench |
+| 벤치 | 1127298073 | Modern Park Bench |
+| 사탕지팡이(아치 꾸미기) | 11766336375 | Christmas Candy Cane |
+| 숲 | 13986682846 | Low Poly Pine Tree |
+| 숲 | 261980178 | Pine Tree (Snowy) |
+| 숲 | 12016295226 | Low poly snow tree |
+| 눈 언덕 | 17139851600 | Low Poly Hills |
+| 눈 언덕 | 11821992228 | Low Poly Mountain |
+| 맵 둘레 산 | 13883219499 | Mountain border for Terrain maps (Low-Poly) |
+| 바위 | 14566490393 | Low Poly Rock |
+| 모음 팩 | 6286468514 | Low poly Village and Nature Asset Pack |
+| 모음 팩 | 8379202496 | FREE LOW POLY ASSET PACK 2.0 |
+
+### 무료 모델 넣은 뒤 꼭: 숨은 스크립트 검사 (Command Bar)
+
+Toolbox 무료 모델에는 `qTexture`·`TextureConfiguration`·`CoreViewSystem`·`cTextureManager`처럼 **이름을 위장한 백도어 스크립트**가 자주 숨어 있다(다른 사람 코드를 에셋 ID로 몰래 불러오려 한다. Creator Hub 오류에 `cannot require using asset ID (lacking capability LoadUnownedAsset)`로 보인다). 맵에 모델을 넣었으면 아래로 검사한다. 우리 코드(Rojo의 `Server`·`Client`·`Shared`) 밖 스크립트를 모두 찾는다. 처음엔 목록만 보고, 확인 뒤 `DELETE = true`로 다시 실행해 지운 다음 저장·퍼블리시한다.
+
+```lua
+local DELETE = false -- 목록을 확인한 뒤 true로 바꿔 다시 실행하면 지운다
+local keep = {
+	game.ServerScriptService:FindFirstChild("Server"),
+	game.StarterPlayer.StarterPlayerScripts:FindFirstChild("Client"),
+	game.ReplicatedStorage:FindFirstChild("Shared"),
+}
+local function isOurs(inst)
+	for _, root in keep do
+		if root and (inst == root or inst:IsDescendantOf(root)) then
+			return true
+		end
+	end
+	return false
+end
+local found = 0
+for _, service in { workspace, game.ReplicatedStorage, game.ServerStorage, game.ServerScriptService, game.StarterGui, game.StarterPack, game.StarterPlayer, game.Lighting } do
+	for _, d in service:GetDescendants() do
+		if d:IsA("LuaSourceContainer") and not isOurs(d) then
+			found += 1
+			warn("우리 코드 밖 스크립트:", d:GetFullName(), d.ClassName)
+			if DELETE then
+				d:Destroy()
+			end
+		end
+	end
+end
+print(DELETE and "지움:" or "찾음:", found)
+```
+
+### 후보 한꺼번에 꺼내 보기 (Command Bar)
+
+`Workspace`의 `AssetInbox` 폴더에 후보를 한 줄로 늘어놓는다(높이 300 공중, 스크립트는 지움). 고른 것은 `MapDecor` 등으로 옮기고, 끝나면 `AssetInbox`를 통째로 지운다. Explorer에서 `AssetInbox`를 고르고 `F`를 누르면 카메라가 간다.
+
+```lua
+local IDS = {
+	2994923203, 8236432063, 208231531, 18184120049, 2115285171, 5722668698,
+	12606769394, 15480976264, 86392811, 1127298073, 11766336375, 13986682846,
+	261980178, 12016295226, 17139851600, 11821992228, 13883219499, 14566490393,
+	6286468514, 8379202496,
+}
+local GAP = 40
+local inbox = workspace:FindFirstChild("AssetInbox") or Instance.new("Folder")
+inbox.Name = "AssetInbox"
+inbox.Parent = workspace
+for i, id in IDS do
+	local ok, objects = pcall(function()
+		return game:GetObjects("rbxassetid://" .. id)
+	end)
+	if not ok or #objects == 0 then
+		warn("못 불러옴:", id, objects)
+		continue
+	end
+	local holder = Instance.new("Model")
+	holder.Name = string.format("%02d_%d_%s", i, id, objects[1].Name)
+	for _, obj in objects do
+		obj.Parent = holder
+	end
+	local removed = 0
+	for _, d in holder:GetDescendants() do
+		if d:IsA("LuaSourceContainer") then
+			d:Destroy()
+			removed += 1
+		elseif d:IsA("BasePart") then
+			d.Anchored = true
+		end
+	end
+	holder.Parent = inbox
+	if holder:FindFirstChildWhichIsA("BasePart", true) then
+		local box = holder:GetBoundingBox()
+		holder:PivotTo(holder:GetPivot() + (Vector3.new((i - 1) * GAP, 300, 0) - box.Position))
+	end
+	print(string.format("꺼냄 %s (스크립트 %d개 지움)", holder.Name, removed))
+end
+```
+
+---
+
 ## 팀 작업 주의
 
 - 맵은 GitHub가 아니라 **플레이스 파일**에 있다. 팀원이 각자 만든 테스트 플레이스에는 맵이 없으므로 트리가 원 모양으로 배치된다(정상).
