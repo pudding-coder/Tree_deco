@@ -377,6 +377,34 @@ local function hideMapWalls()
 	end
 end
 
+-- 트리 자리 판의 테두리만 보이게: 판 가장자리를 따라 얇은 띠 4개를 깐다 (판 자체는 안 보이게 한다)
+local SPOT_BORDER_WIDTH = 0.8 -- 띠 폭(스터드)
+local SPOT_BORDER_COLOR = Color3.fromRGB(255, 236, 190) -- 따뜻한 흰색
+local function addSpotBorder(spot: BasePart, parent: Instance)
+	local w, d = spot.Size.X, spot.Size.Z
+	local floor = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2 + 0.08, 0) -- 판 바닥 높이에 얇게
+	local edges = {
+		{ CFrame.new(0, 0, -d / 2 + SPOT_BORDER_WIDTH / 2), Vector3.new(w, 0.16, SPOT_BORDER_WIDTH) },
+		{ CFrame.new(0, 0, d / 2 - SPOT_BORDER_WIDTH / 2), Vector3.new(w, 0.16, SPOT_BORDER_WIDTH) },
+		{ CFrame.new(-w / 2 + SPOT_BORDER_WIDTH / 2, 0, 0), Vector3.new(SPOT_BORDER_WIDTH, 0.16, d) },
+		{ CFrame.new(w / 2 - SPOT_BORDER_WIDTH / 2, 0, 0), Vector3.new(SPOT_BORDER_WIDTH, 0.16, d) },
+	}
+	for i, edge in edges do
+		local part = Instance.new("Part")
+		part.Name = spot.Name .. "_Border" .. i
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false
+		part.CanTouch = false
+		part.CastShadow = false
+		part.Material = Enum.Material.SmoothPlastic
+		part.Color = SPOT_BORDER_COLOR
+		part.Size = edge[2]
+		part.CFrame = floor * edge[1]
+		part.Parent = parent
+	end
+end
+
 local function loadMapSpots()
 	local folder = workspace:FindFirstChild("PlotSpots")
 	if not folder then
@@ -403,7 +431,11 @@ local function loadMapSpots()
 	end)
 
 	plotPositions = {}
+	local borders = Instance.new("Folder")
+	borders.Name = "PlotSpotBorders"
+	borders.Parent = workspace
 	for _, spot in spots do
+		addSpotBorder(spot, borders)
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
 		spot.Transparency = 1
