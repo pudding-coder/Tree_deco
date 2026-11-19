@@ -323,6 +323,107 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 
 ---
 
+## 2-1. 길 깔기 (Command Bar)
+
+맵 분위기 초안의 길을 한 번에 깐다. **트리 자리를 원 따라 놓은 뒤** 실행한다(트리 자리 원을 기준으로 길 크기를 정한다). 다시 실행하면 예전 `MapPaths`를 지우고 새로 깐다.
+
+- **트리 구경 둘레길**: 트리 자리 판 안쪽을 한 바퀴 도는 갈색 돌길
+- **가운데 광장**: 룰렛 가게가 설 붉은 돌 원판
+- **세 갈래 길**: 광장에서 둘레길까지 120도 간격 세 갈래. 첫 갈래는 1번·2번 트리 자리 사이로 맵 끝(포토존 쪽)까지 이어진다
+- 재질은 Roblox 기본 `Cobblestone`(돌길 무늬). 색·폭은 맨 위 숫자로 바꾼다. 다 됐으면 `Locked`로 잠가 두면 꾸밀 때 안 집힌다
+
+```lua
+local PAD = 30 -- 트리 자리 판 크기 (원 따라 놓기 스크립트와 같게)
+local RING_WIDTH = 14 -- 트리 구경 둘레길 폭
+local RING_GAP = 8 -- 트리 자리 판 안쪽 끝과 둘레길 사이 여유
+local PLAZA_RADIUS = 30 -- 가운데 광장(룰렛 자리) 반지름
+local SPOKE_WIDTH = 12 -- 세 갈래 길 폭
+local START_ANGLE = 0 -- 원 따라 놓기의 START_ANGLE과 같게. 첫 갈래는 1번·2번 자리 사이(포토존 쪽)로 맵 끝까지 이어진다
+local EXTEND = 40 -- 첫 갈래가 둘레길 밖으로 더 나가는 길이 (포토존까지)
+local SEGMENTS = 72 -- 둘레길 조각 수
+local THICK = 0.2 -- 길 두께
+local PATH_COLOR = Color3.fromRGB(150, 108, 80) -- 돌길 갈색
+local PLAZA_COLOR = Color3.fromRGB(170, 92, 82) -- 가운데 광장 붉은 돌
+
+-- 트리 자리들로 가운데·반지름·바닥 높이를 정한다
+local spots = workspace:FindFirstChild("PlotSpots")
+local center, groundY, treeRadius, count = Vector3.zero, 0, 160, 0
+if spots then
+	local sum, low = Vector3.zero, math.huge
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			sum += p.Position
+			low = math.min(low, p.Position.Y - p.Size.Y / 2)
+			count += 1
+		end
+	end
+	if count > 0 then
+		center = sum / count
+		groundY = low
+		local total = 0
+		for _, p in spots:GetChildren() do
+			if p:IsA("BasePart") then
+				total += (Vector3.new(p.Position.X, 0, p.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude
+			end
+		end
+		treeRadius = total / count
+	end
+end
+local ringRadius = treeRadius - PAD / 2 - RING_GAP - RING_WIDTH / 2 -- 둘레길 가운데선 반지름
+
+local old = workspace:FindFirstChild("MapPaths")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapPaths"
+folder.Parent = workspace
+
+local function slab(name, cf, size, color, lift)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = true
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.Cobblestone
+	p.Color = color
+	p.Size = size
+	p.CFrame = cf + Vector3.new(0, lift, 0)
+	p.Parent = folder
+	return p
+end
+local base = groundY + THICK / 2
+
+-- 1. 트리 구경 둘레길: 조각을 원 둘레에 이어 붙인다
+local outer = ringRadius + RING_WIDTH / 2
+local length = 2 * outer * math.tan(math.pi / SEGMENTS) + 0.3
+for i = 1, SEGMENTS do
+	local a = (i - 1) / SEGMENTS * math.pi * 2
+	local pos = Vector3.new(center.X + math.sin(a) * ringRadius, base, center.Z - math.cos(a) * ringRadius)
+	local cf = CFrame.lookAt(pos, Vector3.new(center.X, base, center.Z))
+	slab("Ring" .. i, cf, Vector3.new(length, THICK, RING_WIDTH), PATH_COLOR, 0)
+end
+
+-- 2. 가운데 광장: 납작한 원판
+local plaza = slab("Plaza", CFrame.new(center.X, base, center.Z) * CFrame.Angles(0, 0, math.pi / 2),
+	Vector3.new(THICK, PLAZA_RADIUS * 2, PLAZA_RADIUS * 2), PLAZA_COLOR, 0.04)
+plaza.Shape = Enum.PartType.Cylinder
+
+-- 3. 세 갈래 길: 광장에서 둘레길까지 (첫 갈래는 1번·2번 자리 사이로 맵 끝까지)
+local step = spots and count > 0 and (360 / count) or 18
+for k = 0, 2 do
+	local deg = START_ANGLE + step / 2 + k * 120
+	local a = math.rad(deg)
+	local dir = Vector3.new(math.sin(a), 0, -math.cos(a))
+	local from = PLAZA_RADIUS - 2
+	local to = ringRadius + RING_WIDTH / 2 + (k == 0 and EXTEND or 0)
+	local mid = Vector3.new(center.X, base, center.Z) + dir * ((from + to) / 2)
+	local cf = CFrame.lookAt(mid, mid + dir)
+	slab("Spoke" .. (k + 1), cf, Vector3.new(SPOKE_WIDTH, THICK, to - from), PATH_COLOR, 0.02)
+end
+print(string.format("길을 깔았습니다: 둘레길 반지름 %.0f (폭 %d), 광장 반지름 %d, 세 갈래 길 (MapPaths)", ringRadius, RING_WIDTH, PLAZA_RADIUS))
+```
+
 ## 3. 시작 위치
 
 - `SpawnLocation`은 **처음 들어와서 데이터를 불러오는 1~2초 동안** 서 있는 곳이다. 데이터가 오면 자기 트리 앞으로 순간이동한다.
