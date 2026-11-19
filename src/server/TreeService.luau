@@ -377,32 +377,61 @@ local function hideMapWalls()
 	end
 end
 
--- 트리 자리 판의 테두리만 보이게: 판 가장자리를 따라 얇은 띠 4개를 깐다 (판 자체는 안 보이게 한다)
-local SPOT_BORDER_WIDTH = 0.8 -- 띠 폭(스터드)
-local SPOT_BORDER_COLOR = Color3.fromRGB(255, 236, 190) -- 따뜻한 흰색
-local function addSpotBorder(spot: BasePart, parent: Instance)
-	local w, d = spot.Size.X, spot.Size.Z
-	local floor = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2 + 0.08, 0) -- 판 바닥 높이에 얇게
-	local edges = {
-		{ CFrame.new(0, 0, -d / 2 + SPOT_BORDER_WIDTH / 2), Vector3.new(w, 0.16, SPOT_BORDER_WIDTH) },
-		{ CFrame.new(0, 0, d / 2 - SPOT_BORDER_WIDTH / 2), Vector3.new(w, 0.16, SPOT_BORDER_WIDTH) },
-		{ CFrame.new(-w / 2 + SPOT_BORDER_WIDTH / 2, 0, 0), Vector3.new(SPOT_BORDER_WIDTH, 0.16, d) },
-		{ CFrame.new(w / 2 - SPOT_BORDER_WIDTH / 2, 0, 0), Vector3.new(SPOT_BORDER_WIDTH, 0.16, d) },
-	}
-	for i, edge in edges do
-		local part = Instance.new("Part")
-		part.Name = spot.Name .. "_Border" .. i
-		part.Anchored = true
-		part.CanCollide = false
-		part.CanQuery = false
-		part.CanTouch = false
-		part.CastShadow = false
-		part.Material = Enum.Material.SmoothPlastic
-		part.Color = SPOT_BORDER_COLOR
-		part.Size = edge[2]
-		part.CFrame = floor * edge[1]
-		part.Parent = parent
+-- 트리 자리: 둥근 흙바닥 + 돌 테두리를 깐다 (자리 판 자체는 안 보이게 하고, 판 크기에 맞춘 원으로)
+-- 흙은 판 바닥 높이 바로 위, 돌 테두리는 조금 더 높게 둘러 매트처럼 보이게 한다
+local SPOT_DIRT_COLOR = Color3.fromRGB(110, 78, 52) -- 흙
+local SPOT_STONE_COLOR = Color3.fromRGB(150, 148, 145) -- 돌 테두리
+local SPOT_RIM_WIDTH = 1.6 -- 돌 테두리 폭(스터드)
+local SPOT_RIM_HEIGHT = 0.7 -- 돌 테두리가 흙보다 솟은 높이
+local SPOT_RIM_SEGMENTS = 28 -- 테두리 돌 조각 수
+local function addSpotPad(spot: BasePart, parent: Instance)
+	local diameter = math.min(spot.Size.X, spot.Size.Z)
+	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0) -- 트리가 서는 판 바닥
+	local model = Instance.new("Model")
+	model.Name = "Spot" .. spot.Name
+
+	local function part(props)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = true
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		for key, value in props do
+			p[key] = value
+		end
+		p.Parent = model
+		return p
 	end
+
+	-- 흙바닥: 두께 2로 아래까지 채워 울퉁불퉁한 눈 바닥의 빈틈을 가린다. 윗면은 판 바닥 + 0.15
+	local thick = 2
+	part({
+		Name = "Dirt",
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Ground,
+		Color = SPOT_DIRT_COLOR,
+		Size = Vector3.new(thick, diameter - SPOT_RIM_WIDTH, diameter - SPOT_RIM_WIDTH),
+		CFrame = base * CFrame.new(0, 0.15 - thick / 2, 0) * CFrame.Angles(0, 0, math.pi / 2),
+	})
+	-- 돌 테두리: 짧은 돌 조각을 원 둘레에 이어 붙인다
+	local r = diameter / 2 - SPOT_RIM_WIDTH / 2
+	local length = 2 * (r + SPOT_RIM_WIDTH / 2) * math.tan(math.pi / SPOT_RIM_SEGMENTS) + 0.1
+	local rimHeight = thick + SPOT_RIM_HEIGHT
+	for i = 1, SPOT_RIM_SEGMENTS do
+		local a = (i - 1) / SPOT_RIM_SEGMENTS * math.pi * 2
+		local pos = base * CFrame.new(math.sin(a) * r, 0.15 + SPOT_RIM_HEIGHT - rimHeight / 2, -math.cos(a) * r)
+		part({
+			Name = "Rim" .. i,
+			Material = Enum.Material.Slate,
+			Color = SPOT_STONE_COLOR,
+			Size = Vector3.new(length, rimHeight, SPOT_RIM_WIDTH),
+			CFrame = CFrame.lookAt(pos.Position, base.Position + Vector3.new(0, pos.Y - base.Y, 0)),
+		})
+	end
+	model.Parent = parent
 end
 
 local function loadMapSpots()
@@ -431,11 +460,11 @@ local function loadMapSpots()
 	end)
 
 	plotPositions = {}
-	local borders = Instance.new("Folder")
-	borders.Name = "PlotSpotBorders"
-	borders.Parent = workspace
+	local pads = Instance.new("Folder")
+	pads.Name = "PlotSpotPads"
+	pads.Parent = workspace
 	for _, spot in spots do
-		addSpotBorder(spot, borders)
+		addSpotPad(spot, pads)
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
 		spot.Transparency = 1
@@ -1147,7 +1176,7 @@ end
 local SPAWN_HEIGHT = 3 -- 바닥 표면에서 이만큼 위에 내려놓는다(스터드)
 local function groundedSpawn(spawn: CFrame, character: Model): CFrame
 	local ignore = { character, plotsFolder }
-	for _, name in { "PlotSpots", "PlotSpotBorders", "MapWalls", "Walls" } do
+	for _, name in { "PlotSpots", "PlotSpotPads", "MapWalls", "Walls" } do
 		local folder = workspace:FindFirstChild(name)
 		if folder then
 			table.insert(ignore, folder)
