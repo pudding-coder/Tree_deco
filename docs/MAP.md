@@ -21,7 +21,7 @@
    3. "앞" 글자가 통로를 향하게 회전 (`Cmd + 4`)
    4. 파트를 `Cmd + D`로 복제하면 글자도 같이 복사된다. 파트 크기를 6 × 4 × 6 정도로 키우면 잘 보인다.
    - 게임이 시작되면 표시 파트와 글자는 자동으로 사라진다.
-4. **서버 인원(`SERVER_MAX_PLAYERS`, 지금 20)만큼** 만든다. 모자라면 Output에 경고가 나오고 늦게 온 사람은 트리를 못 받는다.
+4. **서버 인원(`SERVER_MAX_PLAYERS`, 지금 16)만큼** 만든다. 모자라면 Output에 경고가 나오고 늦게 온 사람은 트리를 못 받는다.
 
 게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 트리 자리 매트는 아래 **"트리 자리 매트 만들기: 고정"**으로 플레이스에 만들어 두면 그대로 쓰인다. 만들어 두지 않으면 게임이 시작될 때 판을 **그 자리의 바닥 표면에 맞추고** 매트를 만든다(판 안 25곳을 재서 가장 높은 곳에 흙바닥을 맞추고, 가장 낮은 곳까지 흙을 두껍게 채운다)(바닥으로 보는 것: 지형, 그리고 Workspace의 `MapGround`·`MapPaths`·`MapFloor`·`Baseplate` 안의 파트. 무료 바닥 에셋을 쓰면 이 이름 중 하나의 폴더·모델에 넣는다)(눈에 묻혀 있어도 트리는 눈 위에 선다). 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
 
@@ -35,7 +35,7 @@
 - `START_ANGLE`: 1번 자리 방향(도). 0이면 가운데에서 -Z 쪽. 입구·스폰 앞에 1번이 오게 돌린다.
 
 ```lua
-local COUNT = 20 -- 자리 수 (SERVER_MAX_PLAYERS)
+local COUNT = 16 -- 자리 수 (SERVER_MAX_PLAYERS)
 local PAD = 30 -- 판 가로·세로
 local PAD_H = 0.4 -- 판 두께
 local GAP = 8 -- 이웃 판 사이 통로 폭
@@ -156,6 +156,192 @@ print(string.format("트리 자리 %d개를 %d × %.1f × %d 판으로 바꿨습
 
 - 겹친다는 경고가 나오면 그 자리를 옮겨 **중심 간격 30 이상**(사이로 지나가려면 36 이상) 띄운다.
 - 판을 돌려 앞(노란 띠)을 통로 쪽으로 맞춘다. 돌릴 때는 판을 선택하고 `Cmd + R`(90도)이나 Rotate 도구.
+
+### 자리 다시 놓기 + 매트 만들기 한 번에 (Command Bar)
+
+판을 **포토존 자리만 비우고** 원 둘레에 같은 간격으로 다시 놓은 뒤, 매트까지 새로 만든다. 자리 수(`COUNT`)·매트 지름(`PAD`)·사이 틈(`SPACING`)을 바꾸면 반지름은 겹치지 않게 자동으로 정해진다. 포토존 방향은 지금 판들 사이가 가장 크게 빈 곳(또는 `PHOTO_ANGLE`). 실행한 뒤 **투명벽·길 스크립트를 다시 실행**한다.
+
+```lua
+-- 트리 자리 16개를 포토존 자리만 비우고 원 둘레에 같은 간격으로 놓은 뒤, 매트까지 다시 만든다
+local COUNT = 16 -- 자리 수 (Config.SERVER_MAX_PLAYERS와 같게)
+local PAD = 40 -- 매트 지름 (판 가로·세로)
+local SPACING = 4 -- 이웃 매트 사이 빈 틈
+local PHOTO_GAP = 50 -- 포토존 자리로 비워 둘 폭(스터드, 판 원 둘레 기준)
+local PHOTO_ANGLE = nil -- 포토존 방향(도, 0 = 가운데에서 -Z 쪽, 시계방향). nil이면 지금 판들 사이가 가장 크게 빈 곳
+-- 매트 모양 (src/server/TreeService.luau의 SPOT_ 값과 같게)
+local DIRT_COLOR = Color3.fromRGB(110, 78, 52)
+local STONE_COLOR = Color3.fromRGB(150, 148, 145)
+local RIM_WIDTH = 1.6
+local RIM_HEIGHT = 0.7
+local SEGMENTS = 28
+
+local spots = workspace:FindFirstChild("PlotSpots")
+assert(spots, "PlotSpots가 없습니다")
+local pole = workspace:FindFirstChild("StarPole", true)
+local parts, sum = {}, Vector3.zero
+for _, p in spots:GetChildren() do
+	if p:IsA("BasePart") then
+		table.insert(parts, p)
+		sum += p.Position
+	end
+end
+assert(#parts > 0, "PlotSpots 안에 판이 하나는 있어야 합니다")
+local c = if pole then (if pole:IsA("Model") then pole:GetPivot().Position else pole.Position) else sum / #parts
+local center = Vector3.new(c.X, 0, c.Z)
+local thickness = parts[1].Size.Y
+
+-- 포토존 방향: 지금 판들 사이가 가장 크게 빈 곳 (또는 PHOTO_ANGLE)
+local photo
+if PHOTO_ANGLE then
+	photo = math.rad(PHOTO_ANGLE)
+else
+	local angles = {}
+	for _, p in parts do
+		local d = Vector3.new(p.Position.X, 0, p.Position.Z) - center
+		table.insert(angles, math.atan2(d.X, -d.Z))
+	end
+	table.sort(angles)
+	local widest = -1
+	for i, a in angles do
+		local nextA = angles[i % #angles + 1] + (if i == #angles then math.pi * 2 else 0)
+		if nextA - a > widest then
+			widest = nextA - a
+			photo = (a + nextA) / 2
+		end
+	end
+end
+
+-- 반지름: 이웃 매트가 SPACING만큼 떨어지고, 포토존 쪽에 PHOTO_GAP이 남게
+-- 매트 COUNT개 + 포토존 한 칸이 원 둘레를 나눠 갖는다: COUNT*(PAD+SPACING) + PHOTO_GAP + PAD = 둘레
+local circumference = COUNT * (PAD + SPACING) + PHOTO_GAP + PAD
+local radius = circumference / (2 * math.pi)
+local step = (PAD + SPACING) / radius -- 이웃 매트 사이 각도
+local first = photo + (PHOTO_GAP + PAD) / 2 / radius + step / 2 -- 포토존 오른쪽 첫 자리
+
+-- 판: 번호순으로 다시 쓰고, 모자라면 만들고, 남으면 지운다
+table.sort(parts, function(a, b)
+	return (tonumber(a.Name) or math.huge) < (tonumber(b.Name) or math.huge)
+end)
+local groundY = math.huge
+for _, p in parts do
+	groundY = math.min(groundY, p.Position.Y - p.Size.Y / 2)
+end
+for i = 1, COUNT do
+	local p = parts[i]
+	if not p then
+		p = parts[1]:Clone()
+		p.Parent = spots
+	end
+	p.Name = tostring(i)
+	p.Size = Vector3.new(PAD, thickness, PAD)
+	local a = first + (i - 1) * step
+	local pos = Vector3.new(center.X + math.sin(a) * radius, groundY + thickness / 2, center.Z - math.cos(a) * radius)
+	p.CFrame = CFrame.lookAt(pos, Vector3.new(center.X, pos.Y, center.Z)) -- 앞이 광장 가운데를 보게
+	local edge = p:FindFirstChild("FrontEdge")
+	if edge then
+		edge.Size = Vector3.new(4, edge.Size.Y, 1.5)
+		edge.CFrame = p.CFrame * CFrame.new(0, thickness / 2 + 0.03, -PAD / 2 + 2.5)
+	end
+end
+for i = COUNT + 1, #parts do
+	parts[i]:Destroy()
+end
+
+-- 매트 다시 만들기 (판 높이도 바닥에 맞춘다)
+for _, name in { "PlotSpotPads", "PlotSpotPadsPreview" } do
+	local old = workspace:FindFirstChild(name)
+	if old then old:Destroy() end
+end
+local folder = Instance.new("Folder")
+folder.Name = "PlotSpotPads"
+folder.Parent = workspace
+local floors = { workspace.Terrain }
+for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
+	local f = workspace:FindFirstChild(name)
+	if f then
+		table.insert(floors, f)
+	end
+end
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Include
+params.FilterDescendantsInstances = floors
+for _, spot in spots:GetChildren() do
+	if not spot:IsA("BasePart") then
+		continue
+	end
+	local bottomY = spot.Position.Y - spot.Size.Y / 2
+	local r0 = PAD / 2
+	local samples = { Vector3.zero }
+	for ring, scale in { 0.45, 0.9 } do
+		local n = ring * 8
+		for k = 1, n do
+			local a = (k - 1) / n * math.pi * 2
+			table.insert(samples, Vector3.new(math.sin(a), 0, math.cos(a)) * r0 * scale)
+		end
+	end
+	local high, low = -math.huge, math.huge
+	for _, offset in samples do
+		local q = spot.Position + offset
+		local hit = workspace:Raycast(Vector3.new(q.X, bottomY + 300, q.Z), Vector3.new(0, -800, 0), params)
+		if hit then
+			high = math.max(high, hit.Position.Y)
+			low = math.min(low, hit.Position.Y)
+		end
+	end
+	local depth = 0
+	if high > -math.huge then
+		spot.CFrame += Vector3.new(0, high - bottomY, 0)
+		depth = high - low
+	end
+	spot.Transparency = 1
+	local look = spot:FindFirstChild("RoundLook")
+	if look then look:Destroy() end
+
+	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0)
+	local model = Instance.new("Model")
+	model.Name = "Spot" .. spot.Name
+	local function part(props)
+		local q = Instance.new("Part")
+		q.Anchored = true
+		q.CanCollide = true
+		q.CanQuery = false
+		q.CanTouch = false
+		q.CastShadow = false
+		q.TopSurface = Enum.SurfaceType.Smooth
+		q.BottomSurface = Enum.SurfaceType.Smooth
+		for k, v in props do
+			q[k] = v
+		end
+		q.Parent = model
+	end
+	local thick = 2 + depth
+	part({
+		Name = "Dirt",
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Ground,
+		Color = DIRT_COLOR,
+		Size = Vector3.new(thick, PAD - RIM_WIDTH, PAD - RIM_WIDTH),
+		CFrame = base * CFrame.new(0, 0.15 - thick / 2, 0) * CFrame.Angles(0, 0, math.pi / 2),
+	})
+	local r = PAD / 2 - RIM_WIDTH / 2
+	local length = 2 * (r + RIM_WIDTH / 2) * math.tan(math.pi / SEGMENTS) + 0.1
+	local rimHeight = thick + RIM_HEIGHT
+	for i = 1, SEGMENTS do
+		local a = (i - 1) / SEGMENTS * math.pi * 2
+		local pos = base * CFrame.new(math.sin(a) * r, 0.15 + RIM_HEIGHT - rimHeight / 2, -math.cos(a) * r)
+		part({
+			Name = "Rim" .. i,
+			Material = Enum.Material.Slate,
+			Color = STONE_COLOR,
+			Size = Vector3.new(length, rimHeight, RIM_WIDTH),
+			CFrame = CFrame.lookAt(pos.Position, base.Position + Vector3.new(0, pos.Y - base.Y, 0)),
+		})
+	end
+	model.Parent = folder
+end
+print(string.format("트리 자리 %d개를 놓고 매트를 만들었습니다: 반지름 %.0f, 포토존 방향 %.0f도. 투명벽·길 스크립트도 다시 실행해 주세요",
+	COUNT, radius, math.deg(photo) % 360))
+```
 
 ### 트리 자리 매트 만들기: 고정 (Command Bar)
 
