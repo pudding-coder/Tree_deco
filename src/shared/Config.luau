@@ -62,6 +62,12 @@ Config.SIZES = {
 	{ id = "Huge", name = "거대", n = 50, scale = 1.6, mult = 2 },
 }
 
+-- 발소리 (src/client/Footsteps.luau)
+-- 눈(재질 Snow·Glacier, 또는 속성 Footstep = "Snow"가 붙은 파트) 위를 걸을 때 쓰는 소리. 비워 두면 기본 발소리 그대로
+-- Creator Store → 오디오에서 "snow footsteps"처럼 반복 재생되는 걷기 소리를 골라 rbxassetid://숫자 로 적는다
+Config.SNOW_FOOTSTEP_SOUND_ID = ""
+Config.SNOW_FOOTSTEP_VOLUME = 0.6
+
 -- 연출·공지
 Config.EFFECT_MIN_RARITY = 3 -- 이 등급 이상: 본인 화면 연출 (레어)
 Config.SERVER_ANNOUNCE_MIN_RARITY = 4 -- 이 등급 이상: 서버 전체 공지 (에픽)

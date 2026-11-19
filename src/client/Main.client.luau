@@ -1,8 +1,10 @@
 local GachaUI = require(script.Parent.GachaUI)
 local TraitAnimator = require(script.Parent.TraitAnimator)
+local Footsteps = require(script.Parent.Footsteps)
 
 TraitAnimator.Start()
 GachaUI.Start()
+Footsteps.Start()
 
 -- 아래 도구 칸(Backpack)을 숨긴다. 이 게임의 도구는 트리 장식을 잡을 때 생기는 보이지 않는 사본뿐이라
 -- 칸이 보이면 눌러서 내려놓거나 다시 들 수 있어 헷갈린다. 나중에 들고 다니는 도구를 넣으면 이 줄을 지운다

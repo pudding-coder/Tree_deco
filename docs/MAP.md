@@ -23,7 +23,7 @@
    - 게임이 시작되면 표시 파트와 글자는 자동으로 사라진다.
 4. **서버 인원(`SERVER_MAX_PLAYERS`, 지금 20)만큼** 만든다. 모자라면 Output에 경고가 나오고 늦게 온 사람은 트리를 못 받는다.
 
-게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 편집할 때는 보이니 그대로 두면 된다.
+게임이 시작되면 표시 파트는 자동으로 투명해지고(안의 글자도 지워짐) 부딪히지 않는다. 대신 판 크기에 맞춘 **둥근 흙바닥 + 돌 테두리**가 깔린다(`TreeService.luau`의 `SPOT_DIRT_COLOR`·`SPOT_STONE_COLOR`·`SPOT_RIM_WIDTH`·`SPOT_RIM_HEIGHT`). 편집할 때는 판 전체가 보이니 그대로 두면 된다.
 
 ### 원 따라 둥글게 놓기 (Command Bar)
 
@@ -322,6 +322,333 @@ print(string.format("원형 투명벽을 세웠습니다: 반지름 %d, 조각 %
 > 편집 중에 투명벽이 안 보여서 헷갈리면, 만들 때는 `Transparency`를 `0.7`로 두고 다 만든 뒤 `1`로 바꾼다.
 
 ---
+
+## 2-0. 바닥 깔기: 잔디 + 눈 (Command Bar)
+
+길을 깔기 **전에** 바닥부터 깐다. 투명벽 안쪽(조금 더 넓게)에 **잔디 원판**을 깔고, 그 위에 **눈 무더기**를 흩뿌린다(가장자리일수록 많이). 다시 실행하면 예전 `MapGround`를 지우고 새로 깐다.
+
+- 먼저 **기본 `Baseplate`를 지운다**(잔디와 같은 높이라 겹쳐서 깜빡인다). 맵 밖이 허공이 되므로 투명벽 밖 꾸미기(숲·눈 언덕)는 따로 바닥을 깐다.
+- 눈 무더기는 길보다 얇고 낮게 깔려서, 길을 깔면 길이 눈 위로 보인다. 트리 자리 위에 눈이 겹쳐도 트리가 그 위에 선다.
+- 눈 양은 `SNOW_PATCHES`, 배치는 `SEED`를 바꿔 다시 실행한다. 다 됐으면 `Locked`로 잠근다.
+
+```lua
+local GRASS_COLOR = Color3.fromRGB(104, 150, 82) -- 잔디색
+local SNOW_COLOR = Color3.fromRGB(240, 245, 252) -- 눈색
+local SNOW_PATCHES = 160 -- 눈 무더기 수 (늘리면 눈이 많아진다)
+local SNOW_SIZE = { 6, 22 } -- 눈 무더기 지름 범위(스터드)
+local EDGE_SNOW = 2 -- 클수록 맵 가장자리에 눈이 몰린다 (1이면 고르게)
+local MARGIN = 6 -- 투명벽 밖으로 더 까는 여유
+local SEED = 7 -- 바꾸면 눈 무더기 배치가 달라진다
+
+-- 가운데·바닥 높이·반지름: 트리 자리와 투명벽 기준
+local center, groundY, radius = Vector3.zero, 0, 210
+local spots = workspace:FindFirstChild("PlotSpots")
+if spots then
+	local sum, low, n = Vector3.zero, math.huge, 0
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			sum += p.Position
+			low = math.min(low, p.Position.Y - p.Size.Y / 2)
+			n += 1
+		end
+	end
+	if n > 0 then
+		center, groundY = sum / n, low
+	end
+end
+local walls = workspace:FindFirstChild("MapWalls")
+if walls then
+	local far = 0
+	for _, w in walls:GetChildren() do
+		if w:IsA("BasePart") then
+			far = math.max(far, (Vector3.new(w.Position.X, 0, w.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude)
+		end
+	end
+	if far > 0 then
+		radius = far
+	end
+end
+radius += MARGIN
+
+local old = workspace:FindFirstChild("MapGround")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapGround"
+folder.Parent = workspace
+
+local function disc(name, x, z, diameter, thick, topY, color, material)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Shape = Enum.PartType.Cylinder
+	p.Anchored = true
+	p.CanCollide = true
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = material
+	p.Color = color
+	p.Size = Vector3.new(thick, diameter, diameter)
+	p.CFrame = CFrame.new(x, topY - thick / 2, z) * CFrame.Angles(0, 0, math.pi / 2)
+	p.Parent = folder
+	return p
+end
+
+-- 잔디 원판: 윗면이 트리 자리 바닥 높이보다 아주 조금 위 (길은 이 위에 얹힌다)
+disc("Grass", center.X, center.Z, radius * 2, 4, groundY + 0.02, GRASS_COLOR, Enum.Material.Grass)
+
+-- 눈 무더기: 원 몇 개를 겹쳐 울퉁불퉁한 모양으로. 가장자리일수록 많이
+local rng = Random.new(SEED)
+for i = 1, SNOW_PATCHES do
+	local r = radius * (rng:NextNumber() ^ (1 / (EDGE_SNOW + 1)))
+	local a = rng:NextNumber() * math.pi * 2
+	local x, z = center.X + math.sin(a) * r, center.Z - math.cos(a) * r
+	local size = rng:NextNumber(SNOW_SIZE[1], SNOW_SIZE[2])
+	for k = 1, rng:NextInteger(2, 4) do
+		local ox, oz = rng:NextNumber(-0.4, 0.4) * size, rng:NextNumber(-0.4, 0.4) * size
+		local d = size * rng:NextNumber(0.5, 1)
+		-- 원판 밖으로 나가지 않게
+		if (Vector3.new(x + ox, 0, z + oz) - Vector3.new(center.X, 0, center.Z)).Magnitude + d / 2 < radius then
+			disc("Snow" .. i .. "_" .. k, x + ox, z + oz, d, 0.3, groundY + 0.06 + k * 0.01, SNOW_COLOR, Enum.Material.Snow)
+		end
+	end
+end
+print(string.format("바닥을 깔았습니다: 잔디 반지름 %.0f, 눈 무더기 %d곳 (MapGround)", radius, SNOW_PATCHES))
+```
+
+## 2-1. 길 깔기: 지형(눈) 바닥 위에 (Command Bar)
+
+바닥이 **지형(Terrain)**일 때 쓴다. 파트를 까는 대신 **지형 표면의 재질만 길 재질로 바꾼다**. 그래서 울퉁불퉁한 눈 바닥을 그대로 따라 길이 생기고, 떠 보이거나 묻히지 않는다.
+
+- **가운데 광장**: `StarPole`(별 기둥) 둘레. 붉은 벽돌 재질
+- **트리 구경 둘레길**: 트리 자리 판 안쪽을 한 바퀴
+- **세 갈래 길**: 광장에서 120도 간격. 첫 갈래는 **트리 자리 판이 가장 크게 비어 있는 곳(포토존)**으로 자동으로 향해 판 원 바깥까지 이어진다
+- 길 색은 지형 재질 색을 바꾸는 것이라, 같은 재질(Cobblestone·Brick)을 쓰는 다른 지형도 같은 색이 된다
+- 마음에 안 들면 `REVERT = true`로 한 번 실행해 눈으로 되돌린 뒤, 숫자를 고쳐 다시 깐다
+
+```lua
+local RING_WIDTH = 14 -- 트리 구경 둘레길 폭
+local RING_GAP = 8 -- 트리 자리 판 안쪽 끝과 둘레길 사이 여유
+local PLAZA_RADIUS = 30 -- 가운데 광장(별 기둥 둘레) 반지름
+local SPOKE_WIDTH = 12 -- 세 갈래 길 폭
+local PHOTO_REACH = 20 -- 포토존 갈래가 트리 자리 원보다 더 나가는 길이
+local PATH_MATERIAL = Enum.Material.Cobblestone -- 길 재질
+local PLAZA_MATERIAL = Enum.Material.Brick -- 광장 재질
+local PATH_COLOR = Color3.fromRGB(150, 108, 80) -- 길 색 (지형 재질 색이라 이 재질을 쓰는 지형 전체에 적용)
+local PLAZA_COLOR = Color3.fromRGB(170, 92, 82)
+local FROM = { Enum.Material.Snow, Enum.Material.Glacier, Enum.Material.Grass, Enum.Material.Ground } -- 바꿀 원래 바닥 재질
+local REVERT = false -- true로 다시 실행하면 길을 눈으로 되돌린다
+
+local terrain = workspace.Terrain
+local pole = workspace:FindFirstChild("StarPole", true)
+local spots = workspace:FindFirstChild("PlotSpots")
+assert(spots, "PlotSpots가 없습니다")
+
+-- 가운데: 별 기둥 (없으면 트리 자리들의 가운데)
+local list, sum = {}, Vector3.zero
+for _, p in spots:GetChildren() do
+	if p:IsA("BasePart") then
+		table.insert(list, p)
+		sum += p.Position
+	end
+end
+assert(#list > 0, "PlotSpots 안에 판이 없습니다")
+local c = if pole then (if pole:IsA("Model") then pole:GetPivot().Position else pole.Position) else sum / #list
+local center = Vector3.new(c.X, 0, c.Z)
+
+-- 트리 자리 원 반지름과 판 크기, 판들의 각도
+local angles, total, pad = {}, 0, 0
+for _, p in list do
+	local d = Vector3.new(p.Position.X, 0, p.Position.Z) - center
+	total += d.Magnitude
+	pad = math.max(pad, p.Size.X, p.Size.Z)
+	table.insert(angles, math.atan2(d.X, -d.Z))
+end
+local treeRadius = total / #list
+table.sort(angles)
+
+-- 포토존 방향: 판 사이가 가장 크게 빈 곳의 가운데
+local photoAngle, widest = 0, -1
+for i, a in angles do
+	local nextA = angles[i % #angles + 1] + (if i == #angles then math.pi * 2 else 0)
+	if nextA - a > widest then
+		widest = nextA - a
+		photoAngle = (a + nextA) / 2
+	end
+end
+local ringRadius = treeRadius - pad / 2 - RING_GAP - RING_WIDTH / 2
+
+-- 길이 될 칸(지형 4스터드 격자의 기둥)을 모은다
+local cells = {} -- ["x,z"] = 재질
+local function mark(x, z, material)
+	local gx, gz = math.floor(x / 4) * 4, math.floor(z / 4) * 4
+	local key = gx .. "," .. gz
+	if cells[key] ~= PLAZA_MATERIAL then
+		cells[key] = material
+	end
+end
+local function stamp(pos, radius, material)
+	for dx = -radius, radius, 2 do
+		for dz = -radius, radius, 2 do
+			if dx * dx + dz * dz <= radius * radius then
+				mark(pos.X + dx, pos.Z + dz, material)
+			end
+		end
+	end
+end
+local function dirOf(a)
+	return Vector3.new(math.sin(a), 0, -math.cos(a))
+end
+
+-- 1. 둘레길
+local steps = math.ceil(2 * math.pi * ringRadius / 2)
+for i = 0, steps - 1 do
+	stamp(center + dirOf(i / steps * math.pi * 2) * ringRadius, RING_WIDTH / 2, PATH_MATERIAL)
+end
+-- 2. 세 갈래 길: 포토존 쪽 하나 + 120도씩 둘
+for k = 0, 2 do
+	local dir = dirOf(photoAngle + k * math.pi * 2 / 3)
+	local to = if k == 0 then treeRadius + PHOTO_REACH else ringRadius
+	for r = PLAZA_RADIUS - 2, to, 2 do
+		stamp(center + dir * r, SPOKE_WIDTH / 2, PATH_MATERIAL)
+	end
+end
+-- 3. 광장
+stamp(center, PLAZA_RADIUS, PLAZA_MATERIAL)
+
+-- 칸마다 지형 표면을 찾아 겉 재질만 바꾼다 (모양은 그대로라 울퉁불퉁한 눈 위에 그대로 길이 생긴다)
+local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Include
+params.FilterDescendantsInstances = { terrain }
+local changed = 0
+for key, material in cells do
+	local gx, gz = string.match(key, "(-?%d+),(-?%d+)")
+	gx, gz = tonumber(gx), tonumber(gz)
+	local hit = workspace:Raycast(Vector3.new(gx + 2, c.Y + 300, gz + 2), Vector3.new(0, -1000, 0), params)
+	if hit then
+		local y = hit.Position.Y
+		local region = Region3.new(Vector3.new(gx, y - 8, gz), Vector3.new(gx + 4, y + 4, gz + 4)):ExpandToGrid(4)
+		if REVERT then
+			terrain:ReplaceMaterial(region, 4, material, Enum.Material.Snow)
+		else
+			for _, from in FROM do
+				terrain:ReplaceMaterial(region, 4, from, material)
+			end
+		end
+		changed += 1
+	end
+end
+if not REVERT then
+	terrain:SetMaterialColor(PATH_MATERIAL, PATH_COLOR)
+	terrain:SetMaterialColor(PLAZA_MATERIAL, PLAZA_COLOR)
+end
+print(string.format("%s: 칸 %d개, 둘레길 반지름 %.0f, 포토존 방향 %.0f도, 광장 반지름 %d",
+	if REVERT then "길을 눈으로 되돌렸습니다" else "길을 깔았습니다", changed, ringRadius, math.deg(photoAngle) % 360, PLAZA_RADIUS))
+```
+
+## 2-1-b. 길 깔기: 평평한 파트 바닥 위에 (Command Bar)
+
+바닥이 평평한 파트(위 "2-0. 바닥 깔기")일 때 쓴다. 갈색 돌길 파트를 깐다.
+
+
+
+맵 분위기 초안의 길을 한 번에 깐다. **트리 자리를 원 따라 놓은 뒤** 실행한다(트리 자리 원을 기준으로 길 크기를 정한다). 다시 실행하면 예전 `MapPaths`를 지우고 새로 깐다.
+
+- **트리 구경 둘레길**: 트리 자리 판 안쪽을 한 바퀴 도는 갈색 돌길
+- **가운데 광장**: 룰렛 가게가 설 붉은 돌 원판
+- **세 갈래 길**: 광장에서 둘레길까지 120도 간격 세 갈래. 세 갈래 모두 둘레길에서 멈춘다(`EXTEND`를 늘리면 첫 갈래가 1번·2번 자리 사이로 포토존 쪽까지 이어진다)
+- 재질은 Roblox 기본 `Cobblestone`(돌길 무늬). 색·폭은 맨 위 숫자로 바꾼다. 다 됐으면 `Locked`로 잠가 두면 꾸밀 때 안 집힌다
+
+```lua
+local PAD = 30 -- 트리 자리 판 크기 (원 따라 놓기 스크립트와 같게)
+local RING_WIDTH = 14 -- 트리 구경 둘레길 폭
+local RING_GAP = 8 -- 트리 자리 판 안쪽 끝과 둘레길 사이 여유
+local PLAZA_RADIUS = 30 -- 가운데 광장(룰렛 자리) 반지름
+local SPOKE_WIDTH = 12 -- 세 갈래 길 폭
+local START_ANGLE = 0 -- 원 따라 놓기의 START_ANGLE과 같게. 첫 갈래는 1번·2번 자리 사이(포토존 쪽)로 맵 끝까지 이어진다
+local EXTEND = 0 -- 첫 갈래를 둘레길 밖으로 더 늘릴 길이 (포토존 쪽으로 이으려면 40 정도)
+local SEGMENTS = 72 -- 둘레길 조각 수
+local THICK = 0.2 -- 길 두께
+local PATH_COLOR = Color3.fromRGB(150, 108, 80) -- 돌길 갈색
+local PLAZA_COLOR = Color3.fromRGB(170, 92, 82) -- 가운데 광장 붉은 돌
+
+-- 트리 자리들로 가운데·반지름·바닥 높이를 정한다
+local spots = workspace:FindFirstChild("PlotSpots")
+local center, groundY, treeRadius, count = Vector3.zero, 0, 160, 0
+if spots then
+	local sum, low = Vector3.zero, math.huge
+	for _, p in spots:GetChildren() do
+		if p:IsA("BasePart") then
+			sum += p.Position
+			low = math.min(low, p.Position.Y - p.Size.Y / 2)
+			count += 1
+		end
+	end
+	if count > 0 then
+		center = sum / count
+		groundY = low
+		local total = 0
+		for _, p in spots:GetChildren() do
+			if p:IsA("BasePart") then
+				total += (Vector3.new(p.Position.X, 0, p.Position.Z) - Vector3.new(center.X, 0, center.Z)).Magnitude
+			end
+		end
+		treeRadius = total / count
+	end
+end
+local ringRadius = treeRadius - PAD / 2 - RING_GAP - RING_WIDTH / 2 -- 둘레길 가운데선 반지름
+
+local old = workspace:FindFirstChild("MapPaths")
+if old then old:Destroy() end
+local folder = Instance.new("Folder")
+folder.Name = "MapPaths"
+folder.Parent = workspace
+
+local function slab(name, cf, size, color, lift)
+	local p = Instance.new("Part")
+	p.Name = name
+	p.Anchored = true
+	p.CanCollide = true
+	p.CastShadow = false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = Enum.Material.Cobblestone
+	p.Color = color
+	p.Size = size
+	p.CFrame = cf + Vector3.new(0, lift, 0)
+	p.Parent = folder
+	return p
+end
+local base = groundY + THICK / 2
+
+-- 1. 트리 구경 둘레길: 조각을 원 둘레에 이어 붙인다
+local outer = ringRadius + RING_WIDTH / 2
+local length = 2 * outer * math.tan(math.pi / SEGMENTS) + 0.3
+for i = 1, SEGMENTS do
+	local a = (i - 1) / SEGMENTS * math.pi * 2
+	local pos = Vector3.new(center.X + math.sin(a) * ringRadius, base, center.Z - math.cos(a) * ringRadius)
+	local cf = CFrame.lookAt(pos, Vector3.new(center.X, base, center.Z))
+	slab("Ring" .. i, cf, Vector3.new(length, THICK, RING_WIDTH), PATH_COLOR, 0)
+end
+
+-- 2. 가운데 광장: 납작한 원판
+local plaza = slab("Plaza", CFrame.new(center.X, base, center.Z) * CFrame.Angles(0, 0, math.pi / 2),
+	Vector3.new(THICK, PLAZA_RADIUS * 2, PLAZA_RADIUS * 2), PLAZA_COLOR, 0.04)
+plaza.Shape = Enum.PartType.Cylinder
+
+-- 3. 세 갈래 길: 광장에서 둘레길까지 (첫 갈래는 1번·2번 자리 사이로 맵 끝까지)
+local step = spots and count > 0 and (360 / count) or 18
+for k = 0, 2 do
+	local deg = START_ANGLE + step / 2 + k * 120
+	local a = math.rad(deg)
+	local dir = Vector3.new(math.sin(a), 0, -math.cos(a))
+	local from = PLAZA_RADIUS - 2
+	local to = ringRadius + RING_WIDTH / 2 + (k == 0 and EXTEND or 0)
+	local mid = Vector3.new(center.X, base, center.Z) + dir * ((from + to) / 2)
+	local cf = CFrame.lookAt(mid, mid + dir)
+	slab("Spoke" .. (k + 1), cf, Vector3.new(SPOKE_WIDTH, THICK, to - from), PATH_COLOR, 0.02)
+end
+print(string.format("길을 깔았습니다: 둘레길 반지름 %.0f (폭 %d), 광장 반지름 %d, 세 갈래 길 (MapPaths)", ringRadius, RING_WIDTH, PLAZA_RADIUS))
+```
 
 ## 3. 시작 위치
 

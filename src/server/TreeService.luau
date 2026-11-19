@@ -377,6 +377,63 @@ local function hideMapWalls()
 	end
 end
 
+-- 트리 자리: 둥근 흙바닥 + 돌 테두리를 깐다 (자리 판 자체는 안 보이게 하고, 판 크기에 맞춘 원으로)
+-- 흙은 판 바닥 높이 바로 위, 돌 테두리는 조금 더 높게 둘러 매트처럼 보이게 한다
+local SPOT_DIRT_COLOR = Color3.fromRGB(110, 78, 52) -- 흙
+local SPOT_STONE_COLOR = Color3.fromRGB(150, 148, 145) -- 돌 테두리
+local SPOT_RIM_WIDTH = 1.6 -- 돌 테두리 폭(스터드)
+local SPOT_RIM_HEIGHT = 0.7 -- 돌 테두리가 흙보다 솟은 높이
+local SPOT_RIM_SEGMENTS = 28 -- 테두리 돌 조각 수
+local function addSpotPad(spot: BasePart, parent: Instance)
+	local diameter = math.min(spot.Size.X, spot.Size.Z)
+	local base = spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0) -- 트리가 서는 판 바닥
+	local model = Instance.new("Model")
+	model.Name = "Spot" .. spot.Name
+
+	local function part(props)
+		local p = Instance.new("Part")
+		p.Anchored = true
+		p.CanCollide = true
+		p.CanQuery = false
+		p.CanTouch = false
+		p.CastShadow = false
+		p.TopSurface = Enum.SurfaceType.Smooth
+		p.BottomSurface = Enum.SurfaceType.Smooth
+		for key, value in props do
+			p[key] = value
+		end
+		p.Parent = model
+		return p
+	end
+
+	-- 흙바닥: 두께 2로 아래까지 채워 울퉁불퉁한 눈 바닥의 빈틈을 가린다. 윗면은 판 바닥 + 0.15
+	local thick = 2
+	part({
+		Name = "Dirt",
+		Shape = Enum.PartType.Cylinder,
+		Material = Enum.Material.Ground,
+		Color = SPOT_DIRT_COLOR,
+		Size = Vector3.new(thick, diameter - SPOT_RIM_WIDTH, diameter - SPOT_RIM_WIDTH),
+		CFrame = base * CFrame.new(0, 0.15 - thick / 2, 0) * CFrame.Angles(0, 0, math.pi / 2),
+	})
+	-- 돌 테두리: 짧은 돌 조각을 원 둘레에 이어 붙인다
+	local r = diameter / 2 - SPOT_RIM_WIDTH / 2
+	local length = 2 * (r + SPOT_RIM_WIDTH / 2) * math.tan(math.pi / SPOT_RIM_SEGMENTS) + 0.1
+	local rimHeight = thick + SPOT_RIM_HEIGHT
+	for i = 1, SPOT_RIM_SEGMENTS do
+		local a = (i - 1) / SPOT_RIM_SEGMENTS * math.pi * 2
+		local pos = base * CFrame.new(math.sin(a) * r, 0.15 + SPOT_RIM_HEIGHT - rimHeight / 2, -math.cos(a) * r)
+		part({
+			Name = "Rim" .. i,
+			Material = Enum.Material.Slate,
+			Color = SPOT_STONE_COLOR,
+			Size = Vector3.new(length, rimHeight, SPOT_RIM_WIDTH),
+			CFrame = CFrame.lookAt(pos.Position, base.Position + Vector3.new(0, pos.Y - base.Y, 0)),
+		})
+	end
+	model.Parent = parent
+end
+
 local function loadMapSpots()
 	local folder = workspace:FindFirstChild("PlotSpots")
 	if not folder then
@@ -403,7 +460,11 @@ local function loadMapSpots()
 	end)
 
 	plotPositions = {}
+	local pads = Instance.new("Folder")
+	pads.Name = "PlotSpotPads"
+	pads.Parent = workspace
 	for _, spot in spots do
+		addSpotPad(spot, pads)
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
 		spot.Transparency = 1
@@ -1111,11 +1172,37 @@ end
 -- 배정
 ----------------------------------------------------------------
 
+-- 트리 앞으로 옮긴다. 바닥(지형 눈 등)이 울퉁불퉁하므로 그 자리의 실제 바닥 표면을 재서 그 위에 세운다
+local SPAWN_HEIGHT = 3 -- 바닥 표면에서 이만큼 위에 내려놓는다(스터드)
+local function groundedSpawn(spawn: CFrame, character: Model): CFrame
+	local ignore = { character, plotsFolder }
+	for _, name in { "PlotSpots", "PlotSpotPads", "MapWalls", "Walls" } do
+		local folder = workspace:FindFirstChild(name)
+		if folder then
+			table.insert(ignore, folder)
+		end
+	end
+	for _, other in Players:GetPlayers() do
+		if other.Character then
+			table.insert(ignore, other.Character)
+		end
+	end
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Exclude
+	params.FilterDescendantsInstances = ignore
+	params.RespectCanCollide = true -- 밟을 수 없는 것(장식·투명 표시)은 건너뛴다
+	local hit = workspace:Raycast(spawn.Position + Vector3.new(0, 200, 0), Vector3.new(0, -400, 0), params)
+	if not hit then
+		return spawn
+	end
+	return spawn.Rotation + Vector3.new(spawn.X, hit.Position.Y + SPAWN_HEIGHT, spawn.Z)
+end
+
 local function teleportToPlot(player: Player)
 	local plotIndex = plotOf[player]
 	local character = player.Character
 	if plotIndex and character then
-		character:PivotTo(plots[plotIndex].spawn)
+		character:PivotTo(groundedSpawn(plots[plotIndex].spawn, character))
 	end
 end
 
