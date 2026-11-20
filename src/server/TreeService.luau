@@ -91,6 +91,7 @@ local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
 
 local plotsFolder = nil
 local plotPositions = {} -- [자리 번호] = 플롯 중심 CFrame (광장을 바라봄)
+local plotPadDiameters = {} -- [자리 번호] = 맵 트리 자리 매트 지름 (PlotSpots 판 크기. 맵이 없으면 비어 있음)
 local plots = {} -- [자리 번호] = { cframe, spawn, model, decorations, signLabel, owner, keptFor, keptName, keptUntil }
 local plotOf = {} -- [Player] = 자리 번호
 
@@ -464,6 +465,7 @@ local function loadMapSpots()
 	end)
 
 	plotPositions = {}
+	plotPadDiameters = {}
 	-- 편집 화면용 미리보기 매트(docs/MAP.md '둥근 매트 미리보기')가 남아 있으면 지운다 (게임에서 겹치지 않게)
 	local preview = workspace:FindFirstChild("PlotSpotPadsPreview")
 	if preview then
@@ -523,6 +525,7 @@ local function loadMapSpots()
 		end
 		-- 파츠 바닥 가운데에 트리를 세운다. 파츠의 앞면(Front) 쪽이 트리 정면(사람이 서는 쪽)
 		table.insert(plotPositions, spot.CFrame * CFrame.new(0, -spot.Size.Y / 2, 0))
+		table.insert(plotPadDiameters, math.min(spot.Size.X, spot.Size.Z))
 		spot.Transparency = 1
 		spot:ClearAllChildren() -- "앞" 글자(SurfaceGui) 같은 편집용 표시를 지운다
 		spot.CanCollide = false
@@ -627,6 +630,7 @@ local function buildPlot(index: number)
 	model.Parent = plotsFolder
 	plots[index] = {
 		cframe = base, -- 트리 밑동 기준
+		padDiameter = plotPadDiameters[index], -- 매트 지름 (맵이 없으면 nil)
 		spawn = base * CFrame.new(0, 3, -14) * CFrame.Angles(0, math.pi, 0), -- 트리 앞 14스터드, 트리를 바라봄
 		model = model,
 		decorations = decorations,
@@ -1211,7 +1215,9 @@ local function renderEffects(plot, profile)
 		local _, size = tree:GetBoundingBox()
 		radius = math.max(size.X, size.Z) / 2
 	end
-	local ctx = { base = plot.cframe, height = treeTop(), radius = radius, spot = 1 }
+	-- 넓게 까는 바닥(잔디 등)은 매트의 돌 테두리 안쪽을 꽉 채운다
+	local floorDiameter = if plot.padDiameter then plot.padDiameter - SPOT_RIM_WIDTH * 2 else nil
+	local ctx = { base = plot.cframe, height = treeTop(), radius = radius, spot = 1, floorDiameter = floorDiameter }
 
 	local list = {}
 	if profile.effect then
