@@ -2164,7 +2164,10 @@ end
 -- 긴장 연출: 두 칸이 REEL_SUSPENSE_MIN_RARITY급 이상이고 남은 칸이 그보다 낮으면, 두 칸이 멈춘 뒤 정해진 시간과 상관없이
 -- 마지막 칸을 REEL_SUSPENSE_TIME초 더 돌리고 fakeStop 또는 reverse로 끝낸다
 -- 세 칸은 서로 따로 굴러간다(특성·크기는 장식과 따로 뽑으므로 거짓 결과를 보여 주지 않는다). 결과는 서버가 이미 정했다
-local REEL_STOP_FRACTIONS = { 0.35, 0.55, 1.0 } -- 첫째 · 둘째 · 마지막으로 멈추는 칸이 멈추는 시점 (전체 시간 비율)
+local REEL_STOP_FRACTIONS = { 0.25, 0.55, 1.0 } -- 첫째 · 둘째 · 마지막으로 멈추는 칸이 멈추는 시점 (전체 시간 비율)
+-- 기대 연출: 첫째 칸이 REEL_HOPE_MIN_RARITY급 이상으로 멈추면 둘째·마지막 칸을 REEL_HOPE_EXTRA초씩 늦추고,
+-- 둘째 칸은 희귀한 것들을 지나가며 금색으로 깜빡이다 마지막 한 칸을 HOPE_CRAWL초 동안 기어 들어와 멈춘다
+local HOPE_CRAWL = 1.1
 local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(초)
 -- 앞 두 칸: 멈추기 직전 마지막 간격(멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값
 local REEL_LAST_GAP = { 0.1, 0.08 }
@@ -2384,7 +2387,10 @@ local function playReel(deco, trait, size, duration: number)
 		return a < b
 	end)
 	local lastReel = order[3]
-	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 마지막 칸만 남았을 때
+	local hope = tiers[order[1]] >= Config.REEL_HOPE_MIN_RARITY -- 첫째 칸이 좋은 것으로 멈춘다
+	local hopeExtra = if hope then Config.REEL_HOPE_EXTRA else 0
+	local firstStop = duration * REEL_STOP_FRACTIONS[1]
+	local slowStart = duration * REEL_STOP_FRACTIONS[2] + hopeExtra -- 앞 두 칸이 멈춘 뒤 마지막 칸만 남았을 때
 	local minTier = Config.REEL_SUSPENSE_MIN_RARITY
 	local suspense = tiers[order[2]] >= minTier and tiers[lastReel] < minTier
 
@@ -2419,7 +2425,7 @@ local function playReel(deco, trait, size, duration: number)
 			oneIn,
 			if candidate then string.format(" (역류 후보, %d%%)", math.floor(reverseOdds * 100 + 0.5)) else "",
 			ending,
-			if suspense then " · 긴장 연출" else ""
+			(if suspense then " · 긴장 연출" else "") .. (if hope then " · 기대 연출" else "")
 		))
 	end
 
@@ -2427,9 +2433,14 @@ local function playReel(deco, trait, size, duration: number)
 	for rank, i in order do
 		local isLast = rank == 3
 		local times, stopTime
-		if isLast then
+		local hopeReel = hope and rank == 2 -- 기대 연출로 늦게 멈추는 둘째 칸
+		if hopeReel then
+			stopTime = slowStart
+			local t0 = stopTime - HOPE_CRAWL
+			times = reelTimes(t0, HOPE_CRAWL / 3, REEL_SLOW_RATIO)
+		elseif isLast then
 			-- 끝내기 직전(t0)까지는 점점 느려지며 내려오고, 끝내기는 정해진 시간만큼 (긴장 연출이면 전체 시간보다 길어진다)
-			local finish = if suspense then slowStart + Config.REEL_SUSPENSE_TIME else duration
+			local finish = if suspense then slowStart + Config.REEL_SUSPENSE_TIME else duration + hopeExtra
 			local t0 = math.max(finish - endingTime(ending, crawl), slowStart * 0.6)
 			-- t0 직전 간격: 끝내기의 처음 속도와 이어지게
 			local firstSpeed = if ending == "reverse" then 3 * (1 + REVERSE_REACH) / REVERSE_CRAWL else 3 / crawl
@@ -2439,13 +2450,13 @@ local function playReel(deco, trait, size, duration: number)
 			stopTime = duration * REEL_STOP_FRACTIONS[rank]
 			times = reelTimes(stopTime, stopTime * REEL_LAST_GAP[rank], REEL_GAP_RATIO[rank])
 		end
-		local steps = if isLast then #times + 1 else #times
+		local steps = if isLast or hopeReel then #times + 1 else #times
 		local sequence = table.create(steps + 1)
 		sequence[0] = ui.reels[i].current -- 지금 보이는 결과에서부터 굴러간다
 		local prev = sequence[0]
 		for s = 1, steps - 1 do
 			-- 마지막 칸이 혼자 천천히 넘어갈 때는 희귀한 것들을 보여 준다. fakeStop이면 멈추기 바로 앞은 반드시 희귀한 것
-			local tempt = isLast and times[s] >= slowStart and #tempting[i] > 0
+			local tempt = ((isLast and times[s] >= slowStart) or (hopeReel and times[s] >= firstStop)) and #tempting[i] > 0
 			local mustTempt = isLast and ending == "fakeStop" and s == steps - 1 and #tempting[i] > 0
 			local pick
 			local tries = 0
@@ -2467,8 +2478,8 @@ local function playReel(deco, trait, size, duration: number)
 			sequence = sequence,
 			stopped = false,
 			done = false,
-			ending = if isLast then ending else nil,
-			crawl = crawl,
+			ending = if isLast then ending elseif hopeReel then "slow" else nil,
+			crawl = if hopeReel then HOPE_CRAWL else crawl,
 		}
 	end
 
@@ -2486,6 +2497,11 @@ local function playReel(deco, trait, size, duration: number)
 				-- 멈춘 칸은 크게 튕긴다. 마지막 칸은 더 크게
 				reel.stopped = true
 				popReel(i, if i == lastReel then 1.35 else 1.2, if i == lastReel then 0.45 else 0.3, Enum.EasingStyle.Back)
+			end
+			if hope and i == order[2] and elapsed >= firstStop and not reel.stopped then
+				-- 첫째 칸이 좋은 것으로 멈추면 둘째 칸 테두리가 금색으로 깜빡인다
+				local pulse = (math.sin(elapsed * 10) + 1) / 2
+				ui.reels[i].stroke.Color = ui.reels[i].stroke.Color:Lerp(SUSPENSE_GOLD, pulse)
 			end
 			if suspense and i == lastReel and elapsed >= slowStart and not reel.stopped then
 				-- 테두리가 금색으로 깜빡인다
