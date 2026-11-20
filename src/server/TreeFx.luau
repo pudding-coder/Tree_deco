@@ -16,7 +16,7 @@ local TreeFx = {}
 
 -- 바닥 자리(spread가 아닌 바닥 아이템): 트리 둘레, 정면 양옆부터
 local FLOOR_SPOT_ANGLES = { -40, 40, -140, 140 } -- 0도 = 정면(-Z)
-local FLAT_FLOOR_LIFT = 0.35 -- 넓게 까는 바닥 모델(마법진 등)의 밑면 높이 (밑동 기준)
+local FLAT_FLOOR_LIFT = 0.2 -- 넓게 까는 바닥 모델(마법진 등)의 밑면 높이 (밑동 기준)
 local FLOOR_ITEM_SIZE = 3 -- 바닥 자리 아이템의 가장 긴 변(스터드)
 
 local function newPart(props)
@@ -56,7 +56,7 @@ function BUILT_IN.Grass(ctx)
 		Name = "Grass",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.3, diameter, diameter),
-		CFrame = ctx.base * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		CFrame = ctx.base * CFrame.new(0, 0.03, 0) * CFrame.Angles(0, 0, math.pi / 2), -- 윗면이 흙(+0.15) 바로 위 +0.18
 		Material = Enum.Material.Grass,
 		Color = Color3.fromRGB(88, 160, 72),
 	})
@@ -294,7 +294,7 @@ local function fromModel(fx, ctx)
 	model:ScaleTo(model:GetScale() * scale * fx.size)
 
 	-- 모델 밑면 가운데를 target에 맞춘다
-	-- 매트 흙 윗면이 밑동 +0.15, 잔디밭 윗면이 +0.3이라 그보다 위에 올린다 (얇은 마법진이 흙·잔디에 묻히지 않게)
+	-- 매트 흙 윗면이 밑동 +0.15, 잔디밭 윗면이 +0.18이라 그 바로 위에 깐다 (묻히지도 뜨지도 않게)
 	local lift = if fx.area == "Floor" and fx.spread then FLAT_FLOOR_LIFT else 0.15
 	local box, boxSize = model:GetBoundingBox()
 	local bottom = box * CFrame.new(0, -boxSize.Y / 2, 0)
