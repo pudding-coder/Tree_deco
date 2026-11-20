@@ -29,6 +29,8 @@ Config.FREE_SPIN_COOLDOWN = 15 -- 무료 룰렛 쿨타임(초)
 Config.REEL_STOP_TIME = 5 -- 한 번 돌릴 때 슬롯 3칸(레어도·장식·특성)이 모두 멈추는 기본 시간(초)
 Config.REEL_SUSPENSE_MIN_RARITY = 3 -- 긴장 연출: 두 칸이 이 등급(급) 이상이고 남은 한 칸이 그보다 낮으면 마지막 칸을 따로 오래 돌린다 (레어)
 Config.REEL_SUSPENSE_TIME = 5 -- 긴장 연출에서 앞 두 칸이 멈춘 뒤 마지막 칸이 더 도는 시간(초). REEL_STOP_TIME과 상관없다
+Config.REEL_HOPE_MIN_RARITY = 3 -- 기대 연출: 첫째로 멈춘 칸이 이 등급(급) 이상이면 둘째 칸을 더 오래 돌린다 (레어)
+Config.REEL_HOPE_EXTRA = 1.5 -- 기대 연출에서 둘째·마지막 칸이 더 도는 시간(초)
 Config.REEL_REVERSE_MIN_N = 5 -- 역류(미스틱이 나올 뻔하다 거꾸로 튕김) 후보: 나온 결과물 전체 확률(특성 확률 × 크기 확률 × 장식 등급 확률(행운 포함))이 1/이 값 이하이고
 Config.REEL_REVERSE_MAX_N = 20 -- 1/이 값 이상이면 후보 (약 1/10짜리 결과)
 Config.REEL_REVERSE_RATE = 0.1 -- 역류가 나오는 판의 비율 (0.1 = 10번에 1번). 후보 판 중 일부만 역류시켜 맞춘다(행운에 따라 자동 계산). 역류하면 회전 시간이 약 3초 길어진다
