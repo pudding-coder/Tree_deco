@@ -141,6 +141,14 @@
 3. 저장(`Cmd + S`) → **File → Publish to Roblox**.
 4. 친구에게 예전 모습이 보이면: Creator Hub → 게임 → 서버 → **업데이트되지 않은 서버 다시 시작**.
 
+### 아바타 모델 (NPC·마네킹)
+
+`tools/studio/make_avatar.lua`를 Command Bar에서 실행하면 카메라 앞 바닥에 사람 모양 모델(`AvatarModel`)이 서고, `MapDecor`(없으면 Workspace)에 들어간다.
+
+- 맨 위 설정만 바꾼다: 이름, 머리 위 이름표(`DISPLAY_NAME`), 옷 색, `R15`/`R6`.
+- `USER_ID`에 로블록스 사용자 번호를 넣으면 그 사람 옷차림으로 만든다.
+- 기본은 고정된 마네킹(`ANCHORED = true`, 안의 스크립트 지움). 같은 이름으로 다시 실행하면 지우고 새로 만든다. 여러 개가 필요하면 이름을 바꿔 실행한다.
+
 ---
 
 ## 7. 자주 겪는 문제
