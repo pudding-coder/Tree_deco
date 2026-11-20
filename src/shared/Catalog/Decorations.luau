@@ -26,7 +26,7 @@
 
 return {
 	-- 커먼
-	{ id = "Star", name = "별", rarity = "Common", area = "Topper" },
+	{ id = "Star", name = "별", rarity = "Common", area = "Topper", sink = 0.3 },
 	{ id = "NoobHead", name = "뉴비 머리", rarity = "Common", area = "Topper" },
 	{ id = "BrownFloofHair", name = "갈색 푹신한 머리", rarity = "Common", area = "Topper" },
 
@@ -51,7 +51,7 @@ return {
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 
 	-- 언커먼
-	{ id = "PinkBow", name = "리본", rarity = "Uncommon", area = "Topper" },
+	{ id = "PinkBow", name = "리본", rarity = "Uncommon", area = "Topper", sink = 0.3 },
 	{ id = "IceBingsu", name = "빙수", rarity = "Uncommon", area = "Topper" },
 
 	{ id = "Gingerbread", name = "진저브레드맨", rarity = "Uncommon", area = "Ornament" },

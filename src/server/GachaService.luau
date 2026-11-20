@@ -13,6 +13,8 @@ local PlayerData = require(script.Parent.PlayerData)
 local Income = require(script.Parent.Income)
 
 local GachaService = {}
+-- 뽑은 장식이 가방에 들어간 뒤 부르는 함수 (TreeService가 채운다: 자동 걸기)
+GachaService.AfterItemAdded = nil :: ((player: Player, profile: any, reelTime: number) -> ())?
 
 local GLOBAL_TOPIC = "TreeDeco_GlobalAnnounce"
 local rng = Random.new()

@@ -411,7 +411,7 @@ local function addSpotPad(spot: BasePart, parent: Instance)
 
 	-- 흙바닥: 아래까지 두껍게 채워 울퉁불퉁한 눈 바닥의 빈틈을 가린다. 윗면은 판 바닥 + 0.15
 	-- 판 안에서 눈이 가장 낮은 곳까지 내려가게 두께를 정한다 (loadMapSpots가 잰 PadDepth)
-	local thick = 2 + (spot:GetAttribute("PadDepth") or 0)
+	local thick = 2 + (tonumber(spot:GetAttribute("PadDepth")) or 0)
 	part({
 		Name = "Dirt",
 		Shape = Enum.PartType.Cylinder,
@@ -483,9 +483,9 @@ local function loadMapSpots()
 		floorParams.FilterType = Enum.RaycastFilterType.Include
 		local floors = { workspace.Terrain }
 		for _, name in { "MapGround", "MapPaths", "MapFloor", "Baseplate" } do
-			local folder = workspace:FindFirstChild(name)
-			if folder then
-				table.insert(floors, folder)
+			local floorFolder = workspace:FindFirstChild(name)
+			if floorFolder then
+				table.insert(floors, floorFolder)
 			end
 		end
 		floorParams.FilterDescendantsInstances = floors
