@@ -49,7 +49,8 @@ local COLORS = {
 
 -- 창·버튼 모양 (docs/UI.md)
 local THEME = {
-	font = Enum.Font.FredokaOne, -- 버튼·창 제목 글꼴 (한글은 Roblox 기본 한글 글꼴로 나온다)
+	-- 버튼·창 제목 글꼴. 영문·숫자는 이 글꼴, 한글은 Roblox 기본 한글 글꼴로 나오는데 굵기(Bold)는 따라간다
+	font = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Bold),
 	outline = Color3.fromRGB(14, 18, 34), -- 창·버튼 테두리 색
 	panelOutline = 3, -- 창 테두리 두께
 	buttonOutline = 2.5, -- 버튼 테두리 두께
@@ -160,7 +161,9 @@ end
 
 local function label(props)
 	props.BackgroundTransparency = props.BackgroundTransparency or 1
-	props.Font = props.Font or Enum.Font.GothamBold
+	if not props.FontFace then
+		props.Font = props.Font or Enum.Font.GothamBold
+	end
 	props.TextColor3 = props.TextColor3 or COLORS.text
 	props.TextSize = props.TextSize or 16
 	return create("TextLabel", props)
@@ -207,7 +210,7 @@ local function button(props)
 		BackgroundColor3 = props.Color or COLORS.panelLight,
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = props.TextSize or 18,
 		TextColor3 = COLORS.text,
 		TextStrokeColor3 = THEME.outline,
@@ -266,11 +269,13 @@ local function addIcon(parent: GuiObject, image: string?, size: number, noPaddin
 		ScaleType = Enum.ScaleType.Fit,
 		Size = UDim2.fromOffset(size, size),
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 10, 0.5, 0),
+		-- UIPadding은 아이콘도 같이 밀기 때문에, 미는 만큼 왼쪽으로 되돌려 버튼 왼쪽 끝에서 12px에 둔다
+		Position = UDim2.new(0, if noPadding then 0 else 12 - (size + 20), 0.5, 0),
 		Parent = parent,
 	})
 	if not noPadding then
-		create("UIPadding", { PaddingLeft = UDim.new(0, size + 8), Parent = parent })
+		create("UIPadding", { PaddingLeft = UDim.new(0, size + 20), Parent = parent })
+		parent.TextXAlignment = Enum.TextXAlignment.Left -- 아이콘 바로 옆에서 글자가 시작한다
 	end
 end
 
@@ -319,7 +324,7 @@ local function buildSlot(gui)
 	ui.slot = slot
 	label({
 		Text = "장식 룰렛",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(0.6, 0, 0, 28),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -599,7 +604,7 @@ end
 local function buildCoins(gui)
 	local frame = panel({
 		Name = "Coins",
-		Size = UDim2.fromOffset(220, 56),
+		Size = UDim2.fromOffset(250, 56),
 		AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -16, 1, -20),
 		Parent = gui,
@@ -643,7 +648,7 @@ local function buildInventory(gui)
 
 	ui.invTitle = label({
 		Text = "가방",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -781,7 +786,7 @@ local function buildUpgradeWindow(gui)
 
 	label({
 		Text = "업그레이드",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -879,7 +884,7 @@ local function buildShopWindow(gui)
 
 	label({
 		Text = "트리 꾸미기 상점",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1028,7 +1033,7 @@ local function buildTreeWindow(gui)
 
 	ui.treeTitle = label({
 		Text = "내 트리",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -200, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1275,7 +1280,12 @@ local function buildUI()
 	addIcon(ui.treeButton, ICONS.tree, MENU_ICON_SIZE)
 	addIcon(ui.rouletteButton, ICONS.roulette, MENU_ICON_SIZE)
 	addIcon(ui.shopButton, ICONS.shop, MENU_ICON_SIZE)
-	addIcon(ui.coins.Parent, ICONS.coins, 32, true) -- 코인 칸은 이미 여백이 있고 글자가 오른쪽 정렬이라 밀지 않는다
+	if ICONS.coins ~= "" then
+		-- 코인 칸: 아이콘은 왼쪽 끝, 글자는 아이콘 오른쪽 칸 안에서 오른쪽 정렬 (겹치지 않게)
+		addIcon(ui.coins.Parent, ICONS.coins, 32, true)
+		ui.coins.Size = UDim2.new(1, -40, 1, 0)
+		ui.coins.Position = UDim2.fromOffset(40, 0)
+	end
 	for _, btn in { ui.invClose, ui.upgradeClose, ui.shopClose, ui.treeClose } do
 		useCloseIcon(btn)
 	end
@@ -1351,7 +1361,8 @@ end
 
 local function refreshCoins()
 	local income = currentIncome()
-	ui.coins.Text = "코인 " .. Gacha.FormatNumber(state.coins)
+	-- 코인 아이콘이 있으면 "코인" 글자는 뺀다
+	ui.coins.Text = (if ICONS.coins == "" then "코인 " else "") .. Gacha.FormatNumber(state.coins)
 	if income > 0 then
 		ui.coins.Text ..= string.format("  (+%s/초)", formatIncome(income))
 	end

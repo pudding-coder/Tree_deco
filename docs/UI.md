@@ -57,7 +57,7 @@ local ICONS = {
 
 | 이름 | 뜻 | 지금 값 |
 | --- | --- | --- |
-| `font` | 버튼·창 제목 글꼴 (`Enum.Font.` 뒤 이름. 한글은 Roblox 기본 한글 글꼴로 나온다) | `FredokaOne` |
+| `font` | 버튼·창 제목 글꼴. `Font.new("rbxasset://fonts/families/글꼴이름.json", Enum.FontWeight.Bold)`. 한글은 Roblox 기본 한글 글꼴로 나오고 굵기만 따라간다 | `FredokaOne`, Bold |
 | `outline` | 창·버튼 테두리 색 | 진한 남색 |
 | `panelOutline` / `buttonOutline` | 테두리 두께 (0이면 없음) | 3 / 2.5 |
 | `panelRadius` | 창 모서리 둥글기 | 18 |
