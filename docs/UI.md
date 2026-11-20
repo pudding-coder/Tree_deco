@@ -51,6 +51,21 @@ local ICONS = {
 
 ---
 
+## 2-1. 창·버튼 모양 (`THEME`, `MENU_COLORS`)
+
+`GachaUI.luau` 위쪽 `THEME` 표가 모든 창과 버튼에 한꺼번에 적용된다.
+
+| 이름 | 뜻 | 지금 값 |
+| --- | --- | --- |
+| `font` | 버튼·창 제목 글꼴 (`Enum.Font.` 뒤 이름. 한글은 Roblox 기본 한글 글꼴로 나온다) | `FredokaOne` |
+| `outline` | 창·버튼 테두리 색 | 진한 남색 |
+| `panelOutline` / `buttonOutline` | 테두리 두께 (0이면 없음) | 3 / 2.5 |
+| `panelRadius` | 창 모서리 둥글기 | 18 |
+| `shine` | 버튼 아래쪽 어둡기. 1이면 광택 없음, 작을수록 진함 | 0.78 |
+| `hoverScale` / `pressScale` | 마우스 올림 / 누름 때 크기 배율. 1이면 움직이지 않음 | 1.05 / 0.93 |
+
+`MENU_COLORS`는 왼쪽 아래 메뉴 버튼(가방·업그레이드·내 트리·룰렛·상점) 색이다.
+
 ## 3. 글자 바꾸기
 
 `GachaUI.luau`에서 바꿀 글자(예: `"무료 돌리기"`)를 검색해 따옴표 안만 고친다.
