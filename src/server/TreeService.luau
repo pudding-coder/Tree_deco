@@ -78,15 +78,15 @@ local GARLAND_TIERS = { 4, 2, 5, 3 }
 local GARLAND_POINTS = 48 -- 줄을 이루는 점 수 (많을수록 줄이 매끄럽게 휜다)
 local GARLAND_SWAGS = 8 -- 한 바퀴에 줄이 늘어지는 마디 수. 마디 끝(고정점) 사이가 아래로 처진다
 local GARLAND_SAG = 0.7 -- 마디 가운데가 고정점보다 처지는 깊이(스터드)
-local GARLAND_BULB_EVERY = 3 -- 전구 간격 (점 몇 개마다 하나, 3이면 16개)
-local GARLAND_BULB_SIZE = 0.38 -- 전구 지름(스터드)
+local GARLAND_BULB_GAP = 1.6 -- 전구 사이 간격(스터드). 개수가 아니라 간격이라 둘레가 짧은 위쪽 띠는 전구가 적다
+local GARLAND_BULB_SIZE = 0.3 -- 전구 지름(스터드)
 local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 -- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
-local GARLAND_BEAD_SIZE = 1.0 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
-local GARLAND_BEAD_EVERY = 4 -- 점 몇 개마다 하나씩 달지 (4면 12개)
-local GARLAND_BEAD_SWAY = 14 -- 매달린 모델이 좌우로 흔들려 보이는 최대 각도(도). 모델마다 조금씩 다르다
-local GARLAND_BEAD_TWIST = 18 -- 매달린 모델이 옆으로 돌아간 최대 각도(도)
+local GARLAND_BEAD_SIZE = 0.75 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
+local GARLAND_BEAD_GAP = 2.6 -- 모델 사이 간격(스터드). 둘레가 짧은 위쪽 띠는 모델이 적다
+local GARLAND_BEAD_SWAY = 25 -- 매달린 모델이 좌우로 흔들려 보이는 최대 각도(도). 모델마다 조금씩 다르다
+local GARLAND_BEAD_TWIST = 30 -- 매달린 모델이 옆으로 돌아간 최대 각도(도)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -1028,14 +1028,27 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 	local points = garlandPaths[entry.i] or {}
 	-- 모델마다 흔들린 각도를 다르게 하되, 다시 그려도 같은 모양이 나오게 띠 자리로 정한 난수를 쓴다
 	local sway = Random.new(entry.i * 7919 + #deco.id)
+	-- 줄을 따라 간 거리로 단다: 지난번 단 곳에서 간격만큼 가면 하나 (둘레와 상관없이 간격이 같다)
+	local gap = if bead then GARLAND_BEAD_GAP * deco.size else GARLAND_BULB_GAP
+	local walked = gap -- 첫 점에 바로 하나 단다
+	local lastPoint = nil
 	for k = 1, GARLAND_POINTS do
 		local point = points[k]
 		if not point then
+			lastPoint = nil
 			continue
+		end
+		if lastPoint then
+			walked += (point - lastPoint).Magnitude
+		end
+		lastPoint = point
+		local hangHere = walked >= gap
+		if hangHere then
+			walked = 0
 		end
 		if bead then
 			-- 모델을 작게 복제해 줄 아래에 매단다. 정면(-Z)이 대체로 트리 바깥을 보고, 하나하나 조금씩 기울어 있다
-			if (k - 1) % GARLAND_BEAD_EVERY == 0 then
+			if hangHere then
 				local copy = bead:Clone()
 				local _, size = copy:GetBoundingBox()
 				local longest = math.max(size.X, size.Y, size.Z)
@@ -1058,7 +1071,7 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 				end
 				copy.Parent = holder
 			end
-		elseif (k - 1) % GARLAND_BULB_EVERY == 0 then
+		elseif hangHere then
 			-- 작은 전구를 줄 바로 아래에 매단다
 			local ball = newPart({
 				Shape = Enum.PartType.Ball,
