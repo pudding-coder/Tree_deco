@@ -20,6 +20,7 @@
 | 트리 효과 상점 목록 | `src/shared/Catalog/TreeEffects.luau` (가격은 `Config.luau`, 기본 효과 모양은 `src/server/TreeFx.luau`) |
 | 등급 이름·색 | `src/shared/Rarity.luau` (확률·가치는 `Config.luau`) |
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |
+| 화면 UI 아이콘·색·글자·위치 | `docs/UI.md` (아이콘 id는 `src/client/GachaUI.luau`의 `ICONS`) |
 | 밸런스 시뮬레이터 | `tools/balance_sim.py` |
 | 작업 시작·마무리 순서 | `docs/WORKFLOW.md` |
 | 에셋·맵 꾸미기 팀 매뉴얼(Studio) | `docs/ASSET_GUIDE.md` (Command Bar 스크립트는 `tools/studio/`) |

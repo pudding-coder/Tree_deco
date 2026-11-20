@@ -18,6 +18,22 @@ local GachaUI = {}
 -- 자물쇠 그림 (assets/textures/lock.png를 올린 이미지 id). 비워 두면 "잠금" 글자로 나온다
 local LOCK_IMAGE = "rbxassetid://133145630160436" -- assets/textures/lock.png
 
+-- 버튼 아이콘 (Basic_UI_Pack의 이미지 id). 바꾸려면 id만 고치고, 빼려면 "" 로 둔다
+-- 팩의 다른 아이콘: Settings 109558273647021, Rebirth 138533388378565, Gift 98765217070709, Gems 108846984313264,
+--   Play 104915011936755, Confirm 82767374889976, SoundOn 91961227251741, Music 125047975849256,
+--   Friends 138393293744051, Leaderboard 122400187905753, Quests 77359789350483, DailyReward 97419429998550,
+--   Teleport 128940707580259, Help 71148853828725
+local ICONS = {
+	bag = "rbxassetid://95338657327605", -- 가방 버튼 (팩 Inventory)
+	upgrade = "rbxassetid://113532507482722", -- 업그레이드 버튼 (팩 Upgrade)
+	tree = "rbxassetid://100186608972356", -- 내 트리 버튼 (팩 Home)
+	roulette = "rbxassetid://104915011936755", -- 룰렛 버튼 (팩 Play)
+	shop = "rbxassetid://132000942692847", -- 상점 버튼 (팩 Shop)
+	coins = "rbxassetid://132123388448433", -- 오른쪽 아래 코인 칸 (팩 Coins)
+	close = "rbxassetid://93352627659643", -- 창 닫기 X 버튼 (팩 Close)
+}
+local MENU_ICON_SIZE = 36 -- 왼쪽 아래 메뉴 버튼 아이콘 크기(픽셀)
+
 local COLORS = {
 	panel = Color3.fromRGB(20, 28, 40),
 	panelLight = Color3.fromRGB(32, 43, 60),
@@ -173,6 +189,43 @@ local function button(props)
 	})
 	corner(btn, props.Radius or 10)
 	return btn
+end
+
+-- 버튼 왼쪽에 아이콘을 붙이고 글자를 그만큼 오른쪽으로 민다 (image가 ""이면 아무것도 안 함)
+local function addIcon(parent: GuiObject, image: string?, size: number, noPadding: boolean?)
+	if not image or image == "" then
+		return
+	end
+	create("ImageLabel", {
+		Name = "Icon",
+		BackgroundTransparency = 1,
+		Image = image,
+		ScaleType = Enum.ScaleType.Fit,
+		Size = UDim2.fromOffset(size, size),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 10, 0.5, 0),
+		Parent = parent,
+	})
+	if not noPadding then
+		create("UIPadding", { PaddingLeft = UDim.new(0, size + 8), Parent = parent })
+	end
+end
+
+-- X 글자 버튼을 닫기 아이콘으로 바꾼다 (ICONS.close가 ""이면 X 글자 그대로)
+local function useCloseIcon(btn: TextButton)
+	if ICONS.close == "" then
+		return
+	end
+	btn.Text = ""
+	btn.BackgroundTransparency = 1
+	create("ImageLabel", {
+		Name = "Icon",
+		BackgroundTransparency = 1,
+		Image = ICONS.close,
+		ScaleType = Enum.ScaleType.Fit,
+		Size = UDim2.fromScale(1, 1),
+		Parent = btn,
+	})
 end
 
 local function setButton(btn: TextButton, text: string, enabled: boolean, color: Color3)
@@ -1172,6 +1225,17 @@ local function buildUI()
 	buildTreeWindow(gui)
 	buildShopWindow(gui)
 	applySlotOrder()
+
+	-- 아이콘 (위 ICONS 표)
+	addIcon(ui.bagButton, ICONS.bag, MENU_ICON_SIZE)
+	addIcon(ui.upgradeButton, ICONS.upgrade, MENU_ICON_SIZE)
+	addIcon(ui.treeButton, ICONS.tree, MENU_ICON_SIZE)
+	addIcon(ui.rouletteButton, ICONS.roulette, MENU_ICON_SIZE)
+	addIcon(ui.shopButton, ICONS.shop, MENU_ICON_SIZE)
+	addIcon(ui.coins.Parent, ICONS.coins, 32, true) -- 코인 칸은 이미 여백이 있고 글자가 오른쪽 정렬이라 밀지 않는다
+	for _, btn in { ui.invClose, ui.upgradeClose, ui.shopClose, ui.treeClose } do
+		useCloseIcon(btn)
+	end
 	for _, area in TREE_AREAS do
 		ReplicatedStorage:GetAttributeChangedSignal("TreeSlotOrder_" .. area.id):Connect(applySlotOrder)
 	end
