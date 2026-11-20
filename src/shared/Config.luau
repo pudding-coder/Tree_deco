@@ -25,6 +25,8 @@ Config.STUDIO_GIVE_ALL_TREE_EFFECTS = true -- Studio 테스트: 접속하면 상
 ----------------------------------------------------------------
 Config.FREE_SPIN_COOLDOWN = 15 -- 무료 룰렛 쿨타임(초)
 Config.REEL_STOP_TIME = 5 -- 한 번 돌릴 때 슬롯 3칸(레어도·장식·특성)이 모두 멈추는 기본 시간(초)
+Config.REEL_SUSPENSE_MIN_RARITY = 3 -- 긴장 연출: 두 칸이 이 등급(급) 이상이고 남은 한 칸이 그보다 낮으면 마지막 칸을 따로 오래 돌린다 (레어)
+Config.REEL_SUSPENSE_TIME = 5 -- 긴장 연출에서 앞 두 칸이 멈춘 뒤 마지막 칸이 더 도는 시간(초). REEL_STOP_TIME과 상관없다
 Config.COIN_SPIN_MIN_COST = 60 -- 코인 룰렛 최소 비용 (행운 배수를 곱함)
 Config.COIN_SPIN_INCOME_SEC = 90 -- 코인 룰렛 비용 = 몇 초 치 수입인지
 
