@@ -98,6 +98,7 @@
 
 - `MapDecor` 폴더에 넣는다. 울퉁불퉁한 바닥에서는 `snap_to_floor.lua`로 높이를 맞춘다.
 - 자꾸 클릭에 걸리는 큰 것(벽·길·매트·바닥)은 `tools/studio/lock_toggle.lua`로 잠근다.
+- 별 기둥에서 가로등(`Street lamp`)까지 전구 줄: `tools/studio/string_lights_star.lua`. 가로등을 옮기면 다시 실행한다(`MapDecor.StarLights`를 새로 만든다).
 
 ### C. 바닥
 
