@@ -420,7 +420,7 @@ local function createLeaderstats(player: Player, profile)
 end
 
 -- Studio 테스트용: 특성마다 오너먼트·띠·토퍼 견본을 하나씩 넣는다 (이미 있는 칸은 건너뛴다)
-local TRAIT_SAMPLE_DECORATIONS = { "Ball", "MiniLights", "Star" }
+local TRAIT_SAMPLE_DECORATIONS = { "Fish", "CCTVCamera", "NoobHead" }
 local sampleRng = Random.new()
 
 local function giveTraitSamples(profile)
