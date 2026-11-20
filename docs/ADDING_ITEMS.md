@@ -148,7 +148,7 @@ Candy = Color3.fromRGB(255, 150, 200),
 { id = "TungSahurKeyring", ..., size = 1.2, turn = 180 },
 ```
 
-띠(Garland) 모델은 줄 모양이라 트리를 감싸는 방식이 따로 필요하다. 지금은 오너먼트와 토퍼만 모델을 권한다.
+**띠(Garland) 모델**은 줄에 다는 물건 **하나**(예: CCTV 카메라 하나)를 넣는다. 게임이 그 모델을 작게(가장 긴 변 1.4) 복제해 띠 전선을 따라 14개를 단다(`TreeService.luau`의 `GARLAND_BEAD_SIZE`·`GARLAND_BEAD_EVERY`). 정면(-Z)이 트리 바깥을 본다. 크기는 장식 줄의 `size`, 방향은 `turn`.
 
 ### 랜덤 색이 칠해지는 곳 (Paint 파트)
 

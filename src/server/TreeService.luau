@@ -78,6 +78,9 @@ local GARLAND_TIERS = { 4, 2, 5, 3 }
 local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
 local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
+-- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
+local GARLAND_BEAD_SIZE = 1.4 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
+local GARLAND_BEAD_EVERY = 2 -- 전구 자리 몇 칸마다 하나씩 달지 (2면 14개)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -1004,6 +1007,107 @@ local function makeHoldable(model: Model, deco)
 	end
 end
 
+-- 띠: 트리 겉면을 비스듬히 도는 줄. bead(3D 모델)가 있으면 전구 대신 그 모델을 줄에 달고, 없으면 등급 색 전구
+-- bead는 cloneModel이 만든 원본 복제본이라 여기서 쓰고 지운다
+local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
+	-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
+	local holder = Instance.new("Model")
+	holder.Name = deco.id
+	local points = garlandPaths[entry.i] or {}
+	for k = 1, GARLAND_BALLS do
+		local point = points[k]
+		if not point then
+			continue
+		end
+		if bead then
+			-- 모델을 작게 복제해 단다. 정면(-Z)이 트리 바깥을 보게
+			if (k - 1) % GARLAND_BEAD_EVERY == 0 then
+				local copy = bead:Clone()
+				local _, size = copy:GetBoundingBox()
+				local longest = math.max(size.X, size.Y, size.Z)
+				if longest > 0 then
+					copy:ScaleTo(copy:GetScale() * GARLAND_BEAD_SIZE * deco.size / longest)
+				end
+				local world = plot.cframe:PointToWorldSpace(point)
+				local center = plot.cframe:PointToWorldSpace(Vector3.new(0, point.Y, 0))
+				local outward = world - center
+				local _, scaled = copy:GetBoundingBox()
+				if outward.Magnitude > 0.01 then
+					world += outward.Unit * (scaled.Z / 2 - 0.2) -- 뒤쪽이 줄에 닿게 바깥으로 (트리에 묻히지 않게)
+				end
+				local facing = if outward.Magnitude > 0.01 then CFrame.lookAt(world, world + outward) else CFrame.new(world)
+				facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
+				local box = copy:GetBoundingBox()
+				copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
+				if paint then
+					TraitEffects.Paint(copy, paint.color)
+				end
+				copy.Parent = holder
+			end
+		else
+			local ball = newPart({
+				Shape = Enum.PartType.Ball,
+				Size = Vector3.new(0.6, 0.6, 0.6),
+				CFrame = plot.cframe * CFrame.new(point),
+				CanCollide = false,
+				CanQuery = false,
+				CastShadow = false,
+				Parent = holder,
+			})
+			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
+			decorateLook(ball, deco, trait, false)
+		end
+
+		local nextPoint = points[k % GARLAND_BALLS + 1]
+		if nextPoint then
+			local a = plot.cframe:PointToWorldSpace(point)
+			local b = plot.cframe:PointToWorldSpace(nextPoint)
+			newPart({
+				Name = "Wire",
+				Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
+				CFrame = CFrame.lookAt((a + b) / 2, b),
+				Color = GARLAND_WIRE_COLOR,
+				CanCollide = false,
+				CanQuery = false,
+				CastShadow = false,
+				Parent = holder,
+			})
+		end
+	end
+
+	-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+	if trait.effect then
+		local carrier = 0
+		for k = 1, GARLAND_BALLS, 2 do
+			local from = points[k]
+			local to = points[(k + 1) % GARLAND_BALLS + 1]
+			if not from or not to then
+				continue
+			end
+			local a = plot.cframe:PointToWorldSpace(from)
+			local b = plot.cframe:PointToWorldSpace(to)
+			carrier += 1
+			local band = newPart({
+				Name = "TraitBand",
+				Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
+				CFrame = CFrame.lookAt((a + b) / 2, b),
+				Transparency = 1,
+				CanCollide = false,
+				CanQuery = false,
+				CanTouch = false,
+				CastShadow = false,
+				Parent = holder,
+			})
+			-- 빛은 몇 곳에만 (많으면 무거워진다)
+			TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
+		end
+	end
+	holder.Parent = plot.decorations
+	if bead then
+		bead:Destroy()
+	end
+end
+
 local function renderEntry(plot, entry)
 	local deco = Catalog.DecorationById[entry.d]
 	local trait = Catalog.TraitById[entry.t]
@@ -1015,6 +1119,10 @@ local function renderEntry(plot, entry)
 	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local sizeScale = Catalog.SizeOf(entry.s).scale -- 뽑을 때 정해진 크기 (띠는 항상 보통)
 	local model, primary = cloneModel(deco)
+	if model and entry.a == "Garland" then
+		renderGarland(plot, entry, deco, trait, model, paint)
+		return
+	end
 	if model then
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Ornament" then
@@ -1040,72 +1148,7 @@ local function renderEntry(plot, entry)
 
 	-- 임시 모양
 	if entry.a == "Garland" then
-		-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
-		local holder = Instance.new("Model")
-		holder.Name = deco.id
-		local points = garlandPaths[entry.i] or {}
-		for k = 1, GARLAND_BALLS do
-			local point = points[k]
-			if not point then
-				continue
-			end
-			local ball = newPart({
-				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.6, 0.6, 0.6),
-				CFrame = plot.cframe * CFrame.new(point),
-				CanCollide = false,
-				CanQuery = false,
-				CastShadow = false,
-				Parent = holder,
-			})
-			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
-			decorateLook(ball, deco, trait, false)
-
-			local nextPoint = points[k % GARLAND_BALLS + 1]
-			if nextPoint then
-				local a = plot.cframe:PointToWorldSpace(point)
-				local b = plot.cframe:PointToWorldSpace(nextPoint)
-				newPart({
-					Name = "Wire",
-					Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
-					CFrame = CFrame.lookAt((a + b) / 2, b),
-					Color = GARLAND_WIRE_COLOR,
-					CanCollide = false,
-					CanQuery = false,
-					CastShadow = false,
-					Parent = holder,
-				})
-			end
-		end
-
-		-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
-		if trait.effect then
-			local carrier = 0
-			for k = 1, GARLAND_BALLS, 2 do
-				local from = points[k]
-				local to = points[(k + 1) % GARLAND_BALLS + 1]
-				if not from or not to then
-					continue
-				end
-				local a = plot.cframe:PointToWorldSpace(from)
-				local b = plot.cframe:PointToWorldSpace(to)
-				carrier += 1
-				local band = newPart({
-					Name = "TraitBand",
-					Size = Vector3.new(0.8, 0.8, (b - a).Magnitude),
-					CFrame = CFrame.lookAt((a + b) / 2, b),
-					Transparency = 1,
-					CanCollide = false,
-					CanQuery = false,
-					CanTouch = false,
-					CastShadow = false,
-					Parent = holder,
-				})
-				-- 빛은 몇 곳에만 (많으면 무거워진다)
-				TraitEffects.Apply(band, trait, { radius = 0.6, rateScale = 0.35, light = carrier % 4 == 1 })
-			end
-		end
-		holder.Parent = plot.decorations
+		renderGarland(plot, entry, deco, trait, nil, nil)
 	else
 		local size = (if entry.a == "Topper" then 2.4 else 1.4) * sizeScale
 		local part = newPart({
