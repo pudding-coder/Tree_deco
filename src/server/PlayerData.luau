@@ -472,6 +472,36 @@ local function giveModelSamples(profile)
 	end
 end
 
+-- Studio 테스트: Config.STUDIO_GIVE_ITEMS의 장식을 하나씩 가방에 넣는다 (이미 가진 장식은 건너뛴다)
+local function giveListedItems(profile)
+	if not Catalog.BaseTrait then
+		return
+	end
+	local owned = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 then
+			owned[stack.d] = true
+		end
+	end
+	for _, entry in profile.tree do
+		owned[entry.d] = true
+	end
+	local given = {}
+	for _, decoId in Config.STUDIO_GIVE_ITEMS do
+		local deco = Catalog.DecorationById[decoId]
+		if not deco then
+			warn("[PlayerData] STUDIO_GIVE_ITEMS: 없는 장식 id입니다: " .. tostring(decoId))
+		elseif not owned[decoId] then
+			PlayerData.AddItem(profile, deco, Catalog.BaseTrait, 1)
+			owned[decoId] = true
+			table.insert(given, decoId)
+		end
+	end
+	if #given > 0 then
+		print("[PlayerData] Studio 테스트: 장식을 가방에 넣었습니다: " .. table.concat(given, ", "))
+	end
+end
+
 local function onPlayerAdded(player: Player)
 	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
@@ -502,6 +532,9 @@ local function onPlayerAdded(player: Player)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
 		giveModelSamples(profile)
+	end
+	if IS_STUDIO and Config.STUDIO_GIVE_ITEMS then
+		giveListedItems(profile)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_ALL_TREE_EFFECTS then
 		local given = {}
