@@ -67,6 +67,7 @@ return {
 	{ id = "EggDog", name = "에그독", rarity = "Uncommon", area = "Ornament" },
 	{ id = "PinkStrawberry", name = "핑크 딸기", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Donut", name = "도넛", rarity = "Uncommon", area = "Ornament" },
+	{ id = "ChristmasRingDonut", name = "크리스마스 링 도넛", rarity = "Uncommon", area = "Ornament" }, -- [직접 제작] Blender: ChristmasRingDonut.fbx (tools/blender/make_christmas_donut.py)
 
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 	{ id = "DonutGarland", name = "도넛 띠", rarity = "Uncommon", area = "Garland" },
