@@ -23,5 +23,5 @@ return {
 	{ id = "Grass", name = "잔디밭", area = "Floor", spread = true },
 	{ id = "MagicCircle", name = "마법진", area = "Floor", spread = true, model = "CrucifixEffect" },
 	{ id = "StrawberryRug", name = "딸기 러그", area = "Floor", spread = true },
-	{ id = "FallenLeaves", name = "낙엽", area = "Floor", spread = true },
+	{ id = "FallenLeaves", name = "낙엽", area = "Floor", spread = true, size = 0.6 },
 }
