@@ -32,16 +32,14 @@ return {
 
 
 
-	{ id = "Ball", name = "공", rarity = "Common", area = "Ornament" },
+	{ id = "OrnamentBall", name = "오너먼트 공", rarity = "Common", area = "Ornament" },
 	{ id = "PineCone", name = "솔방울", rarity = "Common", area = "Ornament" },
 	{ id = "Fish", name = "물고기", rarity = "Common", area = "Ornament", out = 0.4 },
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
-	{ id = "ABCKeycap", name = "ABC 키캡", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
 	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
 	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
-	{ id = "Fortunepouch", name = "복주머니", rarity = "Common", area = "Ornament" },
 	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 },
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
@@ -53,7 +51,7 @@ return {
 	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
 
 	-- 언커먼
-	{ id = "Bow", name = "리본", rarity = "Uncommon", area = "Topper", sink = 0.3 },
+	{ id = "PinkBow", name = "리본", rarity = "Uncommon", area = "Topper", sink = 0.3 },
 	{ id = "IceBingsu", name = "빙수", rarity = "Uncommon", area = "Topper" },
 
 	{ id = "Gingerbread", name = "진저브레드맨", rarity = "Uncommon", area = "Ornament" },
