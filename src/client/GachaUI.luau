@@ -32,7 +32,7 @@ local ICONS = {
 	coins = "rbxassetid://132123388448433", -- 오른쪽 아래 코인 칸 (팩 Coins)
 	close = "rbxassetid://93352627659643", -- 창 닫기 X 버튼 (팩 Close)
 }
-local MENU_ICON_SIZE = 40 -- 왼쪽 아래 메뉴 버튼 아이콘 크기(픽셀)
+local MENU_ICON_SIZE = 40 -- 오른쪽 위 메뉴 버튼 아이콘 크기(픽셀)
 
 local COLORS = {
 	panel = Color3.fromRGB(30, 42, 78), -- 창 배경
@@ -60,12 +60,20 @@ local THEME = {
 	pressScale = 0.93, -- 누르면 작아지는 배율
 }
 
--- 왼쪽 아래 메뉴 버튼 색
+-- 오른쪽 위 메뉴: 코인 칸 아래 "메뉴" 버튼을 누르면 버튼들이 아래로 펼쳐진다
+local MENU_TOP = 64 -- 화면 위에서 코인 칸까지 (Roblox 위쪽 막대를 피한다, 픽셀)
+local MENU_WIDTH = 220 -- 코인 칸·메뉴 버튼 폭
+local MENU_BUTTON_HEIGHT = 56
+local MENU_GAP = 8 -- 버튼 사이 간격
+local MENU_START_OPEN = false -- 처음 들어왔을 때 펼쳐 둘지
+
+-- 메뉴 버튼 색
 local MENU_COLORS = {
 	bag = Color3.fromRGB(244, 146, 40), -- 가방 (주황)
 	upgrade = Color3.fromRGB(150, 92, 232), -- 업그레이드 (보라)
 	tree = Color3.fromRGB(56, 182, 90), -- 내 트리 (초록)
 	roulette = Color3.fromRGB(236, 78, 140), -- 룰렛 (분홍)
+	menu = Color3.fromRGB(64, 84, 140), -- 메뉴 펼치기 버튼
 	shop = Color3.fromRGB(46, 140, 240), -- 상점 (파랑)
 }
 
@@ -527,7 +535,7 @@ local function buildOdds(gui)
 		Name = "Odds",
 		Size = UDim2.fromOffset(220, height),
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -84), -- 코인 표시 위
+		Position = UDim2.new(1, -16, 1, -20), -- 오른쪽 아래
 		Visible = false, -- 룰렛과 같이 열고 닫는다
 		Parent = gui,
 	})
@@ -600,13 +608,13 @@ local function buildOdds(gui)
 	end
 end
 
--- 코인 표시 (오른쪽 아래 구석, 항상 보임)
+-- 코인 표시 (오른쪽 위 구석, 항상 보임)
 local function buildCoins(gui)
 	local frame = panel({
 		Name = "Coins",
-		Size = UDim2.fromOffset(250, 56),
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -20),
+		Size = UDim2.fromOffset(MENU_WIDTH, 56),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, MENU_TOP),
 		Parent = gui,
 	})
 	ui.coins = scaledLabel({
@@ -618,7 +626,7 @@ local function buildCoins(gui)
 	}, 18, 10)
 end
 
--- 가방 버튼 (왼쪽 아래)
+-- 가방 버튼 (오른쪽 위 메뉴, buildMenu가 자리를 정한다)
 local function buildBagButton(gui)
 	ui.bagButton = button({
 		Name = "BagButton",
@@ -1241,6 +1249,65 @@ local function applySlotOrder()
 	end
 end
 
+-- 메뉴 펼치기 버튼과 펼쳐지는 버튼들 (위에서부터 이 순서)
+local function buildMenu(gui)
+	ui.menuToggle = button({
+		Name = "MenuToggle",
+		Text = "메뉴",
+		Color = MENU_COLORS.menu,
+		TextSize = 22,
+		Size = UDim2.fromOffset(MENU_WIDTH, MENU_BUTTON_HEIGHT),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, MENU_TOP + 56 + MENU_GAP),
+		Radius = 14,
+		Parent = gui,
+	})
+	ui.menuToggle.ZIndex = 3 -- 접힌 버튼들이 이 뒤에 숨는다
+	ui.menuButtons = { ui.rouletteButton, ui.bagButton, ui.treeButton, ui.upgradeButton, ui.shopButton }
+	for _, btn in ui.menuButtons do
+		btn.Size = UDim2.fromOffset(MENU_WIDTH, MENU_BUTTON_HEIGHT)
+		btn.AnchorPoint = Vector2.new(1, 0)
+		btn.ZIndex = 2
+	end
+end
+
+local menuOpen = false
+local menuTweens = {}
+-- 메뉴를 펼치거나 접는다. 버튼이 메뉴 버튼 뒤에서 차례로 미끄러져 나온다
+local function setMenuOpen(open: boolean, instant: boolean?)
+	menuOpen = open
+	ui.menuToggle.Text = if open then "메뉴 닫기" else "메뉴"
+	for _, t in menuTweens do
+		t:Cancel()
+	end
+	table.clear(menuTweens)
+	local home = ui.menuToggle.Position
+	for i, btn in ui.menuButtons do
+		local target = if open
+			then home + UDim2.fromOffset(0, i * (MENU_BUTTON_HEIGHT + MENU_GAP))
+			else home
+		if instant then
+			btn.Position = target
+			btn.Visible = open
+			continue
+		end
+		if open then
+			btn.Visible = true
+		end
+		local info = if open
+			then TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, (i - 1) * 0.04)
+			else TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, (#ui.menuButtons - i) * 0.025)
+		local tween = TweenService:Create(btn, info, { Position = target })
+		tween.Completed:Connect(function(state)
+			if state == Enum.PlaybackState.Completed and not menuOpen then
+				btn.Visible = false
+			end
+		end)
+		table.insert(menuTweens, tween)
+		tween:Play()
+	end
+end
+
 local function buildUI()
 	local gui = create("ScreenGui", {
 		Name = "GachaGui",
@@ -1268,6 +1335,7 @@ local function buildUI()
 	buildTreeButton(gui)
 	buildRouletteButton(gui)
 	buildShopButton(gui)
+	buildMenu(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
@@ -2522,6 +2590,10 @@ function GachaUI.Start()
 			end
 		end)
 	end
+	ui.menuToggle.Activated:Connect(function()
+		setMenuOpen(not menuOpen)
+	end)
+	setMenuOpen(MENU_START_OPEN, true)
 	ui.rouletteButton.Activated:Connect(function()
 		setRouletteOpen(not ui.slot.Visible)
 	end)
