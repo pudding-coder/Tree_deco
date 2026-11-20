@@ -1709,6 +1709,7 @@ function TreeService.Init()
 	publishSlotOrder()
 	reportDecorationModels()
 	TreeFx.Report(Catalog.TreeEffects)
+	print(string.format("[Tree] 띠: 전구 %.1f · 모델 %.1f스터드 간격, 처짐 %.1f", GARLAND_BULB_GAP, GARLAND_BEAD_GAP, GARLAND_SAG))
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
