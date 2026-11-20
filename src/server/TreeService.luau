@@ -77,7 +77,7 @@ local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래�
 local GARLAND_TIERS = { 4, 2, 5, 3 }
 local GARLAND_POINTS = 48 -- 줄을 이루는 점 수 (많을수록 줄이 매끄럽게 휜다)
 local GARLAND_SWAGS = 8 -- 한 바퀴에 줄이 늘어지는 마디 수. 마디 끝(고정점) 사이가 아래로 처진다
-local GARLAND_SAG = 0.7 -- 마디 가운데가 고정점보다 처지는 깊이(스터드)
+local GARLAND_SAG = 0 -- 마디 가운데가 고정점보다 처지는 깊이(스터드). 0이면 처지지 않는다
 local GARLAND_BULB_GAP = 1.6 -- 전구 사이 간격(스터드). 개수가 아니라 간격이라 둘레가 짧은 위쪽 띠는 전구가 적다
 local GARLAND_BULB_SIZE = 0.3 -- 전구 지름(스터드)
 local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
@@ -1709,7 +1709,6 @@ function TreeService.Init()
 	publishSlotOrder()
 	reportDecorationModels()
 	TreeFx.Report(Catalog.TreeEffects)
-	print(string.format("[Tree] 띠: 전구 %.1f · 모델 %.1f스터드 간격, 처짐 %.1f", GARLAND_BULB_GAP, GARLAND_BEAD_GAP, GARLAND_SAG))
 	plotsFolder = Instance.new("Folder")
 	plotsFolder.Name = "Plots"
 	plotsFolder.Parent = workspace
