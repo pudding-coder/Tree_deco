@@ -318,7 +318,8 @@ end
 -- 화면 만들기
 ----------------------------------------------------------------
 
-local REEL_TITLES = { "특성", "크기", "장식" } -- 왼쪽부터 멈추고, 장식(아래 작게 등급)이 마지막에 멈춘다
+local REEL_TITLES = { "특성", "크기", "장식" } -- 장식 칸은 이름 아래 작게 등급. 멈추는 순서는 결과에 따라 (playReel)
+local REEL_ROW_H = 74 -- 슬롯 한 칸 높이(픽셀). 칸 안에서 위에서 아래로 굴러간다
 
 local function buildSlot(gui)
 	local slot = panel({
@@ -396,24 +397,60 @@ local function buildSlot(gui)
 			Position = UDim2.fromOffset(0, 4),
 			Parent = cell,
 		})
-		local text = scaledLabel({
-			Text = "?",
-			Font = Enum.Font.GothamBlack,
-			Size = UDim2.new(1, -12, 0, if i == 3 then 46 else 60),
-			Position = UDim2.fromOffset(6, 26),
+		-- 굴러가는 창: 제목 아래 영역만 보이고, 위·아래 끝은 흐리게 (슬롯머신 창처럼)
+		local window = create("CanvasGroup", {
+			Name = "Window",
+			BackgroundTransparency = 1,
+			Position = UDim2.fromOffset(0, 22),
+			Size = UDim2.new(1, 0, 0, REEL_ROW_H),
 			Parent = cell,
-		}, 30, 10)
-		-- 장식 칸만: 이름 아래 작게 등급 이름
-		local sub = if i == 3
-			then label({
-				Text = "",
-				TextSize = 13,
-				Size = UDim2.new(1, 0, 0, 16),
-				Position = UDim2.fromOffset(0, 74),
-				Parent = cell,
+		})
+		create("UIGradient", {
+			Rotation = 90,
+			Transparency = NumberSequence.new({
+				NumberSequenceKeypoint.new(0, 0.9),
+				NumberSequenceKeypoint.new(0.22, 0),
+				NumberSequenceKeypoint.new(0.78, 0),
+				NumberSequenceKeypoint.new(1, 0.9),
+			}),
+			Parent = window,
+		})
+		-- 줄 3개를 돌려 쓴다 (가운데 · 위에서 들어오는 것 · 아래로 나가는 것)
+		local rows = {}
+		for r = 1, 3 do
+			local row = create("Frame", {
+				Name = "Row" .. r,
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, 0, 0, REEL_ROW_H),
+				Visible = r == 1,
+				Parent = window,
 			})
-			else nil
-		ui.reels[i] = { stroke = stroke, text = text, sub = sub, scale = create("UIScale", { Parent = text }) }
+			local text = scaledLabel({
+				Text = "?",
+				Font = Enum.Font.GothamBlack,
+				Size = UDim2.new(1, -12, 0, if i == 3 then 46 else 60),
+				Position = UDim2.fromOffset(6, if i == 3 then 4 else 7),
+				Parent = row,
+			}, 30, 10)
+			-- 장식 칸만: 이름 아래 작게 등급 이름
+			local sub = if i == 3
+				then label({
+					Text = "",
+					TextSize = 13,
+					Size = UDim2.new(1, 0, 0, 16),
+					Position = UDim2.fromOffset(0, 52),
+					Parent = row,
+				})
+				else nil
+			rows[r] = { frame = row, text = text, sub = sub }
+		end
+		ui.reels[i] = {
+			stroke = stroke,
+			rows = rows,
+			center = rows[1], -- 지금 가운데에 보이는 줄
+			current = nil, -- 가운데에 보이는 결과 (다음에 돌릴 때 여기서부터 굴러간다)
+			scale = create("UIScale", { Parent = window }),
+		}
 	end
 
 	ui.reelSub = label({
@@ -2056,27 +2093,69 @@ end
 -- 연출
 ----------------------------------------------------------------
 
-local function setReel(i: number, text: string, color: Color3)
+-- 칸 종류마다 결과 하나를 줄에 그린다: 글자 · 색 (장식 칸은 아래 작게 등급)
+local function reelLook(i: number, item): (string, Color3, string?)
+	if item == nil then
+		return "?", COLORS.text, nil
+	elseif i == 1 then
+		return item.name, traitColor(item), nil
+	elseif i == 2 then
+		return item.name, sizeColor(item), nil
+	end
+	local r = Rarity.List[item.rarity]
+	return item.name, r.color, r.name
+end
+
+local function drawRow(i: number, row, item)
+	local text, color, subText = reelLook(i, item)
+	row.text.Text = text
+	row.text.TextColor3 = color
+	if row.sub then
+		row.sub.Text = subText or ""
+		row.sub.TextColor3 = color
+	end
+end
+
+-- 칸을 굴린 위치에 맞춰 그린다. f는 sequence에서 몇 번째 결과가 가운데에 있는지 (소수면 사이를 지나는 중)
+-- 결과 k는 가운데에서 (f - k)칸 아래에 있다: f가 커지면 위에서 새 결과가 내려오고 지난 결과는 아래로 나간다
+local function layoutReel(i: number, sequence, f: number)
 	local reel = ui.reels[i]
-	reel.text.Text = text
-	reel.text.TextColor3 = color
+	local base = math.floor(f)
+	local nearest = math.clamp(math.floor(f + 0.5), 0, #sequence)
+	for r, row in reel.rows do
+		local k = base - 1 + r -- base-1(아래로 나가는 중, 되튈 때) · base · base+1(위에서 들어오는 중)
+		local offset = f - k
+		if k < 0 or k > #sequence or math.abs(offset) >= 1 then
+			row.frame.Visible = false
+		else
+			row.frame.Visible = true
+			row.frame.Position = UDim2.fromOffset(0, offset * REEL_ROW_H)
+			drawRow(i, row, sequence[k])
+			if k == nearest then
+				reel.center = row
+			end
+		end
+	end
+	local _, color = reelLook(i, sequence[nearest])
 	reel.stroke.Color = color
 end
 
+-- 한 칸에 결과 하나만 가운데에 보여 준다 (굴러가지 않을 때)
+local function showReel(i: number, item)
+	ui.reels[i].current = item
+	layoutReel(i, { [0] = item }, 0)
+end
+
 local function showTraitReel(trait)
-	setReel(1, trait.name, traitColor(trait))
+	showReel(1, trait)
 end
 
 local function showSizeReel(size)
-	setReel(2, size.name, sizeColor(size))
+	showReel(2, size)
 end
 
--- 장식 칸: 이름과 그 아래 작게 등급 (둘 다 등급색)
 local function showDecoReel(deco)
-	local r = Rarity.List[deco.rarity]
-	setReel(3, deco.name, r.color)
-	ui.reels[3].sub.Text = r.name
-	ui.reels[3].sub.TextColor3 = r.color
+	showReel(3, deco)
 end
 
 local function popReel(i: number, size: number, duration: number, style: Enum.EasingStyle?)
@@ -2100,22 +2179,71 @@ for _, trait in Catalog.Traits do
 		table.insert(activeTraits, trait)
 	end
 end
+-- 마지막 칸이 혼자 천천히 돌 때 지나가며 기대하게 만드는 희귀한 것들 (결과는 서버가 이미 정했다. 보여 주기만 한다)
+local tempting = { {}, {}, {} }
+for _, trait in activeTraits do
+	if trait.n then
+		table.insert(tempting[1], trait)
+	end
+end
+for _, size in Catalog.Sizes do
+	if size.n then
+		table.insert(tempting[2], size)
+	end
+end
+for _, deco in activeDecos do
+	if deco.rarity >= Config.EFFECT_MIN_RARITY then
+		table.insert(tempting[3], deco)
+	end
+end
 
 local function randomFrom(list)
 	return list[math.random(1, #list)]
 end
 
--- 슬롯 3칸이 같이 돌다가 왼쪽부터 특성 → 크기 → 장식 순서로 멈춘다 (전체 시간의 40% · 60% · 100% 지점)
--- 장식 칸(이름 아래 작게 등급)이 혼자 남는 시간(5초면 2초)에 한 칸씩 뜸을 들여 긴장감을 준다
+-- 결과가 나올 확률 (칸마다). 낮을수록 먼저 멈춘다
+local function traitChance(trait): number
+	if trait.n then
+		return 1 / trait.n
+	end
+	local rest = 1
+	for _, t in activeTraits do
+		if t.n then
+			rest -= 1 / t.n
+		end
+	end
+	return rest
+end
+
+local function sizeChance(size, deco): number
+	if deco.area == "Garland" then
+		return 1 -- 띠는 크기를 뽑지 않고 항상 보통
+	end
+	if size.n then
+		return 1 / size.n
+	end
+	local rest = 1
+	for _, s in Catalog.Sizes do
+		if s.n then
+			rest -= 1 / s.n
+		end
+	end
+	return rest
+end
+
+-- 슬롯 3칸이 같이 위에서 아래로 굴러가다가, 나온 결과가 드문 칸부터 멈춘다
+-- 예) 특성 커먼급 · 크기 보통 · 장식 에픽이면 장식 → 특성 → 크기 순서. 흔한 결과가 걸린 칸이 마지막까지 혼자 오래 돌며
+-- 희귀한 것들을 천천히 지나가 "혹시?" 하는 기대를 준다. 확률이 같으면 왼쪽 칸부터
 -- 세 칸은 서로 따로 굴러간다(특성·크기는 장식과 따로 뽑으므로 거짓 결과를 보여 주지 않는다)
--- 전체 시간은 서버가 정한다(REEL_STOP_TIME). 여기서는 칸이 넘어가는 간격만 정한다
-local REEL_STOP_FRACTIONS = { 0.4, 0.6, 1.0 }
+-- 전체 시간은 서버가 정한다(REEL_STOP_TIME). 여기서는 멈추는 순서와 칸이 넘어가는 간격만 정한다
+local REEL_STOP_FRACTIONS = { 0.35, 0.55, 1.0 } -- 첫째 · 둘째 · 마지막으로 멈추는 칸이 멈추는 시점 (전체 시간 비율)
 local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(초)
--- 멈추기 직전 마지막 간격(그 칸이 멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값
--- 장식 칸(3번)은 마지막 간격이 길어서 끝에서 한 칸씩 뜸을 들이며 넘어간다 (5초면 0.5 → 0.64 → 0.8초)
+-- 멈추기 직전 마지막 간격(그 칸이 멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값 (멈추는 순서대로)
+-- 마지막 칸은 마지막 간격이 길어서 끝에서 한 칸씩 뜸을 들이며 넘어간다 (5초면 0.8 → 0.64 → 0.51초)
 -- 비율이라 속도 업그레이드로 전체 시간이 줄어도 느려지는 느낌은 같다
 local REEL_LAST_GAP = { 0.1, 0.08, 0.16 }
 local REEL_GAP_RATIO = { 0.75, 0.75, 0.8 }
+local REEL_SETTLE = 0.35 -- 멈춘 뒤 살짝 더 내려갔다가 제자리로 돌아오는 시간(초)
 
 -- 칸이 바뀌는 시각들 (마지막이 stopTime). 끝에서부터 간격을 늘려 가며 거꾸로 만든다
 local function reelTimes(stopTime: number, lastGapFraction: number, ratio: number): { number }
@@ -2137,9 +2265,26 @@ local function reelTimes(stopTime: number, lastGapFraction: number, ratio: numbe
 	return times
 end
 
+-- 지난 시간 → 굴린 위치 f (0이면 처음 보이던 결과, steps면 최종 결과가 가운데)
+local function reelPosition(reel, elapsed: number): number
+	local times = reel.times
+	if elapsed >= reel.stopTime then
+		-- 멈춘 뒤: 살짝 더 내려갔다가 돌아온다
+		local u = math.clamp((elapsed - reel.stopTime) / REEL_SETTLE, 0, 1)
+		return reel.steps + 0.22 * math.sin(math.pi * u) * (1 - u)
+	end
+	if elapsed < times[1] then
+		return elapsed / times[1]
+	end
+	local s = 1
+	while s < reel.steps and times[s + 1] <= elapsed do
+		s += 1
+	end
+	return s + (elapsed - times[s]) / (times[s + 1] - times[s])
+end
+
 local function playReel(deco, trait, size, duration: number)
 	local finals = { trait, size, deco }
-	local showers = { showTraitReel, showSizeReel, showDecoReel }
 	local pickers = {
 		function()
 			return randomFrom(activeTraits)
@@ -2152,29 +2297,47 @@ local function playReel(deco, trait, size, duration: number)
 		end,
 	}
 
+	-- 멈추는 순서: 확률이 낮은(드문) 결과가 나온 칸부터
+	local chance = {
+		traitChance(trait),
+		sizeChance(size, deco),
+		(Gacha.GetProbabilities(state.luck)[deco.rarity] or 1),
+	}
+	local order = { 1, 2, 3 }
+	table.sort(order, function(a, b)
+		if chance[a] ~= chance[b] then
+			return chance[a] < chance[b]
+		end
+		return a < b
+	end)
+
 	local reels = {}
-	for i = 1, 3 do
-		local stopTime = duration * REEL_STOP_FRACTIONS[i]
-		local times = reelTimes(stopTime, REEL_LAST_GAP[i], REEL_GAP_RATIO[i])
+	local lastReel = order[3]
+	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 마지막 칸만 남았을 때
+	for rank, i in order do
+		local stopTime = duration * REEL_STOP_FRACTIONS[rank]
+		local times = reelTimes(stopTime, REEL_LAST_GAP[rank], REEL_GAP_RATIO[rank])
 		local steps = #times
 		local sequence = table.create(steps)
-		local prev = nil
+		sequence[0] = ui.reels[i].current -- 지금 보이는 결과에서부터 굴러간다
+		local prev = sequence[0]
 		for s = 1, steps - 1 do
+			-- 마지막 칸이 혼자 천천히 넘어갈 때는 희귀한 것들을 보여 준다
+			local tempt = i == lastReel and times[s] >= slowStart and #tempting[i] > 0
 			local pick
 			local tries = 0
 			repeat
-				pick = pickers[i]()
+				pick = if tempt and math.random() < 0.75 then randomFrom(tempting[i]) else pickers[i]()
 				tries += 1
 			until (pick ~= prev and (s < steps - 1 or pick ~= finals[i])) or tries > 10
 			sequence[s] = pick
 			prev = pick
 		end
 		sequence[steps] = finals[i]
-		reels[i] = { stopTime = stopTime, times = times, steps = steps, sequence = sequence, shown = 0, done = false }
+		reels[i] = { stopTime = stopTime, times = times, steps = steps, sequence = sequence, step = 0, stopped = false, done = false }
 	end
 
 	ui.reelSub.Text = ""
-	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 장식 칸만 남았을 때
 	local start = os.clock()
 	while true do
 		local elapsed = os.clock() - start
@@ -2183,28 +2346,22 @@ local function playReel(deco, trait, size, duration: number)
 			if reel.done then
 				continue
 			end
-			-- 지금까지 지난 칸 수
-			local step = 1
-			while step < reel.steps and reel.times[step] <= elapsed do
-				step += 1
-			end
-			if elapsed >= reel.stopTime then
-				step = reel.steps
-			end
-			if step ~= reel.shown then
-				reel.shown = step
-				showers[i](reel.sequence[step])
-				if step == reel.steps then
-					-- 멈춘 칸은 크게 튕긴다. 장식 칸은 더 크게
-					popReel(i, if i == 3 then 1.45 else 1.3, if i == 3 then 0.45 else 0.3, Enum.EasingStyle.Back)
-				elseif i == 3 and elapsed >= slowStart then
-					popReel(i, 1.14, 0.15) -- 장식 칸만 남으면 넘어갈 때마다 쿵쿵 크게 뛴다
-				else
-					popReel(i, 1.08, 0.08)
+			local f = reelPosition(reel, elapsed)
+			layoutReel(i, reel.sequence, f)
+			if not reel.stopped and elapsed >= reel.stopTime then
+				-- 멈춘 칸은 크게 튕긴다. 마지막 칸은 더 크게
+				reel.stopped = true
+				popReel(i, if i == lastReel then 1.35 else 1.2, if i == lastReel then 0.45 else 0.3, Enum.EasingStyle.Back)
+			elseif not reel.stopped and i == lastReel and elapsed >= slowStart then
+				local step = math.floor(f + 0.5)
+				if step ~= reel.step then
+					reel.step = step
+					popReel(i, 1.08, 0.15) -- 마지막 칸만 남으면 넘어갈 때마다 쿵쿵 뛴다
 				end
 			end
-			if elapsed >= reel.stopTime then
+			if elapsed >= reel.stopTime + REEL_SETTLE then
 				reel.done = true
+				showReel(i, finals[i])
 			else
 				allDone = false
 			end
@@ -2252,8 +2409,9 @@ local function playResultEffect(rarityIndex: number, deco, trait, sizeId: string
 				for i = 1, 3 do
 					ui.reels[i].stroke.Color = color
 				end
-				ui.reels[3].text.TextColor3 = color
-				ui.reels[3].sub.TextColor3 = color
+				local center = ui.reels[3].center
+				center.text.TextColor3 = color
+				center.sub.TextColor3 = color
 				RunService.RenderStepped:Wait()
 			end
 			showTraitReel(trait)
