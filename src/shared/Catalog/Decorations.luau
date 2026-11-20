@@ -52,7 +52,7 @@ return {
 	{ id = "Apple", name = "사과", rarity = "Common", area = "Ornament", size = 0.6 },
 
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
-	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
+	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland", size = 1.4 }, -- [직접 제작] Blender: ExamPaperGarland.fbx (tools/blender/make_exam_paper.py)
 
 	-- 언커먼
 	{ id = "PinkBow", name = "리본", rarity = "Uncommon", area = "Topper", sink = 0.3 },
