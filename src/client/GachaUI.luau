@@ -1366,7 +1366,6 @@ local function buildUI()
 	updateScale()
 
 	buildSlot(gui)
-	print(string.format("[룰렛] 일직선 굴림 · 역류 연출 (Studio 고정: %s)", if Config.STUDIO_FORCE_REEL_ENDING == "" then "없음" else Config.STUDIO_FORCE_REEL_ENDING))
 	buildOdds(gui)
 	buildCoins(gui)
 	buildBagButton(gui)
@@ -1448,7 +1447,7 @@ local function currentIncome(): number
 end
 
 local function currentCoinSpinCost(): number
-	return Gacha.GetCoinSpinCost(state.luck, currentIncome())
+	return Gacha.GetCoinSpinCost(state.costLuck or state.luck, currentIncome())
 end
 
 local function currentPotionCost(): number
@@ -2436,14 +2435,11 @@ local function playReel(deco, trait, size, duration: number)
 	local minTier = Config.REEL_SUSPENSE_MIN_RARITY
 	local suspense = tiers[order[2]] >= minTier and tiers[lastReel] < minTier
 
-	-- 마지막 칸이 끝나는 방식
-	local canReverse = tiers[lastReel] == 1 and #mysticPool[lastReel] > 0
-	local ending = "slow"
-	if suspense then
-		ending = if canReverse and math.random() < Config.REEL_SUSPENSE_REVERSE_CHANCE then "reverse" else "fakeStop"
-	elseif canReverse and math.random() < Config.REEL_REVERSE_CHANCE then
-		ending = "reverse"
-	end
+	-- 마지막 칸이 끝나는 방식: 나온 결과물 전체 확률이 약 1/10(REEL_REVERSE_MIN_N ~ MAX_N)이면 역류
+	local resultChance = (Gacha.GetProbabilities(state.luck)[deco.rarity] or 1) * traitChance(trait) * sizeChance(size, deco)
+	local oneIn = if resultChance > 0 then 1 / resultChance else math.huge
+	local canReverse = oneIn >= Config.REEL_REVERSE_MIN_N and oneIn <= Config.REEL_REVERSE_MAX_N and #mysticPool[lastReel] > 0
+	local ending = if canReverse then "reverse" elseif suspense then "fakeStop" else "slow"
 	local forced = Config.STUDIO_FORCE_REEL_ENDING
 	if RunService:IsStudio() and forced ~= "" then
 		suspense = forced ~= "slow"
@@ -2455,7 +2451,7 @@ local function playReel(deco, trait, size, duration: number)
 		for _, i in order do
 			table.insert(names, string.format("%s(%s급)", REEL_TITLES[i], Rarity.List[tiers[i]].name))
 		end
-		print(string.format("[룰렛] 멈추는 순서: %s · 끝내기 %s%s", table.concat(names, " → "), ending, if suspense then " · 긴장 연출" else ""))
+		print(string.format("[룰렛] 멈추는 순서: %s · 결과 1/%.1f · 끝내기 %s%s", table.concat(names, " → "), oneIn, ending, if suspense then " · 긴장 연출" else ""))
 	end
 
 	local reels = {}
