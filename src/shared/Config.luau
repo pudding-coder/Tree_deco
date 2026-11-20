@@ -18,6 +18,7 @@ Config.START_COINS = 1_000 -- 처음 접속할 때 주는 코인 (속도 업그�
 Config.STUDIO_START_COINS = 1000 -- Studio 테스트용 시작 코인
 Config.STUDIO_GIVE_TRAIT_SAMPLES = false -- Studio 테스트: 접속하면 특성마다 견본 장식(공·꼬마전구 줄·별)을 가방에 넣는다. 실제 서버에서는 동작하지 않는다
 Config.STUDIO_GIVE_MODEL_SAMPLES = true -- Studio 테스트: 접속하면 DecorationModels에 모델이 있는 장식을 하나씩(기본 특성) 가방에 넣는다. 이미 가진 장식은 건너뛴다. 실제 서버에서는 동작하지 않는다
+Config.STUDIO_GIVE_ALL_TREE_EFFECTS = true -- Studio 테스트: 접속하면 상점의 트리 효과·바닥 아이템을 전부 산 상태로 만든다(켜기는 상점에서). 실제 서버에서는 동작하지 않는다
 
 ----------------------------------------------------------------
 -- 룰렛
