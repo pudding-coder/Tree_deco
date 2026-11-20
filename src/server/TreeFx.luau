@@ -11,10 +11,12 @@ local TreeFx = {}
 --   base   트리 밑동 가운데 바닥 (CFrame, -Z가 트리 정면 = 사람이 서는 쪽)
 --   height 트리 높이 (토퍼 제외, 스터드)
 --   radius 트리 밑동 반지름 (스터드, 가장 넓은 층)
+--   floorDiameter 트리 자리 매트의 돌 테두리 안쪽 지름 (맵이 없으면 nil)
 --   spot   (바닥 아이템만) 바닥 자리 번호 1~MAX_FLOOR_ITEMS
 
 -- 바닥 자리(spread가 아닌 바닥 아이템): 트리 둘레, 정면 양옆부터
 local FLOOR_SPOT_ANGLES = { -40, 40, -140, 140 } -- 0도 = 정면(-Z)
+local FLAT_FLOOR_LIFT = 0.2 -- 넓게 까는 바닥 모델(마법진 등)의 밑면 높이 (밑동 기준)
 local FLOOR_ITEM_SIZE = 3 -- 바닥 자리 아이템의 가장 긴 변(스터드)
 
 local function newPart(props)
@@ -49,12 +51,12 @@ local BUILT_IN = {}
 
 -- 잔디밭: 트리 밑에 둥근 잔디를 깐다
 function BUILT_IN.Grass(ctx)
-	local diameter = ctx.radius * 2 + 8
+	local diameter = ctx.floorDiameter or (ctx.radius * 2 + 8)
 	return newPart({
 		Name = "Grass",
 		Shape = Enum.PartType.Cylinder,
 		Size = Vector3.new(0.3, diameter, diameter),
-		CFrame = ctx.base * CFrame.new(0, 0.15, 0) * CFrame.Angles(0, 0, math.pi / 2),
+		CFrame = ctx.base * CFrame.new(0, 0.03, 0) * CFrame.Angles(0, 0, math.pi / 2), -- 윗면이 흙(+0.15) 바로 위 +0.18
 		Material = Enum.Material.Grass,
 		Color = Color3.fromRGB(88, 160, 72),
 	})
@@ -278,8 +280,8 @@ local function fromModel(fx, ctx)
 	local scale
 	local target
 	if fx.area == "Floor" and fx.spread then
-		-- 트리 밑에 넓게: 가로 긴 변을 트리 지름보다 조금 크게
-		scale = (ctx.radius * 2 + 6) / math.max(size.X, size.Z, 0.01)
+		-- 트리 밑에 넓게: 가로 긴 변을 매트 테두리 안쪽 지름에 (맵이 없으면 트리 지름보다 조금 크게)
+		scale = (ctx.floorDiameter or (ctx.radius * 2 + 6)) / math.max(size.X, size.Z, 0.01)
 		target = ctx.base
 	elseif fx.area == "Floor" then
 		scale = FLOOR_ITEM_SIZE / math.max(size.X, size.Y, size.Z, 0.01)
@@ -292,10 +294,12 @@ local function fromModel(fx, ctx)
 	model:ScaleTo(model:GetScale() * scale * fx.size)
 
 	-- 모델 밑면 가운데를 target에 맞춘다
+	-- 매트 흙 윗면이 밑동 +0.15, 잔디밭 윗면이 +0.18이라 그 바로 위에 깐다 (묻히지도 뜨지도 않게)
+	local lift = if fx.area == "Floor" and fx.spread then FLAT_FLOOR_LIFT else 0.15
 	local box, boxSize = model:GetBoundingBox()
 	local bottom = box * CFrame.new(0, -boxSize.Y / 2, 0)
 	local pivotFromBottom = bottom:ToObjectSpace(model:GetPivot())
-	model:PivotTo(target * CFrame.new(0, 0.05, 0) * pivotFromBottom)
+	model:PivotTo(target * CFrame.new(0, lift, 0) * pivotFromBottom)
 	return model
 end
 

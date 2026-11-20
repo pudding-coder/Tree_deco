@@ -18,10 +18,26 @@ local GachaUI = {}
 -- 자물쇠 그림 (assets/textures/lock.png를 올린 이미지 id). 비워 두면 "잠금" 글자로 나온다
 local LOCK_IMAGE = "rbxassetid://133145630160436" -- assets/textures/lock.png
 
+-- 버튼 아이콘 (Basic_UI_Pack의 이미지 id). 바꾸려면 id만 고치고, 빼려면 "" 로 둔다
+-- 팩의 다른 아이콘: Settings 109558273647021, Rebirth 138533388378565, Gift 98765217070709, Gems 108846984313264,
+--   Play 104915011936755, Confirm 82767374889976, SoundOn 91961227251741, Music 125047975849256,
+--   Friends 138393293744051, Leaderboard 122400187905753, Quests 77359789350483, DailyReward 97419429998550,
+--   Teleport 128940707580259, Help 71148853828725
+local ICONS = {
+	bag = "rbxassetid://95338657327605", -- 가방 버튼 (팩 Inventory)
+	upgrade = "rbxassetid://113532507482722", -- 업그레이드 버튼 (팩 Upgrade)
+	tree = "rbxassetid://100186608972356", -- 내 트리 버튼 (팩 Home)
+	roulette = "rbxassetid://104915011936755", -- 룰렛 버튼 (팩 Play)
+	shop = "rbxassetid://132000942692847", -- 상점 버튼 (팩 Shop)
+	coins = "rbxassetid://132123388448433", -- 오른쪽 아래 코인 칸 (팩 Coins)
+	close = "rbxassetid://93352627659643", -- 창 닫기 X 버튼 (팩 Close)
+}
+local MENU_ICON_SIZE = 40 -- 왼쪽 아래 메뉴 버튼 아이콘 크기(픽셀)
+
 local COLORS = {
-	panel = Color3.fromRGB(20, 28, 40),
-	panelLight = Color3.fromRGB(32, 43, 60),
-	panelHover = Color3.fromRGB(48, 62, 84),
+	panel = Color3.fromRGB(30, 42, 78), -- 창 배경
+	panelLight = Color3.fromRGB(52, 70, 120), -- 창 안 버튼·칸 배경
+	panelHover = Color3.fromRGB(78, 100, 160), -- 고른 칸·끄기 버튼
 	text = Color3.fromRGB(242, 245, 250),
 	subText = Color3.fromRGB(160, 172, 190),
 	green = Color3.fromRGB(40, 168, 92),
@@ -29,6 +45,27 @@ local COLORS = {
 	disabled = Color3.fromRGB(68, 76, 90),
 	error = Color3.fromRGB(230, 80, 80),
 	errorText = Color3.fromRGB(255, 110, 110),
+}
+
+-- 창·버튼 모양 (docs/UI.md)
+local THEME = {
+	font = Enum.Font.FredokaOne, -- 버튼·창 제목 글꼴 (한글은 Roblox 기본 한글 글꼴로 나온다)
+	outline = Color3.fromRGB(14, 18, 34), -- 창·버튼 테두리 색
+	panelOutline = 3, -- 창 테두리 두께
+	buttonOutline = 2.5, -- 버튼 테두리 두께
+	panelRadius = 18, -- 창 모서리 둥글기
+	shine = 0.78, -- 버튼 아래쪽 어둡기 (1이면 그라데이션 없음, 작을수록 위가 밝고 아래가 어둡다)
+	hoverScale = 1.05, -- 마우스를 올리면 커지는 배율
+	pressScale = 0.93, -- 누르면 작아지는 배율
+}
+
+-- 왼쪽 아래 메뉴 버튼 색
+local MENU_COLORS = {
+	bag = Color3.fromRGB(244, 146, 40), -- 가방 (주황)
+	upgrade = Color3.fromRGB(150, 92, 232), -- 업그레이드 (보라)
+	tree = Color3.fromRGB(56, 182, 90), -- 내 트리 (초록)
+	roulette = Color3.fromRGB(236, 78, 140), -- 룰렛 (분홍)
+	shop = Color3.fromRGB(46, 140, 240), -- 상점 (파랑)
 }
 
 -- 특성 글자색 (여기 없는 특성은 흰색)
@@ -150,8 +187,13 @@ local function panel(props)
 		Visible = if props.Visible == nil then true else props.Visible,
 		Parent = props.Parent,
 	})
-	corner(frame, 14)
-	create("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.85, Thickness = 1.5, Parent = frame })
+	corner(frame, THEME.panelRadius)
+	create("UIStroke", { Color = THEME.outline, Thickness = THEME.panelOutline, Parent = frame })
+	create("UIGradient", {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(190, 195, 210)),
+		Parent = frame,
+	})
 	padding(frame, 12)
 	return frame
 end
@@ -165,14 +207,92 @@ local function button(props)
 		BackgroundColor3 = props.Color or COLORS.panelLight,
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
-		Font = Enum.Font.GothamBold,
+		Font = THEME.font,
 		TextSize = props.TextSize or 18,
 		TextColor3 = COLORS.text,
+		TextStrokeColor3 = THEME.outline,
+		TextStrokeTransparency = 0.55,
 		Text = props.Text,
 		Parent = props.Parent,
 	})
 	corner(btn, props.Radius or 10)
+	-- 테두리 (닫기 아이콘 버튼은 끈다. 룰렛 버튼은 열려 있으면 금색)
+	create("UIStroke", {
+		Name = "Stroke",
+		Color = THEME.outline,
+		Thickness = THEME.buttonOutline,
+		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		Parent = btn,
+	})
+	-- 위가 밝고 아래가 어두운 광택 (버튼 색은 BackgroundColor3 그대로 바꿀 수 있다)
+	local shade = math.floor(255 * THEME.shine)
+	create("UIGradient", {
+		Rotation = 90,
+		Color = ColorSequence.new(Color3.new(1, 1, 1), Color3.fromRGB(shade, shade, shade)),
+		Parent = btn,
+	})
+	-- 마우스를 올리면 살짝 커지고, 누르면 눌린다
+	local scale = create("UIScale", { Parent = btn })
+	local function to(value: number)
+		TweenService:Create(scale, TweenInfo.new(0.1, Enum.EasingStyle.Quad), { Scale = value }):Play()
+	end
+	local hovering = false
+	btn.MouseEnter:Connect(function()
+		hovering = true
+		to(THEME.hoverScale)
+	end)
+	btn.MouseLeave:Connect(function()
+		hovering = false
+		to(1)
+	end)
+	btn.MouseButton1Down:Connect(function()
+		to(THEME.pressScale)
+	end)
+	btn.MouseButton1Up:Connect(function()
+		to(if hovering then THEME.hoverScale else 1)
+	end)
 	return btn
+end
+
+-- 버튼 왼쪽에 아이콘을 붙이고 글자를 그만큼 오른쪽으로 민다 (image가 ""이면 아무것도 안 함)
+local function addIcon(parent: GuiObject, image: string?, size: number, noPadding: boolean?)
+	if not image or image == "" then
+		return
+	end
+	create("ImageLabel", {
+		Name = "Icon",
+		BackgroundTransparency = 1,
+		Image = image,
+		ScaleType = Enum.ScaleType.Fit,
+		Size = UDim2.fromOffset(size, size),
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 10, 0.5, 0),
+		Parent = parent,
+	})
+	if not noPadding then
+		create("UIPadding", { PaddingLeft = UDim.new(0, size + 8), Parent = parent })
+	end
+end
+
+-- X 글자 버튼을 닫기 아이콘으로 바꾼다 (ICONS.close가 ""이면 X 글자 그대로)
+local function useCloseIcon(btn: TextButton)
+	if ICONS.close == "" then
+		return
+	end
+	btn.Text = ""
+	btn.BackgroundTransparency = 1
+	local stroke = btn:FindFirstChild("Stroke")
+	if stroke then
+		stroke.Enabled = false
+	end
+	create("ImageLabel", {
+		Name = "Icon",
+		BackgroundTransparency = 1,
+		Image = ICONS.close,
+		ScaleType = Enum.ScaleType.Fit,
+		Size = UDim2.fromScale(1, 1),
+		Parent = btn,
+	})
 end
 
 local function setButton(btn: TextButton, text: string, enabled: boolean, color: Color3)
@@ -199,6 +319,7 @@ local function buildSlot(gui)
 	ui.slot = slot
 	label({
 		Text = "장식 룰렛",
+		Font = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(0.6, 0, 0, 28),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -497,19 +618,13 @@ local function buildBagButton(gui)
 	ui.bagButton = button({
 		Name = "BagButton",
 		Text = "가방",
-		Color = COLORS.panel,
+		Color = MENU_COLORS.bag,
+		TextSize = 22,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -20),
 		Radius = 14,
 		Parent = gui,
-	})
-	create("UIStroke", {
-		Color = Color3.new(1, 1, 1),
-		Transparency = 0.85,
-		Thickness = 1.5,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = ui.bagButton,
 	})
 end
 
@@ -528,6 +643,7 @@ local function buildInventory(gui)
 
 	ui.invTitle = label({
 		Text = "가방",
+		Font = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -640,19 +756,13 @@ local function buildUpgradeButton(gui)
 	ui.upgradeButton = button({
 		Name = "UpgradeButton",
 		Text = "업그레이드",
-		Color = COLORS.panel,
+		Color = MENU_COLORS.upgrade,
+		TextSize = 22,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -84),
 		Radius = 14,
 		Parent = gui,
-	})
-	create("UIStroke", {
-		Color = Color3.new(1, 1, 1),
-		Transparency = 0.85,
-		Thickness = 1.5,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = ui.upgradeButton,
 	})
 end
 
@@ -671,6 +781,7 @@ local function buildUpgradeWindow(gui)
 
 	label({
 		Text = "업그레이드",
+		Font = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -743,19 +854,13 @@ local function buildShopButton(gui)
 	ui.shopButton = button({
 		Name = "ShopButton",
 		Text = "상점",
-		Color = COLORS.panel,
+		Color = MENU_COLORS.shop,
+		TextSize = 22,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -276),
 		Radius = 14,
 		Parent = gui,
-	})
-	create("UIStroke", {
-		Color = Color3.new(1, 1, 1),
-		Transparency = 0.85,
-		Thickness = 1.5,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = ui.shopButton,
 	})
 end
 
@@ -774,6 +879,7 @@ local function buildShopWindow(gui)
 
 	label({
 		Text = "트리 꾸미기 상점",
+		Font = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -881,20 +987,15 @@ local function buildRouletteButton(gui)
 	ui.rouletteButton = button({
 		Name = "RouletteButton",
 		Text = "룰렛",
-		Color = COLORS.panel,
+		Color = MENU_COLORS.roulette,
+		TextSize = 22,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -212),
 		Radius = 14,
 		Parent = gui,
 	})
-	ui.rouletteStroke = create("UIStroke", {
-		Color = Color3.new(1, 1, 1),
-		Transparency = 0.85,
-		Thickness = 1.5,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = ui.rouletteButton,
-	})
+	ui.rouletteStroke = ui.rouletteButton:FindFirstChild("Stroke")
 end
 
 -- 트리 버튼 (업그레이드 버튼 위)
@@ -902,19 +1003,13 @@ local function buildTreeButton(gui)
 	ui.treeButton = button({
 		Name = "TreeButton",
 		Text = "내 트리",
-		Color = COLORS.panel,
+		Color = MENU_COLORS.tree,
+		TextSize = 22,
 		Size = UDim2.fromOffset(200, 56),
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 16, 1, -148),
 		Radius = 14,
 		Parent = gui,
-	})
-	create("UIStroke", {
-		Color = Color3.new(1, 1, 1),
-		Transparency = 0.85,
-		Thickness = 1.5,
-		ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-		Parent = ui.treeButton,
 	})
 end
 
@@ -933,6 +1028,7 @@ local function buildTreeWindow(gui)
 
 	ui.treeTitle = label({
 		Text = "내 트리",
+		Font = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -200, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1049,7 +1145,7 @@ local function buildTreeWindow(gui)
 		Parent = window,
 	})
 	corner(picker, 10)
-	create("UIStroke", { Color = Color3.new(1, 1, 1), Transparency = 0.8, Thickness = 1.5, Parent = picker })
+	create("UIStroke", { Color = THEME.outline, Thickness = THEME.panelOutline, Parent = picker })
 	padding(picker, 8)
 	ui.treePicker = picker
 	ui.treePickerTitle = label({
@@ -1172,6 +1268,17 @@ local function buildUI()
 	buildTreeWindow(gui)
 	buildShopWindow(gui)
 	applySlotOrder()
+
+	-- 아이콘 (위 ICONS 표)
+	addIcon(ui.bagButton, ICONS.bag, MENU_ICON_SIZE)
+	addIcon(ui.upgradeButton, ICONS.upgrade, MENU_ICON_SIZE)
+	addIcon(ui.treeButton, ICONS.tree, MENU_ICON_SIZE)
+	addIcon(ui.rouletteButton, ICONS.roulette, MENU_ICON_SIZE)
+	addIcon(ui.shopButton, ICONS.shop, MENU_ICON_SIZE)
+	addIcon(ui.coins.Parent, ICONS.coins, 32, true) -- 코인 칸은 이미 여백이 있고 글자가 오른쪽 정렬이라 밀지 않는다
+	for _, btn in { ui.invClose, ui.upgradeClose, ui.shopClose, ui.treeClose } do
+		useCloseIcon(btn)
+	end
 	for _, area in TREE_AREAS do
 		ReplicatedStorage:GetAttributeChangedSignal("TreeSlotOrder_" .. area.id):Connect(applySlotOrder)
 	end
@@ -2285,8 +2392,8 @@ end
 local function setRouletteOpen(open: boolean)
 	ui.slot.Visible = open
 	ui.odds.Visible = open
-	ui.rouletteStroke.Color = if open then COLORS.gold else Color3.new(1, 1, 1)
-	ui.rouletteStroke.Transparency = if open then 0 else 0.85
+	ui.rouletteStroke.Color = if open then COLORS.gold else THEME.outline
+	ui.rouletteStroke.Thickness = if open then 4 else THEME.buttonOutline
 end
 
 local function setTreeOpen(open: boolean)
