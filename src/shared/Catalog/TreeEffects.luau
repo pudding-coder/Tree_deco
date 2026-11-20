@@ -22,6 +22,6 @@ return {
 	-- 바닥 (여러 개)
 	{ id = "Grass", name = "잔디밭", area = "Floor", spread = true },
 	{ id = "MagicCircle", name = "마법진", area = "Floor", spread = true, model = "CrucifixEffect" },
-	{ id = "StrawberryRug", name = "딸기 러그", area = "Floor", spread = true },
-	{ id = "FallenLeaves", name = "낙엽", area = "Floor", spread = true, size = 0.6 },
+	{ id = "StrawberryRug", name = "딸기 러그", area = "Floor", spread = true, size = 0.55 },
+	{ id = "FallenLeaves", name = "낙엽", area = "Floor", spread = true, size = 0.3 },
 }
