@@ -81,10 +81,14 @@ local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 -- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
 local GARLAND_BEAD_SIZE = 1.4 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
 local GARLAND_BEAD_EVERY = 2 -- 전구 자리 몇 칸마다 하나씩 달지 (2면 14개)
--- 띠 모델은 같은 모델을 여러 개 다므로 빛이 겹쳐 눈부시다. 모델 안 빛·네온을 줄인다
-local GARLAND_LIGHT_EVERY = 4 -- 모델 안 빛(PointLight 등)은 몇 개마다 하나만 남길지
-local GARLAND_LIGHT_SCALE = 0.3 -- 남긴 빛의 밝기·범위 배율
-local GARLAND_NEON_SCALE = 0.55 -- 네온 파츠 색 밝기 배율 (네온은 색이 어두울수록 덜 번진다. 1이면 그대로)
+-- 장식 모델의 빛·네온 줄이기 (무료 모델은 너무 밝게 만들어진 것이 많다. 1이면 그대로)
+-- 네온은 색이 어두울수록 덜 번진다
+local MODEL_LIGHT_SCALE = 0.35 -- 토퍼·오너먼트 모델 안 빛(PointLight 등)의 밝기 배율
+local MODEL_NEON_SCALE = 0.5 -- 토퍼·오너먼트 모델 네온 파츠 색 밝기 배율
+-- 띠 모델은 같은 모델을 여러 개 다므로 빛이 겹쳐 더 눈부시다
+local GARLAND_LIGHT_EVERY = 4 -- 모델 안 빛은 몇 개마다 하나만 남길지
+local GARLAND_LIGHT_SCALE = 0.15 -- 남긴 빛의 밝기 배율
+local GARLAND_NEON_SCALE = 0.4 -- 네온 파츠 색 밝기 배율
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -1017,6 +1021,25 @@ end
 
 -- 띠: 트리 겉면을 비스듬히 도는 줄. bead(3D 모델)가 있으면 전구 대신 그 모델을 줄에 달고, 없으면 등급 색 전구
 -- bead는 cloneModel이 만든 원본 복제본이라 여기서 쓰고 지운다
+-- 모델 안 빛을 줄이고(removeLights면 지우고), 네온 파츠 색을 어둡게 해 번짐을 줄인다
+local function dimModel(model: Instance, lightScale: number, neonScale: number, removeLights: boolean?)
+	for _, d in model:GetDescendants() do
+		if d:IsA("Light") then
+			if removeLights then
+				d:Destroy()
+			else
+				d.Brightness *= lightScale
+				if d:IsA("PointLight") or d:IsA("SpotLight") then
+					d.Range *= math.min(1, lightScale * 2)
+				end
+			end
+		elseif d:IsA("BasePart") and d.Material == Enum.Material.Neon then
+			local c = d.Color
+			d.Color = Color3.new(c.R * neonScale, c.G * neonScale, c.B * neonScale)
+		end
+	end
+end
+
 local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 	-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
 	local holder = Instance.new("Model")
@@ -1051,21 +1074,7 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 					TraitEffects.Paint(copy, paint.color)
 				end
 				local beadIndex = (k - 1) // GARLAND_BEAD_EVERY
-				for _, d in copy:GetDescendants() do
-					if d:IsA("Light") then
-						if beadIndex % GARLAND_LIGHT_EVERY ~= 0 then
-							d:Destroy()
-						else
-							d.Brightness *= GARLAND_LIGHT_SCALE
-							if d:IsA("PointLight") or d:IsA("SpotLight") then
-								d.Range *= GARLAND_LIGHT_SCALE * 2
-							end
-						end
-					elseif d:IsA("BasePart") and d.Material == Enum.Material.Neon then
-						local c = d.Color
-						d.Color = Color3.new(c.R * GARLAND_NEON_SCALE, c.G * GARLAND_NEON_SCALE, c.B * GARLAND_NEON_SCALE)
-					end
-				end
+				dimModel(copy, GARLAND_LIGHT_SCALE, GARLAND_NEON_SCALE, beadIndex % GARLAND_LIGHT_EVERY ~= 0)
 				copy.Parent = holder
 			end
 		else
@@ -1148,6 +1157,7 @@ local function renderEntry(plot, entry)
 		return
 	end
 	if model then
+		dimModel(model, MODEL_LIGHT_SCALE, MODEL_NEON_SCALE)
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Ornament" then
 			snapToTree(model, deco, plot, cf)
