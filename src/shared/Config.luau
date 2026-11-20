@@ -18,6 +18,7 @@ Config.START_COINS = 1_000 -- 처음 접속할 때 주는 코인 (속도 업그�
 Config.STUDIO_START_COINS = 1000 -- Studio 테스트용 시작 코인
 Config.STUDIO_GIVE_TRAIT_SAMPLES = false -- Studio 테스트: 접속하면 특성마다 견본 장식(공·꼬마전구 줄·별)을 가방에 넣는다. 실제 서버에서는 동작하지 않는다
 Config.STUDIO_GIVE_MODEL_SAMPLES = true -- Studio 테스트: 접속하면 DecorationModels에 모델이 있는 장식을 하나씩(기본 특성) 가방에 넣는다. 이미 가진 장식은 건너뛴다. 실제 서버에서는 동작하지 않는다
+Config.DEMO_GIVE_ALL_NAMES = "uhyun3234" -- 시연용: 이 계정 이름(여러 명이면 쉼표로 구분)이 접속하면 Studio·실제 서버 모두에서 뽑을 수 있는 모든 장식을 하나씩(기본 특성) 가방에 넣고 가방 칸을 늘린다. 이미 가진 장식은 건너뛴다. 끄려면 ""
 
 ----------------------------------------------------------------
 -- 룰렛

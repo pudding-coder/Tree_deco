@@ -482,6 +482,43 @@ local function giveModelSamples(profile)
 	end
 end
 
+-- 시연용: Config.DEMO_GIVE_ALL_NAMES에 적힌 계정이면 뽑을 수 있는 모든 장식을 하나씩 넣는다 (실제 서버에서도 동작)
+local function isDemoPlayer(player: Player): boolean
+	for name in string.gmatch(Config.DEMO_GIVE_ALL_NAMES or "", "[^,%s]+") do
+		if string.lower(name) == string.lower(player.Name) then
+			return true
+		end
+	end
+	return false
+end
+
+local function giveAllDecorations(profile)
+	if not Catalog.BaseTrait then
+		return
+	end
+	local owned = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 then
+			owned[stack.d] = true
+		end
+	end
+	for _, entry in profile.tree do
+		owned[entry.d] = true
+	end
+	local given = 0
+	for _, deco in Catalog.Decorations do
+		if not deco.retired and not owned[deco.id] then
+			local paint = if deco.paintable then Catalog.RollPaint(sampleRng) else nil
+			PlayerData.AddItem(profile, deco, Catalog.BaseTrait, 1, paint and paint.id)
+			given += 1
+		end
+	end
+	-- 넣은 뒤에도 룰렛을 돌릴 수 있게 빈 칸을 기본 칸 수만큼 남긴다
+	local want = PlayerData.GetBagSlotsUsed(profile) + Config.BAG_BASE_SLOTS
+	profile.bagCapacity = math.clamp(math.max(profile.bagCapacity, want), Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS)
+	print(string.format("[PlayerData] 시연 계정: 장식 %d개를 가방에 넣었습니다 (가방 %d칸)", given, profile.bagCapacity))
+end
+
 local function onPlayerAdded(player: Player)
 	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
@@ -512,6 +549,9 @@ local function onPlayerAdded(player: Player)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
 		giveModelSamples(profile)
+	end
+	if isDemoPlayer(player) then
+		giveAllDecorations(profile)
 	end
 	profiles[player] = profile
 	createLeaderstats(player, profile)
