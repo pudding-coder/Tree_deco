@@ -1294,6 +1294,7 @@ local function buildUI()
 	updateScale()
 
 	buildSlot(gui)
+	print(string.format("[룰렛] 일직선 굴림 · 역류 연출 (Studio 고정: %s)", if Config.STUDIO_FORCE_REEL_ENDING == "" then "없음" else Config.STUDIO_FORCE_REEL_ENDING))
 	buildOdds(gui)
 	buildCoins(gui)
 	buildBagButton(gui)
