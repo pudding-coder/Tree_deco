@@ -2450,6 +2450,13 @@ local function playReel(deco, trait, size, duration: number)
 		ending = if forced == "reverse" and #mysticPool[lastReel] > 0 then "reverse" elseif forced == "slow" then "slow" else "fakeStop"
 	end
 	local crawl = if suspense then SUSPENSE_CRAWL else LAST_CRAWL
+	if RunService:IsStudio() then
+		local names = {}
+		for _, i in order do
+			table.insert(names, string.format("%s(%s급)", REEL_TITLES[i], Rarity.List[tiers[i]].name))
+		end
+		print(string.format("[룰렛] 멈추는 순서: %s · 끝내기 %s%s", table.concat(names, " → "), ending, if suspense then " · 긴장 연출" else ""))
+	end
 
 	local reels = {}
 	for rank, i in order do
