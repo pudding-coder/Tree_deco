@@ -17,7 +17,7 @@
 | --- | --- |
 | 게임 규칙 | `GAME_RULES.md` |
 | 밸런스 값 | `src/shared/Config.luau` |
-| 장식·특성·칠하기 색 목록 | `src/shared/Catalog/Decorations.luau`, `Traits.luau`, `Paints.luau` (추가 방법: `docs/ADDING_ITEMS.md`) |
+| 장식·특성 목록 | `src/shared/Catalog/Decorations.luau`, `Traits.luau` (추가 방법: `docs/ADDING_ITEMS.md`) |
 | 트리 효과 상점 목록 | `src/shared/Catalog/TreeEffects.luau` (가격은 `Config.luau`, 기본 효과 모양은 `src/server/TreeFx.luau`) |
 | 등급 이름·색 | `src/shared/Rarity.luau` (확률·가치는 `Config.luau`) |
 | 특성 글자색 | `src/client/GachaUI.luau`의 `TRAIT_COLORS` |

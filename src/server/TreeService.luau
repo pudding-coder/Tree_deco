@@ -87,6 +87,14 @@ local GARLAND_BEAD_SIZE = 0.75 -- 띠에 다는 모델 하나의 가장 긴 변(
 local GARLAND_BEAD_GAP = 1.6 -- 모델 사이 간격(스터드, 대략). 한 바퀴를 똑같이 나눠 단다. 둘레가 짧은 위쪽 띠는 모델이 적다
 local GARLAND_BEAD_SWAY = 10 -- 매달린 모델이 좌우로 흔들려 보이는 최대 각도(도). 모델마다 조금씩 다르다
 local GARLAND_BEAD_TWIST = 20 -- 매달린 모델이 옆으로 돌아간 최대 각도(도)
+-- 장식 모델의 빛·네온 줄이기 (무료 모델은 너무 밝게 만들어진 것이 많다. 1이면 그대로)
+-- 네온은 색이 어두울수록 덜 번진다
+local MODEL_LIGHT_SCALE = 0.35 -- 토퍼·오너먼트 모델 안 빛(PointLight 등)의 밝기 배율
+local MODEL_NEON_SCALE = 0.5 -- 토퍼·오너먼트 모델 네온 파츠 색 밝기 배율
+-- 띠 모델은 같은 모델을 여러 개 다므로 빛이 겹쳐 더 눈부시다
+local GARLAND_LIGHT_EVERY = 4 -- 모델 안 빛은 몇 개마다 하나만 남길지
+local GARLAND_LIGHT_SCALE = 0.15 -- 남긴 빛의 밝기 배율
+local GARLAND_NEON_SCALE = 0.4 -- 네온 파츠 색 밝기 배율
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -1025,13 +1033,33 @@ end
 
 -- 띠: 트리 겉면을 비스듬히 도는 줄. bead(3D 모델)가 있으면 전구 대신 그 모델을 줄에 달고, 없으면 등급 색 전구
 -- bead는 cloneModel이 만든 원본 복제본이라 여기서 쓰고 지운다
-local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
+-- 모델 안 빛을 줄이고(removeLights면 지우고), 네온 파츠 색을 어둡게 해 번짐을 줄인다
+local function dimModel(model: Instance, lightScale: number, neonScale: number, removeLights: boolean?)
+	for _, d in model:GetDescendants() do
+		if d:IsA("Light") then
+			if removeLights then
+				d:Destroy()
+			else
+				d.Brightness *= lightScale
+				if d:IsA("PointLight") or d:IsA("SpotLight") then
+					d.Range *= math.min(1, lightScale * 2)
+				end
+			end
+		elseif d:IsA("BasePart") and d.Material == Enum.Material.Neon then
+			local c = d.Color
+			d.Color = Color3.new(c.R * neonScale, c.G * neonScale, c.B * neonScale)
+		end
+	end
+end
+
+local function renderGarland(plot, entry, deco, trait, bead: Model?)
 	-- 트리 겉면을 비스듬히 도는 전구 줄: 전구 사이를 가는 전선으로 잇는다
 	local holder = Instance.new("Model")
 	holder.Name = deco.id
 	local points = garlandPaths[entry.i] or {}
 	-- 모델마다 흔들린 각도를 다르게 하되, 다시 그려도 같은 모양이 나오게 띠 자리로 정한 난수를 쓴다
 	local sway = Random.new(entry.i * 7919 + #deco.id)
+	local beadIndex = 0 -- 몇 번째로 단 모델인지 (빛 줄이기용)
 	-- 하나를 줄 위의 점(플롯 기준)에 매단다
 	local function hangAt(point: Vector3)
 		if bead then
@@ -1053,9 +1081,9 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 			local facing = hang * CFrame.new(0, -scaled.Y / 2 + 0.05, -(scaled.Z / 2 - 0.2)) -- 뒤쪽이 줄에 닿게 (트리에 묻히지 않게)
 			local box = copy:GetBoundingBox()
 			copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
-			if paint then
-				TraitEffects.Paint(copy, paint.color)
-			end
+			-- 같은 모델을 여러 개 달아 빛이 겹치므로, 빛은 GARLAND_LIGHT_EVERY개마다 하나만 남기고 어둡게
+			dimModel(copy, GARLAND_LIGHT_SCALE, GARLAND_NEON_SCALE, beadIndex % GARLAND_LIGHT_EVERY ~= 0)
+			beadIndex += 1
 			copy.Parent = holder
 		else
 			-- 작은 전구를 줄 바로 아래에 매단다
@@ -1156,14 +1184,14 @@ local function renderEntry(plot, entry)
 	end
 	local cf = plot.cframe * slotOffset(entry.a, entry.i)
 
-	local paint = entry.p and Catalog.PaintById[entry.p] -- 뽑을 때 정해진 색 (paintable 장식만)
 	local sizeScale = Catalog.SizeOf(entry.s).scale -- 뽑을 때 정해진 크기 (띠는 항상 보통)
 	local model, primary = cloneModel(deco)
 	if model and entry.a == "Garland" then
-		renderGarland(plot, entry, deco, trait, model, paint)
+		renderGarland(plot, entry, deco, trait, model)
 		return
 	end
 	if model then
+		dimModel(model, MODEL_LIGHT_SCALE, MODEL_NEON_SCALE)
 		placeModel(model, entry.a, deco, cf, sizeScale)
 		if entry.a == "Ornament" then
 			snapToTree(model, deco, plot, cf)
@@ -1175,9 +1203,6 @@ local function renderEntry(plot, entry)
 			model:PivotTo(model:GetPivot() + Vector3.new(0, lift, 0))
 		end
 		model.PrimaryPart = primary -- 특성 분위기가 붙을 파츠
-		if paint then
-			TraitEffects.Paint(model, paint.color) -- Paint 파츠만 칠한다
-		end
 		TraitEffects.Apply(model, trait)
 		if deco.holdable then
 			makeHoldable(model, deco)
@@ -1188,7 +1213,7 @@ local function renderEntry(plot, entry)
 
 	-- 임시 모양
 	if entry.a == "Garland" then
-		renderGarland(plot, entry, deco, trait, nil, nil)
+		renderGarland(plot, entry, deco, trait, nil)
 	else
 		local size = (if entry.a == "Topper" then 2.4 else 1.4) * sizeScale
 		local part = newPart({
@@ -1201,9 +1226,6 @@ local function renderEntry(plot, entry)
 			Parent = plot.decorations,
 		})
 		decorateLook(part, deco, trait)
-		if paint then
-			TraitEffects.Paint(part, paint.color)
-		end
 		if entry.a == "Topper" then
 			part.Material = Enum.Material.Neon
 		end
@@ -1511,7 +1533,7 @@ local function onPlace(player: Player, key: any, index: any)
 
 	stack.c -= 1
 	PlayerData.RemoveEmptyStacks(profile)
-	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, p = stack.p, s = stack.s })
+	table.insert(profile.tree, { a = deco.area, i = freeIndex, d = stack.d, t = stack.t, s = stack.s })
 	render(player)
 
 	return { ok = true, area = deco.area, index = freeIndex, state = GachaService.BuildState(player) }
@@ -1553,7 +1575,7 @@ local function autoFillProfile(profile): number
 				break -- 이 영역에 걸 장식이 없다
 			end
 			stack.c -= 1
-			table.insert(profile.tree, { a = area, i = index, d = stack.d, t = stack.t, p = stack.p, s = stack.s })
+			table.insert(profile.tree, { a = area, i = index, d = stack.d, t = stack.t, s = stack.s })
 			placed += 1
 		end
 	end
@@ -1638,7 +1660,7 @@ local function onRemove(player: Player, slots: any)
 	local newKeys = {}
 	local needed = 0
 	for _, entry in entries do
-		local key = PlayerData.StackKey(entry.d, entry.t, entry.p, entry.s)
+		local key = PlayerData.StackKey(entry.d, entry.t, entry.s)
 		if not PlayerData.FindStack(profile, key) and not newKeys[key] then
 			newKeys[key] = true
 			needed += 1
@@ -1656,13 +1678,13 @@ local function onRemove(player: Player, slots: any)
 		end
 		local deco = Catalog.DecorationById[entry.d]
 		local trait = Catalog.TraitById[entry.t]
-		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.p, entry.s))
+		local existing = PlayerData.FindStack(profile, PlayerData.StackKey(entry.d, entry.t, entry.s))
 		if existing then
 			existing.c += 1
 		elseif deco and trait then
-			PlayerData.AddItem(profile, deco, trait, 1, entry.p, entry.s)
+			PlayerData.AddItem(profile, deco, trait, 1, entry.s)
 		else
-			table.insert(profile.stacks, { d = entry.d, t = entry.t, p = entry.p, s = entry.s, c = 1, l = false })
+			table.insert(profile.stacks, { d = entry.d, t = entry.t, s = entry.s, c = 1, l = false })
 		end
 	end
 	render(player)

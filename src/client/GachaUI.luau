@@ -32,7 +32,7 @@ local ICONS = {
 	coins = "rbxassetid://132123388448433", -- 오른쪽 아래 코인 칸 (팩 Coins)
 	close = "rbxassetid://93352627659643", -- 창 닫기 X 버튼 (팩 Close)
 }
-local MENU_ICON_SIZE = 40 -- 왼쪽 아래 메뉴 버튼 아이콘 크기(픽셀)
+local MENU_ICON_SIZE = 40 -- 오른쪽 위 메뉴 버튼 아이콘 크기(픽셀)
 
 local COLORS = {
 	panel = Color3.fromRGB(30, 42, 78), -- 창 배경
@@ -49,7 +49,8 @@ local COLORS = {
 
 -- 창·버튼 모양 (docs/UI.md)
 local THEME = {
-	font = Enum.Font.FredokaOne, -- 버튼·창 제목 글꼴 (한글은 Roblox 기본 한글 글꼴로 나온다)
+	-- 버튼·창 제목 글꼴. 영문·숫자는 이 글꼴, 한글은 Roblox 기본 한글 글꼴로 나오는데 굵기(Bold)는 따라간다
+	font = Font.new("rbxasset://fonts/families/FredokaOne.json", Enum.FontWeight.Bold),
 	outline = Color3.fromRGB(14, 18, 34), -- 창·버튼 테두리 색
 	panelOutline = 3, -- 창 테두리 두께
 	buttonOutline = 2.5, -- 버튼 테두리 두께
@@ -59,12 +60,20 @@ local THEME = {
 	pressScale = 0.93, -- 누르면 작아지는 배율
 }
 
--- 왼쪽 아래 메뉴 버튼 색
+-- 오른쪽 위 메뉴: 코인 칸 아래 "메뉴" 버튼을 누르면 버튼들이 아래로 펼쳐진다
+local MENU_TOP = 64 -- 화면 위에서 코인 칸까지 (Roblox 위쪽 막대를 피한다, 픽셀)
+local MENU_WIDTH = 220 -- 코인 칸·메뉴 버튼 폭
+local MENU_BUTTON_HEIGHT = 56
+local MENU_GAP = 8 -- 버튼 사이 간격
+local MENU_START_OPEN = false -- 처음 들어왔을 때 펼쳐 둘지
+
+-- 메뉴 버튼 색
 local MENU_COLORS = {
 	bag = Color3.fromRGB(244, 146, 40), -- 가방 (주황)
 	upgrade = Color3.fromRGB(150, 92, 232), -- 업그레이드 (보라)
 	tree = Color3.fromRGB(56, 182, 90), -- 내 트리 (초록)
 	roulette = Color3.fromRGB(236, 78, 140), -- 룰렛 (분홍)
+	menu = Color3.fromRGB(64, 84, 140), -- 메뉴 펼치기 버튼
 	shop = Color3.fromRGB(46, 140, 240), -- 상점 (파랑)
 }
 
@@ -105,13 +114,13 @@ local ui = {}
 ----------------------------------------------------------------
 
 -- "반짝이 분홍 공" (기본 특성이면 특성 이름 없이, 색이 없으면 색 이름 없이)
-local function itemName(deco, trait, paintId: string?, sizeId: string?): string
-	return Catalog.ItemName(deco, trait, paintId, sizeId)
+local function itemName(deco, trait, sizeId: string?): string
+	return Catalog.ItemName(deco, trait, sizeId)
 end
 
 -- "분홍 공" (특성 이름 없이)
-local function paintedName(deco, paintId: string?, sizeId: string?): string
-	return Catalog.ItemName(deco, Catalog.BaseTrait, paintId, sizeId)
+local function sizedName(deco, sizeId: string?): string
+	return Catalog.ItemName(deco, Catalog.BaseTrait, sizeId)
 end
 
 local function stackInfo(stack)
@@ -119,7 +128,7 @@ local function stackInfo(stack)
 end
 
 local function stackKey(stack): string
-	return Catalog.StackKey(stack.d, stack.t, stack.p, stack.s)
+	return Catalog.StackKey(stack.d, stack.t, stack.s)
 end
 
 local function stackSellPrice(stack): number
@@ -160,7 +169,9 @@ end
 
 local function label(props)
 	props.BackgroundTransparency = props.BackgroundTransparency or 1
-	props.Font = props.Font or Enum.Font.GothamBold
+	if not props.FontFace then
+		props.Font = props.Font or Enum.Font.GothamBold
+	end
 	props.TextColor3 = props.TextColor3 or COLORS.text
 	props.TextSize = props.TextSize or 16
 	return create("TextLabel", props)
@@ -207,7 +218,7 @@ local function button(props)
 		BackgroundColor3 = props.Color or COLORS.panelLight,
 		AutoButtonColor = false,
 		BorderSizePixel = 0,
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = props.TextSize or 18,
 		TextColor3 = COLORS.text,
 		TextStrokeColor3 = THEME.outline,
@@ -266,11 +277,13 @@ local function addIcon(parent: GuiObject, image: string?, size: number, noPaddin
 		ScaleType = Enum.ScaleType.Fit,
 		Size = UDim2.fromOffset(size, size),
 		AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, 10, 0.5, 0),
+		-- UIPadding은 아이콘도 같이 밀기 때문에, 미는 만큼 왼쪽으로 되돌려 버튼 왼쪽 끝에서 12px에 둔다
+		Position = UDim2.new(0, if noPadding then 0 else 12 - (size + 20), 0.5, 0),
 		Parent = parent,
 	})
 	if not noPadding then
-		create("UIPadding", { PaddingLeft = UDim.new(0, size + 8), Parent = parent })
+		create("UIPadding", { PaddingLeft = UDim.new(0, size + 20), Parent = parent })
+		parent.TextXAlignment = Enum.TextXAlignment.Left -- 아이콘 바로 옆에서 글자가 시작한다
 	end
 end
 
@@ -320,7 +333,7 @@ local function buildSlot(gui)
 	ui.slot = slot
 	label({
 		Text = "장식 룰렛",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(0.6, 0, 0, 28),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -560,7 +573,7 @@ local function buildOdds(gui)
 		Name = "Odds",
 		Size = UDim2.fromOffset(220, height),
 		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -84), -- 코인 표시 위
+		Position = UDim2.new(1, -16, 1, -20), -- 오른쪽 아래
 		Visible = false, -- 룰렛과 같이 열고 닫는다
 		Parent = gui,
 	})
@@ -633,13 +646,13 @@ local function buildOdds(gui)
 	end
 end
 
--- 코인 표시 (오른쪽 아래 구석, 항상 보임)
+-- 코인 표시 (오른쪽 위 구석, 항상 보임)
 local function buildCoins(gui)
 	local frame = panel({
 		Name = "Coins",
-		Size = UDim2.fromOffset(220, 56),
-		AnchorPoint = Vector2.new(1, 1),
-		Position = UDim2.new(1, -16, 1, -20),
+		Size = UDim2.fromOffset(MENU_WIDTH, 56),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, MENU_TOP),
 		Parent = gui,
 	})
 	ui.coins = scaledLabel({
@@ -651,7 +664,7 @@ local function buildCoins(gui)
 	}, 18, 10)
 end
 
--- 가방 버튼 (왼쪽 아래)
+-- 가방 버튼 (오른쪽 위 메뉴, buildMenu가 자리를 정한다)
 local function buildBagButton(gui)
 	ui.bagButton = button({
 		Name = "BagButton",
@@ -681,7 +694,7 @@ local function buildInventory(gui)
 
 	ui.invTitle = label({
 		Text = "가방",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -819,7 +832,7 @@ local function buildUpgradeWindow(gui)
 
 	label({
 		Text = "업그레이드",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -917,7 +930,7 @@ local function buildShopWindow(gui)
 
 	label({
 		Text = "트리 꾸미기 상점",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -40, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1066,7 +1079,7 @@ local function buildTreeWindow(gui)
 
 	ui.treeTitle = label({
 		Text = "내 트리",
-		Font = THEME.font,
+		FontFace = THEME.font,
 		TextSize = 20,
 		Size = UDim2.new(1, -200, 0, 30),
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -1274,6 +1287,65 @@ local function applySlotOrder()
 	end
 end
 
+-- 메뉴 펼치기 버튼과 펼쳐지는 버튼들 (위에서부터 이 순서)
+local function buildMenu(gui)
+	ui.menuToggle = button({
+		Name = "MenuToggle",
+		Text = "메뉴",
+		Color = MENU_COLORS.menu,
+		TextSize = 22,
+		Size = UDim2.fromOffset(MENU_WIDTH, MENU_BUTTON_HEIGHT),
+		AnchorPoint = Vector2.new(1, 0),
+		Position = UDim2.new(1, -16, 0, MENU_TOP + 56 + MENU_GAP),
+		Radius = 14,
+		Parent = gui,
+	})
+	ui.menuToggle.ZIndex = 3 -- 접힌 버튼들이 이 뒤에 숨는다
+	ui.menuButtons = { ui.rouletteButton, ui.bagButton, ui.treeButton, ui.upgradeButton, ui.shopButton }
+	for _, btn in ui.menuButtons do
+		btn.Size = UDim2.fromOffset(MENU_WIDTH, MENU_BUTTON_HEIGHT)
+		btn.AnchorPoint = Vector2.new(1, 0)
+		btn.ZIndex = 2
+	end
+end
+
+local menuOpen = false
+local menuTweens = {}
+-- 메뉴를 펼치거나 접는다. 버튼이 메뉴 버튼 뒤에서 차례로 미끄러져 나온다
+local function setMenuOpen(open: boolean, instant: boolean?)
+	menuOpen = open
+	ui.menuToggle.Text = if open then "메뉴 닫기" else "메뉴"
+	for _, t in menuTweens do
+		t:Cancel()
+	end
+	table.clear(menuTweens)
+	local home = ui.menuToggle.Position
+	for i, btn in ui.menuButtons do
+		local target = if open
+			then home + UDim2.fromOffset(0, i * (MENU_BUTTON_HEIGHT + MENU_GAP))
+			else home
+		if instant then
+			btn.Position = target
+			btn.Visible = open
+			continue
+		end
+		if open then
+			btn.Visible = true
+		end
+		local info = if open
+			then TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out, 0, false, (i - 1) * 0.04)
+			else TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, (#ui.menuButtons - i) * 0.025)
+		local tween = TweenService:Create(btn, info, { Position = target })
+		tween.Completed:Connect(function(state)
+			if state == Enum.PlaybackState.Completed and not menuOpen then
+				btn.Visible = false
+			end
+		end)
+		table.insert(menuTweens, tween)
+		tween:Play()
+	end
+end
+
 local function buildUI()
 	local gui = create("ScreenGui", {
 		Name = "GachaGui",
@@ -1301,6 +1373,7 @@ local function buildUI()
 	buildTreeButton(gui)
 	buildRouletteButton(gui)
 	buildShopButton(gui)
+	buildMenu(gui)
 	buildInventory(gui)
 	buildUpgradeWindow(gui)
 	buildTreeWindow(gui)
@@ -1313,7 +1386,12 @@ local function buildUI()
 	addIcon(ui.treeButton, ICONS.tree, MENU_ICON_SIZE)
 	addIcon(ui.rouletteButton, ICONS.roulette, MENU_ICON_SIZE)
 	addIcon(ui.shopButton, ICONS.shop, MENU_ICON_SIZE)
-	addIcon(ui.coins.Parent, ICONS.coins, 32, true) -- 코인 칸은 이미 여백이 있고 글자가 오른쪽 정렬이라 밀지 않는다
+	if ICONS.coins ~= "" then
+		-- 코인 칸: 아이콘은 왼쪽 끝, 글자는 아이콘 오른쪽 칸 안에서 오른쪽 정렬 (겹치지 않게)
+		addIcon(ui.coins.Parent, ICONS.coins, 32, true)
+		ui.coins.Size = UDim2.new(1, -40, 1, 0)
+		ui.coins.Position = UDim2.fromOffset(40, 0)
+	end
 	for _, btn in { ui.invClose, ui.upgradeClose, ui.shopClose, ui.treeClose } do
 		useCloseIcon(btn)
 	end
@@ -1389,7 +1467,8 @@ end
 
 local function refreshCoins()
 	local income = currentIncome()
-	ui.coins.Text = "코인 " .. Gacha.FormatNumber(state.coins)
+	-- 코인 아이콘이 있으면 "코인" 글자는 뺀다
+	ui.coins.Text = (if ICONS.coins == "" then "코인 " else "") .. Gacha.FormatNumber(state.coins)
 	if income > 0 then
 		ui.coins.Text ..= string.format("  (+%s/초)", formatIncome(income))
 	end
@@ -1417,7 +1496,7 @@ local function sortedStacks()
 		if valueA ~= valueB then
 			return valueA > valueB
 		end
-		return itemName(decoA, traitA, a.p, a.s) < itemName(decoB, traitB, b.p, b.s)
+		return itemName(decoA, traitA, a.s) < itemName(decoB, traitB, b.s)
 	end)
 	return list
 end
@@ -1488,7 +1567,7 @@ local function refreshSellButtons()
 	local deco, trait = stackInfo(stack)
 	local r = Rarity.List[deco.rarity]
 	local value = Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, stack.s))
-	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait, stack.p, stack.s), Gacha.FormatNumber(stack.c))
+	ui.detailName.Text = string.format("%s ×%s", itemName(deco, trait, stack.s), Gacha.FormatNumber(stack.c))
 	ui.detailName.TextColor3 = r.color
 	ui.detailInfo.Text = string.format(
 		"%s · %s · 가치 %s코인 · 1개 판매 %s코인",
@@ -1556,7 +1635,7 @@ local function makeCell(stack, order: number)
 		})
 	end
 	scaledLabel({
-		Text = paintedName(deco, stack.p, stack.s),
+		Text = sizedName(deco, stack.s),
 		TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
 		Size = UDim2.new(1, -10, 0, 44),
 		Position = UDim2.fromOffset(5, 24),
@@ -1807,7 +1886,7 @@ local function refreshPicker()
 		corner(row, 8)
 		create("UIStroke", { Color = r.color, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = row })
 		scaledLabel({
-			Text = string.format("%s ×%s", itemName(deco, trait, stack.p, stack.s), Gacha.FormatNumber(stack.c)),
+			Text = string.format("%s ×%s", itemName(deco, trait, stack.s), Gacha.FormatNumber(stack.c)),
 			TextColor3 = if trait == Catalog.BaseTrait then COLORS.text else traitColor(trait),
 			Size = UDim2.new(1, -110, 1, 0),
 			Position = UDim2.fromOffset(10, 0),
@@ -1861,7 +1940,7 @@ local function refreshTree()
 				or (pickingSlot ~= nil and pickingSlot.area == area.id and pickingSlot.index == index)
 			if deco and trait then
 				local color = Rarity.List[deco.rarity].color
-				cell.name.Text = paintedName(deco, entry.p, entry.s)
+				cell.name.Text = sizedName(deco, entry.s)
 				cell.name.TextColor3 = color
 				cell.trait.Text = if trait == Catalog.BaseTrait then "" else trait.name
 				cell.trait.TextColor3 = traitColor(trait)
@@ -1898,7 +1977,7 @@ local function refreshTree()
 			local r = Rarity.List[deco.rarity]
 			ui.treeDetail.Text = string.format(
 				"%s [%s] 가치 %s코인",
-				itemName(deco, trait, entry.p, entry.s),
+				itemName(deco, trait, entry.s),
 				r.name,
 				Gacha.FormatNumber(Gacha.GetItemValue(deco.rarity, Catalog.ValueMult(trait, entry.s)))
 			)
@@ -2523,7 +2602,7 @@ local function playReel(deco, trait, size, duration: number)
 	end
 end
 
-local function playResultEffect(rarityIndex: number, deco, trait, paintId: string?, sizeId: string?)
+local function playResultEffect(rarityIndex: number, deco, trait, sizeId: string?)
 	local r = Rarity.List[rarityIndex]
 	local probs = Gacha.GetProbabilities(state.luck)
 	local value = Gacha.GetItemValue(rarityIndex, Catalog.ValueMult(trait, sizeId))
@@ -2547,7 +2626,7 @@ local function playResultEffect(rarityIndex: number, deco, trait, paintId: strin
 
 	-- 서버 공지가 안 뜨는 등급은 본인에게만 알림
 	if rarityIndex < Config.SERVER_ANNOUNCE_MIN_RARITY then
-		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait, paintId, sizeId), r.name), r.color)
+		showToast(string.format("%s [%s] 뽑았습니다!", itemName(deco, trait, sizeId), r.name), r.color)
 	end
 
 	-- 시크릿은 무지개색으로 반짝인다
@@ -2607,7 +2686,7 @@ local function spin(kind: string)
 
 	playReel(deco, trait, Catalog.SizeOf(result.sizeId), result.reelTime)
 	applyState(result.state)
-	playResultEffect(result.rarity, deco, trait, result.paintId, result.sizeId)
+	playResultEffect(result.rarity, deco, trait, result.sizeId)
 	if result.autoSold then
 		ui.reelSub.Text = string.format("자동 판매 +%s코인", Gacha.FormatNumber(result.saleCoins))
 	end
@@ -2852,7 +2931,7 @@ local function onAnnounce(data)
 			"%s %s님이 뽑았습니다: %s [%s] (%s)",
 			prefix,
 			tostring(data.playerName),
-			itemName(deco, trait, nil, if type(data.sizeId) == "string" then data.sizeId else nil),
+			itemName(deco, trait, if type(data.sizeId) == "string" then data.sizeId else nil),
 			r.name,
 			Gacha.FormatOdds(1 / r.n)
 		),
@@ -2898,6 +2977,10 @@ function GachaUI.Start()
 			end
 		end)
 	end
+	ui.menuToggle.Activated:Connect(function()
+		setMenuOpen(not menuOpen)
+	end)
+	setMenuOpen(MENU_START_OPEN, true)
 	ui.rouletteButton.Activated:Connect(function()
 		setRouletteOpen(not ui.slot.Visible)
 	end)

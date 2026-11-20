@@ -85,7 +85,7 @@ function GachaService.BuildState(player: Player)
 	local stacks = {}
 	for _, stack in profile.stacks do
 		if stack.c > 0 and PlayerData.IsKnownStack(stack) then
-			table.insert(stacks, { d = stack.d, t = stack.t, p = stack.p, s = stack.s, c = stack.c, l = stack.l })
+			table.insert(stacks, { d = stack.d, t = stack.t, s = stack.s, c = stack.c, l = stack.l })
 		end
 	end
 
@@ -217,15 +217,13 @@ local function onSpin(player: Player, kind: any)
 	local rarityIndex = Gacha.Roll(luck, rng)
 	local deco = Catalog.RollDecoration(rarityIndex, rng)
 	local trait = Catalog.RollTrait(rng)
-	local paint = if deco.paintable then Catalog.RollPaint(rng) else nil
-	local paintId = paint and paint.id
 	-- 크기: 띠는 항상 보통. 보통은 저장하지 않는다(nil)
 	local size = if deco.area == "Garland" then Catalog.BaseSize else Catalog.RollSize(rng)
 	local sizeId = if size ~= Catalog.BaseSize then size.id else nil
 	local coinsAfterCost = profile.coins
 
 	-- 자동 판매: 지정한 등급 이하이고, 그 칸이 잠기지 않았고, (설정에 따라) 특성이 없을 때
-	local key = PlayerData.StackKey(deco.id, trait.id, paintId, sizeId)
+	local key = PlayerData.StackKey(deco.id, trait.id, sizeId)
 	local existing = PlayerData.FindStack(profile, key)
 	local isLocked = if existing
 		then existing.l
@@ -237,7 +235,7 @@ local function onSpin(player: Player, kind: any)
 		saleCoins = Gacha.GetSellPrice(rarityIndex, Catalog.ValueMult(trait, sizeId))
 		PlayerData.AddCoins(player, saleCoins)
 	else
-		PlayerData.AddItem(profile, deco, trait, 1, paintId, sizeId)
+		PlayerData.AddItem(profile, deco, trait, 1, sizeId)
 		-- 트리 빈자리 자동 채우기 (TreeService가 정한다). 트리 모습은 슬롯이 멈춘 뒤에 바뀐다
 		if GachaService.AfterItemAdded then
 			GachaService.AfterItemAdded(player, profile, reelTime)
@@ -261,7 +259,6 @@ local function onSpin(player: Player, kind: any)
 		rarity = rarityIndex,
 		decoId = deco.id,
 		traitId = trait.id,
-		paintId = paintId,
 		sizeId = sizeId,
 		reelTime = reelTime,
 		autoSold = saleCoins > 0,

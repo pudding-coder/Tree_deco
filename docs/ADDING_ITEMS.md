@@ -55,7 +55,6 @@
 | `area` | 트리 어디에 거는지 | `"Topper"`(꼭대기) `"Ornament"`(가지) `"Garland"`(띠) |
 | `weight` | (선택) 같은 등급 안에서 나오는 비율 | 안 쓰면 1. `weight = 2`면 2배 잘 나옴, `0.5`면 절반 |
 | `model` | (선택) 3D 모델 이름 | 트리 꾸미기 작업 후 사용 (아래 6번) |
-| `paintable` | (선택) 랜덤 색 칠하기 | `paintable = true`면 뽑을 때 색이 정해져 모델의 `Paint` 파트에 칠해진다 (아래 6번) |
 | `holdable` | (선택) 잡기 | `holdable = true`면 트리에 걸린 이 장식에 캐릭터가 닿을 때 손을 뻗어 잡은 채 트리에 매달린다(누구나). 점프하면 놓는다. 장식은 빠지지 않는다 |
 
 **주의**
@@ -150,17 +149,6 @@ Candy = Color3.fromRGB(255, 150, 200),
 
 **띠(Garland) 모델**은 줄에 다는 물건 **하나**(예: CCTV 카메라 하나)를 넣는다. 게임이 그 모델을 작게(가장 긴 변 1.4) 복제해 띠 전선을 따라 14개를 단다(`TreeService.luau`의 `GARLAND_BEAD_SIZE`·`GARLAND_BEAD_EVERY`). 정면(-Z)이 트리 바깥을 본다. 크기는 장식 줄의 `size`, 방향은 `turn`.
 
-### 랜덤 색이 칠해지는 곳 (Paint 파트)
-
-모델은 **장식마다 하나만** 만든다. 색별로 따로 만들 필요 없다.
-
-1. 색을 바꿀 부분(머리, 리본 등)은 **파트 이름을 `Paint`로 시작**하게 짓는다. 예: `PaintHair`, `PaintRibbon`. 여러 개여도 된다.
-2. 장식 줄에 `paintable = true`를 붙인다. 예: `{ id = "MikuKeyring", ..., paintable = true },`
-3. 뽑을 때 `src/shared/Catalog/Paints.luau`의 색 중 하나가 랜덤으로 정해지고, `Paint` 파트만 그 색으로 칠해진다. 나머지 파트(눈, 고리 등)는 원래 색 그대로다.
-
-- 색이 다르면 가방 칸이 따로 생긴다. 그래서 `Paint` 파트가 있는 모델에만 `paintable`을 켠다.
-- `Paint` 파트는 **그림(TextureID) 없이 단색**으로 만든다. 그림이 있으면 색을 바꿔도 거의 안 바뀐다. Blender에서는 칠할 부분을 따로 떼어 단색 재질로 두면 된다.
-- 색 목록은 `Paints.luau`에서 추가·수정한다(`id`는 바꾸지 않기, 그만 쓸 색은 `retired = true`).
 - 특성 분위기(빛 안개)는 모델의 `PrimaryPart`(없으면 가장 큰 파트)에 붙는다.
 
 ---

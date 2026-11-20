@@ -57,14 +57,26 @@ local ICONS = {
 
 | 이름 | 뜻 | 지금 값 |
 | --- | --- | --- |
-| `font` | 버튼·창 제목 글꼴 (`Enum.Font.` 뒤 이름. 한글은 Roblox 기본 한글 글꼴로 나온다) | `FredokaOne` |
+| `font` | 버튼·창 제목 글꼴. `Font.new("rbxasset://fonts/families/글꼴이름.json", Enum.FontWeight.Bold)`. 한글은 Roblox 기본 한글 글꼴로 나오고 굵기만 따라간다 | `FredokaOne`, Bold |
 | `outline` | 창·버튼 테두리 색 | 진한 남색 |
 | `panelOutline` / `buttonOutline` | 테두리 두께 (0이면 없음) | 3 / 2.5 |
 | `panelRadius` | 창 모서리 둥글기 | 18 |
 | `shine` | 버튼 아래쪽 어둡기. 1이면 광택 없음, 작을수록 진함 | 0.78 |
 | `hoverScale` / `pressScale` | 마우스 올림 / 누름 때 크기 배율. 1이면 움직이지 않음 | 1.05 / 0.93 |
 
-`MENU_COLORS`는 왼쪽 아래 메뉴 버튼(가방·업그레이드·내 트리·룰렛·상점) 색이다.
+`MENU_COLORS`는 오른쪽 위 메뉴 버튼(룰렛·가방·내 트리·업그레이드·상점, 메뉴 펼치기) 색이다.
+
+### 오른쪽 위 메뉴
+
+코인 칸 아래 `메뉴` 버튼을 누르면 버튼들이 아래로 펼쳐진다. 값은 `GachaUI.luau` 위쪽.
+
+| 이름 | 뜻 |
+| --- | --- |
+| `MENU_TOP` | 화면 위에서 코인 칸까지 거리(픽셀). Roblox 위쪽 막대를 피한다 |
+| `MENU_WIDTH` / `MENU_BUTTON_HEIGHT` / `MENU_GAP` | 버튼 폭 / 높이 / 간격 |
+| `MENU_START_OPEN` | `true`면 처음부터 펼쳐 둔다 |
+
+버튼 순서는 `buildMenu`의 `ui.menuButtons` 줄 순서다. 플레이어 목록(오른쪽 위 Roblox 기본 UI)은 겹쳐서 `Main.client.luau`에서 숨긴다.
 
 ## 3. 글자 바꾸기
 
