@@ -45,6 +45,7 @@ return {
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
 	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 }, -- [직접 제작] STL에서 변환: TungSahurKeyring.obj
+	{ id = "Monkey", name = "원숭이", rarity = "Common", area = "Ornament" }, -- [직접 제작] Blender: Monkey.fbx (tools/blender/make_monkey.py)
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 	{ id = "Snowflake", name = "눈꽃", rarity = "Common", area = "Ornament" },
 	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
