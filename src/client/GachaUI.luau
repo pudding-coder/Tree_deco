@@ -362,6 +362,7 @@ local function buildSlot(gui)
 		Parent = reels,
 	})
 	ui.reels = {}
+	ui.reelsFrame = reels
 	local widths = { 0.27, 0.27, 0.46 } -- 장식 이름이 길어서 오른쪽 칸을 넓게
 	for i, title in REEL_TITLES do
 		local cell = create("Frame", {
@@ -2152,11 +2153,13 @@ local function sizeChance(size, deco): number
 	return rest
 end
 
--- 슬롯 3칸이 같이 위에서 아래로 굴러가다가, 나온 결과가 드문 칸부터 멈춘다
--- 예) 특성 커먼급 · 크기 보통 · 장식 에픽이면 장식 → 특성 → 크기 순서. 흔한 결과가 걸린 칸이 마지막까지 혼자 오래 돌며
--- 희귀한 것들을 천천히 지나가 "혹시?" 하는 기대를 준다. 확률이 같으면 왼쪽 칸부터
--- 세 칸은 서로 따로 굴러간다(특성·크기는 장식과 따로 뽑으므로 거짓 결과를 보여 주지 않는다)
--- 전체 시간은 서버가 정한다(REEL_STOP_TIME). 여기서는 멈추는 순서와 칸이 넘어가는 간격만 정한다
+-- 슬롯 3칸이 같이 위에서 아래로 굴러가다가, 높은 등급(급)이 나온 칸부터 멈춘다
+-- 장식 칸은 장식 등급, 특성·크기 칸은 그 결과가 나올 확률을 등급 확률표(행운 1배)에 대어 정한 등급급
+-- 예) 특성 커먼급 · 크기 커먼급 · 장식 에픽이면 장식 → 특성 → 크기. 같은 등급이면 왼쪽 칸부터(세 칸이 같으면 원래 순서)
+-- 흔한 결과가 걸린 칸이 마지막까지 혼자 오래 돌며 희귀한 것들을 천천히 지나가 "혹시?" 하는 기대를 준다
+-- 긴장 연출: 두 칸이 REEL_SUSPENSE_MIN_RARITY급 이상이고 남은 칸이 그보다 낮으면, 두 칸이 멈춘 뒤 정해진 시간과 상관없이
+-- 마지막 칸을 REEL_SUSPENSE_TIME초 더 돌린다 (탁탁 끊어지며 넘어가고, 창이 떨리고, 희귀한 것에서 멈춘 척하다 한 칸 미끄러진다)
+-- 세 칸은 서로 따로 굴러간다(특성·크기는 장식과 따로 뽑으므로 거짓 결과를 보여 주지 않는다). 결과는 서버가 이미 정했다
 local REEL_STOP_FRACTIONS = { 0.35, 0.55, 1.0 } -- 첫째 · 둘째 · 마지막으로 멈추는 칸이 멈추는 시점 (전체 시간 비율)
 local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(초)
 -- 멈추기 직전 마지막 간격(그 칸이 멈추는 시간에 대한 비율)과, 한 칸 앞으로 갈수록 간격에 곱하는 값 (멈추는 순서대로)
@@ -2165,12 +2168,18 @@ local REEL_FAST_GAP = 1 / 14 -- 빠르게 돌 때 한 칸 넘어가는 간격(�
 local REEL_LAST_GAP = { 0.1, 0.08, 0.16 }
 local REEL_GAP_RATIO = { 0.75, 0.75, 0.8 }
 local REEL_SETTLE = 0.35 -- 멈춘 뒤 살짝 더 내려갔다가 제자리로 돌아오는 시간(초)
+-- 긴장 연출
+local SUSPENSE_LAST_GAP = 1.7 -- 마지막 한 칸에 걸리는 시간(초): 희귀한 것에서 멈춘 척 → 한 칸 미끄러짐
+local SUSPENSE_HOLD = 0.85 -- 그중 희귀한 것에서 멈춘 척 서 있는 시간(초)
+local SUSPENSE_GAP_RATIO = 0.8 -- 끝에서 앞으로 갈수록 간격에 곱하는 값 (작을수록 처음엔 빠르고 끝에서 확 느려진다)
+local SUSPENSE_SHAKE = 4 -- 창이 떨리는 최대 폭(픽셀). 끝에 가까울수록 커진다
+local SUSPENSE_GOLD = Color3.fromRGB(255, 214, 80)
 
 -- 칸이 바뀌는 시각들 (마지막이 stopTime). 끝에서부터 간격을 늘려 가며 거꾸로 만든다
-local function reelTimes(stopTime: number, lastGapFraction: number, ratio: number): { number }
+local function reelTimes(stopTime: number, lastGap: number, ratio: number): { number }
 	local backwards = { stopTime }
 	local t = stopTime
-	local gap = stopTime * lastGapFraction
+	local gap = lastGap
 	while true do
 		t -= gap
 		if t <= 0 then
@@ -2184,6 +2193,18 @@ local function reelTimes(stopTime: number, lastGapFraction: number, ratio: numbe
 		table.insert(times, backwards[i])
 	end
 	return times
+end
+
+-- 확률 → 등급급 (등급 확률표에서 그 확률 이하인 가장 높은 등급)
+local BASE_PROBS = Gacha.GetProbabilities(1)
+local function tierOf(chance: number): number
+	local tier = 1
+	for r = 2, Rarity.Count do
+		if chance <= BASE_PROBS[r] * 1.0001 then
+			tier = r
+		end
+	end
+	return tier
 end
 
 -- 지난 시간 → 굴린 위치 f (0이면 처음 보이던 결과, steps면 최종 결과가 가운데)
@@ -2201,7 +2222,23 @@ local function reelPosition(reel, elapsed: number): number
 	while s < reel.steps and times[s + 1] <= elapsed do
 		s += 1
 	end
-	return s + (elapsed - times[s]) / (times[s + 1] - times[s])
+	local gap = times[s + 1] - times[s]
+	local into = elapsed - times[s]
+	if reel.hold and s == reel.steps - 1 then
+		-- 희귀한 것에서 멈춘 척: 살짝 튕기고 서 있다가, 천천히 한 칸 미끄러진다
+		if into < reel.hold then
+			local u = math.clamp(into / REEL_SETTLE, 0, 1)
+			return s + 0.18 * math.sin(math.pi * u) * (1 - u)
+		end
+		local u = (into - reel.hold) / (gap - reel.hold)
+		return s + u * u * (3 - 2 * u)
+	end
+	local frac = into / gap
+	if reel.tickFrom and times[s] >= reel.tickFrom then
+		-- 탁탁 끊어지며 넘어간다: 빨리 내려오다가 칸에 걸리며 멈칫
+		frac = 1 - (1 - frac) ^ 3
+	end
+	return s + frac
 end
 
 local function playReel(deco, trait, size, duration: number)
@@ -2218,47 +2255,64 @@ local function playReel(deco, trait, size, duration: number)
 		end,
 	}
 
-	-- 멈추는 순서: 확률이 낮은(드문) 결과가 나온 칸부터
-	local chance = {
-		traitChance(trait),
-		sizeChance(size, deco),
-		(Gacha.GetProbabilities(state.luck)[deco.rarity] or 1),
-	}
+	-- 멈추는 순서: 높은 등급(급)이 나온 칸부터. 같으면 왼쪽 칸부터
+	local tiers = { tierOf(traitChance(trait)), tierOf(sizeChance(size, deco)), deco.rarity }
 	local order = { 1, 2, 3 }
 	table.sort(order, function(a, b)
-		if chance[a] ~= chance[b] then
-			return chance[a] < chance[b]
+		if tiers[a] ~= tiers[b] then
+			return tiers[a] > tiers[b]
 		end
 		return a < b
 	end)
-
-	local reels = {}
 	local lastReel = order[3]
 	local slowStart = duration * REEL_STOP_FRACTIONS[2] -- 앞 두 칸이 멈춘 뒤 마지막 칸만 남았을 때
+	local minTier = Config.REEL_SUSPENSE_MIN_RARITY
+	local suspense = tiers[order[2]] >= minTier and tiers[lastReel] < minTier and #tempting[lastReel] > 0
+
+	local reels = {}
 	for rank, i in order do
 		local stopTime = duration * REEL_STOP_FRACTIONS[rank]
-		local times = reelTimes(stopTime, REEL_LAST_GAP[rank], REEL_GAP_RATIO[rank])
+		local lastGap = stopTime * REEL_LAST_GAP[rank]
+		local ratio = REEL_GAP_RATIO[rank]
+		if suspense and rank == 3 then
+			stopTime = slowStart + Config.REEL_SUSPENSE_TIME
+			lastGap = SUSPENSE_LAST_GAP
+			ratio = SUSPENSE_GAP_RATIO
+		end
+		local times = reelTimes(stopTime, lastGap, ratio)
 		local steps = #times
 		local sequence = table.create(steps)
 		sequence[0] = ui.reels[i].current -- 지금 보이는 결과에서부터 굴러간다
 		local prev = sequence[0]
 		for s = 1, steps - 1 do
-			-- 마지막 칸이 혼자 천천히 넘어갈 때는 희귀한 것들을 보여 준다
+			-- 마지막 칸이 혼자 천천히 넘어갈 때는 희귀한 것들을 보여 준다. 긴장 연출이면 멈추기 바로 앞은 반드시 희귀한 것
 			local tempt = i == lastReel and times[s] >= slowStart and #tempting[i] > 0
+			local mustTempt = suspense and i == lastReel and s == steps - 1
 			local pick
 			local tries = 0
 			repeat
-				pick = if tempt and math.random() < 0.75 then randomFrom(tempting[i]) else pickers[i]()
+				pick = if mustTempt or (tempt and math.random() < 0.75) then randomFrom(tempting[i]) else pickers[i]()
 				tries += 1
 			until (pick ~= prev and (s < steps - 1 or pick ~= finals[i])) or tries > 10
 			sequence[s] = pick
 			prev = pick
 		end
 		sequence[steps] = finals[i]
-		reels[i] = { stopTime = stopTime, times = times, steps = steps, sequence = sequence, step = 0, stopped = false, done = false }
+		reels[i] = {
+			stopTime = stopTime,
+			times = times,
+			steps = steps,
+			sequence = sequence,
+			step = 0,
+			stopped = false,
+			done = false,
+			tickFrom = if suspense and i == lastReel then slowStart else nil,
+			hold = if suspense and i == lastReel then SUSPENSE_HOLD else nil,
+		}
 	end
 
 	ui.reelSub.Text = ""
+	local framePos = ui.reelsFrame.Position
 	local start = os.clock()
 	while true do
 		local elapsed = os.clock() - start
@@ -2269,20 +2323,38 @@ local function playReel(deco, trait, size, duration: number)
 			end
 			local f = reelPosition(reel, elapsed)
 			layoutReel(i, reel.sequence, f)
+			local alone = i == lastReel and elapsed >= slowStart and not reel.stopped
 			if not reel.stopped and elapsed >= reel.stopTime then
 				-- 멈춘 칸은 크게 튕긴다. 마지막 칸은 더 크게
 				reel.stopped = true
 				popReel(i, if i == lastReel then 1.35 else 1.2, if i == lastReel then 0.45 else 0.3, Enum.EasingStyle.Back)
-			elseif not reel.stopped and i == lastReel and elapsed >= slowStart then
+			elseif alone then
 				local step = math.floor(f + 0.5)
 				if step ~= reel.step then
 					reel.step = step
-					popReel(i, 1.08, 0.15) -- 마지막 칸만 남으면 넘어갈 때마다 쿵쿵 뛴다
+					if suspense and step == reel.steps - 1 then
+						popReel(i, 1.3, 0.4, Enum.EasingStyle.Back) -- 희귀한 것에서 멈춘 척
+					else
+						popReel(i, if suspense then 1.12 else 1.08, 0.15) -- 넘어갈 때마다 쿵쿵 뛴다
+					end
 				end
+			end
+			if suspense and alone then
+				-- 테두리가 금색으로 깜빡이고, 끝에 가까울수록 창이 세게 떨린다
+				local pulse = (math.sin(elapsed * 14) + 1) / 2
+				ui.reels[i].stroke.Color = ui.reels[i].stroke.Color:Lerp(SUSPENSE_GOLD, pulse)
+				local progress = math.clamp((elapsed - slowStart) / (reel.stopTime - slowStart), 0, 1)
+				local amp = SUSPENSE_SHAKE * progress ^ 2
+				ui.reelsFrame.Position = framePos
+					+ UDim2.fromOffset(math.random(-100, 100) / 100 * amp, math.random(-100, 100) / 100 * amp)
+				ui.reelSub.Text = "레어 이상이 두 칸 나왔습니다!"
 			end
 			if elapsed >= reel.stopTime + REEL_SETTLE then
 				reel.done = true
 				showReel(i, finals[i])
+				if suspense and i == lastReel then
+					ui.reelsFrame.Position = framePos
+				end
 			else
 				allDone = false
 			end
@@ -2292,6 +2364,7 @@ local function playReel(deco, trait, size, duration: number)
 		end
 		RunService.RenderStepped:Wait()
 	end
+	ui.reelsFrame.Position = framePos
 end
 
 local function playResultEffect(rarityIndex: number, deco, trait, paintId: string?, sizeId: string?)
