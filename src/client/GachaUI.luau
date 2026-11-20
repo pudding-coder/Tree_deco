@@ -2244,6 +2244,38 @@ do
 	end
 end
 
+-- 역류 후보가 되는 판의 비율 (모든 등급·특성·크기 조합 중 결과물 확률이 1/MIN_N ~ 1/MAX_N인 것들의 확률 합)
+local candidateRateCache = {}
+local function reverseCandidateRate(luck: number, garland: boolean): number
+	local key = string.format("%.4f/%s", luck, tostring(garland))
+	if candidateRateCache[key] then
+		return candidateRateCache[key]
+	end
+	local lo, hi = 1 / Config.REEL_REVERSE_MAX_N, 1 / Config.REEL_REVERSE_MIN_N
+	local sizeProbs = {}
+	if garland then
+		sizeProbs = { 1 }
+	else
+		for _, size in Catalog.Sizes do
+			table.insert(sizeProbs, sizeChance(size, { area = "Ornament" }))
+		end
+	end
+	local total = 0
+	for _, pr in Gacha.GetProbabilities(luck) do
+		for _, trait in activeTraits do
+			local pt = traitChance(trait)
+			for _, ps in sizeProbs do
+				local p = pr * pt * ps
+				if p >= lo and p <= hi then
+					total += p
+				end
+			end
+		end
+	end
+	candidateRateCache[key] = total
+	return total
+end
+
 local function easeOut(u: number): number
 	return 1 - (1 - u) ^ 3
 end
@@ -2356,10 +2388,15 @@ local function playReel(deco, trait, size, duration: number)
 	local minTier = Config.REEL_SUSPENSE_MIN_RARITY
 	local suspense = tiers[order[2]] >= minTier and tiers[lastReel] < minTier
 
-	-- 마지막 칸이 끝나는 방식: 나온 결과물 전체 확률이 약 1/10(REEL_REVERSE_MIN_N ~ MAX_N)이면 역류
-	local resultChance = (Gacha.GetProbabilities(state.luck)[deco.rarity] or 1) * traitChance(trait) * sizeChance(size, deco)
+	-- 마지막 칸이 끝나는 방식: 나온 결과물 전체 확률(특성 × 크기 × 장식 등급)이 약 1/10이면 역류 후보
+	-- 후보 판 중 일부만 역류시켜, 전체 판의 REEL_REVERSE_RATE(10번에 1번)만 역류하게 한다
+	local pTrait, pSize = traitChance(trait), sizeChance(size, deco)
+	local pDeco = Gacha.GetProbabilities(state.luck)[deco.rarity] or 1
+	local resultChance = pTrait * pSize * pDeco
 	local oneIn = if resultChance > 0 then 1 / resultChance else math.huge
-	local canReverse = oneIn >= Config.REEL_REVERSE_MIN_N and oneIn <= Config.REEL_REVERSE_MAX_N and #mysticPool[lastReel] > 0
+	local candidate = oneIn >= Config.REEL_REVERSE_MIN_N and oneIn <= Config.REEL_REVERSE_MAX_N and #mysticPool[lastReel] > 0
+	local reverseOdds = math.min(1, Config.REEL_REVERSE_RATE / math.max(reverseCandidateRate(state.luck, deco.area == "Garland"), 1e-6))
+	local canReverse = candidate and math.random() < reverseOdds
 	local ending = if canReverse then "reverse" elseif suspense then "fakeStop" else "slow"
 	local forced = Config.STUDIO_FORCE_REEL_ENDING
 	if RunService:IsStudio() and forced ~= "" then
@@ -2372,7 +2409,18 @@ local function playReel(deco, trait, size, duration: number)
 		for _, i in order do
 			table.insert(names, string.format("%s(%s급)", REEL_TITLES[i], Rarity.List[tiers[i]].name))
 		end
-		print(string.format("[룰렛] 멈추는 순서: %s · 결과 1/%.1f · 끝내기 %s%s", table.concat(names, " → "), oneIn, ending, if suspense then " · 긴장 연출" else ""))
+		print(string.format(
+			"[룰렛] 멈추는 순서: %s · 결과 확률 특성 1/%.1f × 크기 1/%.1f × 장식(%s) 1/%.1f = 1/%.1f%s · 끝내기 %s%s",
+			table.concat(names, " → "),
+			1 / pTrait,
+			1 / pSize,
+			Rarity.List[deco.rarity].name,
+			1 / pDeco,
+			oneIn,
+			if candidate then string.format(" (역류 후보, %d%%)", math.floor(reverseOdds * 100 + 0.5)) else "",
+			ending,
+			if suspense then " · 긴장 연출" else ""
+		))
 	end
 
 	local reels = {}
