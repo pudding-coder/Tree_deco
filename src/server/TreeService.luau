@@ -75,12 +75,18 @@ local ORNAMENT_SPOTS = {
 local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
 -- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
 local GARLAND_TIERS = { 4, 2, 5, 3 }
-local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
+local GARLAND_POINTS = 48 -- 줄을 이루는 점 수 (많을수록 줄이 매끄럽게 휜다)
+local GARLAND_SWAGS = 8 -- 한 바퀴에 줄이 늘어지는 마디 수. 마디 끝(고정점) 사이가 아래로 처진다
+local GARLAND_SAG = 0.7 -- 마디 가운데가 고정점보다 처지는 깊이(스터드)
+local GARLAND_BULB_EVERY = 3 -- 전구 간격 (점 몇 개마다 하나, 3이면 16개)
+local GARLAND_BULB_SIZE = 0.38 -- 전구 지름(스터드)
 local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 -- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
-local GARLAND_BEAD_SIZE = 1.4 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
-local GARLAND_BEAD_EVERY = 2 -- 전구 자리 몇 칸마다 하나씩 달지 (2면 14개)
+local GARLAND_BEAD_SIZE = 1.0 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
+local GARLAND_BEAD_EVERY = 4 -- 점 몇 개마다 하나씩 달지 (4면 12개)
+local GARLAND_BEAD_SWAY = 14 -- 매달린 모델이 좌우로 흔들려 보이는 최대 각도(도). 모델마다 조금씩 다르다
+local GARLAND_BEAD_TWIST = 18 -- 매달린 모델이 옆으로 돌아간 최대 각도(도)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -174,6 +180,12 @@ local function slotOffset(area: string, index: number): CFrame
 	end
 end
 
+-- 띠 줄이 그 각도(도)에서 고정점보다 처진 깊이: 마디 끝에서 0, 마디 가운데에서 GARLAND_SAG
+local function garlandSag(angle: number): number
+	local frac = (angle / 360 * GARLAND_SWAGS) % 1
+	return GARLAND_SAG * math.sin(math.pi * frac)
+end
+
 -- 띠 자리마다 트리 겉면을 비스듬히 한 바퀴 도는 점을 만들고, 오너먼트를 띠와 나란히 놓는다
 -- bands: 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (스터드, 아래층부터)
 -- surfaceRadius(각도, 높이): 그 높이에서 트리 겉면까지 거리 (없으면 nil)
@@ -194,9 +206,9 @@ local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number,
 		garlandTilts[i] = tilt
 
 		local points = {}
-		for k = 1, GARLAND_BALLS do
-			local angle = (k - 1) / GARLAND_BALLS * 360
-			local y = center + tilt * math.sin(math.rad(angle))
+		for k = 1, GARLAND_POINTS do
+			local angle = (k - 1) / GARLAND_POINTS * 360
+			local y = center + tilt * math.sin(math.rad(angle)) - garlandSag(angle)
 			local r = surfaceRadius(angle, y)
 			if r then
 				points[k] = localPoint(angle, r + 0.35, y)
@@ -209,7 +221,7 @@ local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number,
 	-- 오너먼트: 띠를 따라 그 각도의 띠 높이에 매단다 (그래서 사선으로 이어진다)
 	for i, spot in ORNAMENT_SPOTS do
 		local g = math.clamp(spot.garland, 1, count)
-		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - ORNAMENT_DROP
+		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - garlandSag(spot.angle) - ORNAMENT_DROP
 		local r = surfaceRadius(spot.angle, y)
 		if r then
 			ornamentPoints[i] = localPoint(spot.angle, r + 0.6, y)
@@ -1014,13 +1026,15 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 	local holder = Instance.new("Model")
 	holder.Name = deco.id
 	local points = garlandPaths[entry.i] or {}
-	for k = 1, GARLAND_BALLS do
+	-- 모델마다 흔들린 각도를 다르게 하되, 다시 그려도 같은 모양이 나오게 띠 자리로 정한 난수를 쓴다
+	local sway = Random.new(entry.i * 7919 + #deco.id)
+	for k = 1, GARLAND_POINTS do
 		local point = points[k]
 		if not point then
 			continue
 		end
 		if bead then
-			-- 모델을 작게 복제해 단다. 정면(-Z)이 트리 바깥을 보게
+			-- 모델을 작게 복제해 줄 아래에 매단다. 정면(-Z)이 대체로 트리 바깥을 보고, 하나하나 조금씩 기울어 있다
 			if (k - 1) % GARLAND_BEAD_EVERY == 0 then
 				local copy = bead:Clone()
 				local _, size = copy:GetBoundingBox()
@@ -1032,11 +1046,11 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 				local center = plot.cframe:PointToWorldSpace(Vector3.new(0, point.Y, 0))
 				local outward = world - center
 				local _, scaled = copy:GetBoundingBox()
-				if outward.Magnitude > 0.01 then
-					world += outward.Unit * (scaled.Z / 2 - 0.2) -- 뒤쪽이 줄에 닿게 바깥으로 (트리에 묻히지 않게)
-				end
-				local facing = if outward.Magnitude > 0.01 then CFrame.lookAt(world, world + outward) else CFrame.new(world)
-				facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
+				-- 줄에 걸린 점(모델 윗부분)을 기준으로 돌린 뒤, 모델 가운데를 그 아래·바깥에 둔다
+				local hang = if outward.Magnitude > 0.01 then CFrame.lookAt(world, world + outward) else CFrame.new(world)
+				hang *= CFrame.Angles(0, math.rad(deco.turn + sway:NextNumber(-GARLAND_BEAD_TWIST, GARLAND_BEAD_TWIST)), 0)
+				hang *= CFrame.Angles(0, 0, math.rad(sway:NextNumber(-GARLAND_BEAD_SWAY, GARLAND_BEAD_SWAY)))
+				local facing = hang * CFrame.new(0, -scaled.Y / 2 + 0.05, -(scaled.Z / 2 - 0.2)) -- 뒤쪽이 줄에 닿게 (트리에 묻히지 않게)
 				local box = copy:GetBoundingBox()
 				copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
 				if paint then
@@ -1044,11 +1058,12 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 				end
 				copy.Parent = holder
 			end
-		else
+		elseif (k - 1) % GARLAND_BULB_EVERY == 0 then
+			-- 작은 전구를 줄 바로 아래에 매단다
 			local ball = newPart({
 				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.6, 0.6, 0.6),
-				CFrame = plot.cframe * CFrame.new(point),
+				Size = Vector3.new(GARLAND_BULB_SIZE, GARLAND_BULB_SIZE, GARLAND_BULB_SIZE),
+				CFrame = plot.cframe * CFrame.new(point - Vector3.new(0, GARLAND_BULB_SIZE * 0.55, 0)),
 				CanCollide = false,
 				CanQuery = false,
 				CastShadow = false,
@@ -1058,7 +1073,7 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 			decorateLook(ball, deco, trait, false)
 		end
 
-		local nextPoint = points[k % GARLAND_BALLS + 1]
+		local nextPoint = points[k % GARLAND_POINTS + 1]
 		if nextPoint then
 			local a = plot.cframe:PointToWorldSpace(point)
 			local b = plot.cframe:PointToWorldSpace(nextPoint)
@@ -1075,12 +1090,12 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 		end
 	end
 
-	-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+	-- 특성 효과: 점 3개마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
 	if trait.effect then
 		local carrier = 0
-		for k = 1, GARLAND_BALLS, 2 do
+		for k = 1, GARLAND_POINTS, 3 do
 			local from = points[k]
-			local to = points[(k + 1) % GARLAND_BALLS + 1]
+			local to = points[(k + 2) % GARLAND_POINTS + 1]
 			if not from or not to then
 				continue
 			end
