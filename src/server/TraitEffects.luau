@@ -1,5 +1,5 @@
 -- 특성 효과: Traits.luau의 effect 이름으로 장식 주변에 파티클(반짝임·연기·눈송이)을 피운다
--- 장식 색·재질은 바꾸지 않는다. 장식 색은 뽑을 때 정해진 칠하기 색(Paints.luau)으로만 바뀐다 (TraitEffects.Paint)
+-- 장식 색·재질은 바꾸지 않는다
 -- 빛 색이 계속 바뀌는 효과(무지개, 오로라)는 태그만 붙여 두고 클라이언트(src/client/TraitAnimator.luau)가 움직인다
 local CollectionService = game:GetService("CollectionService")
 
@@ -320,20 +320,6 @@ function TraitEffects.Apply(target: Instance, trait, opts: any)
 		light.Parent = part
 		if spec.tag then
 			CollectionService:AddTag(light, spec.tag)
-		end
-	end
-end
-
--- 뽑을 때 정해진 칠하기 색을 입힌다
--- 모델이면 이름이 Paint로 시작하는 파츠만 칠한다 (없으면 그대로). 파츠 하나(임시 공)면 그 파츠를 칠한다
-function TraitEffects.Paint(target: Instance, color: Color3)
-	if target:IsA("BasePart") then
-		target.Color = color
-		return
-	end
-	for _, part in partsOf(target) do
-		if string.sub(part.Name, 1, 5) == "Paint" then
-			part.Color = color
 		end
 	end
 end

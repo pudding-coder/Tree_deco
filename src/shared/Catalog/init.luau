@@ -5,7 +5,6 @@ local Config = require(script.Parent.Config)
 
 local rawDecorations = require(script.Decorations)
 local rawTraits = require(script.Traits)
-local rawPaints = require(script.Paints)
 local rawTreeEffects = require(script.TreeEffects)
 
 local Catalog = {}
@@ -98,9 +97,6 @@ for index, deco in rawDecorations do
 	if deco.sink ~= nil and deco.area ~= "Topper" then
 		problem(where, "sink는 Topper(꼭대기) 장식에만 쓸 수 있어요")
 	end
-	if deco.paintable ~= nil and type(deco.paintable) ~= "boolean" then
-		problem(where, "paintable은 true 또는 false여야 해요")
-	end
 	if deco.holdable ~= nil and type(deco.holdable) ~= "boolean" then
 		problem(where, "holdable은 true 또는 false여야 해요")
 	end
@@ -113,7 +109,6 @@ for index, deco in rawDecorations do
 			area = deco.area,
 			weight = deco.weight or 1,
 			model = deco.model,
-			paintable = deco.paintable == true,
 			holdable = deco.holdable == true, -- 트리에 걸린 장식에 닿으면 잡고 트리에 매달린다
 			size = deco.size or 1,
 			turn = deco.turn or 0,
@@ -196,71 +191,6 @@ if baseCount ~= 1 then
 end
 if probabilitySum >= 1 then
 	problem("Traits.luau", "특성 확률(1/n)을 모두 더하면 100%를 넘어요. n을 키워 주세요")
-end
-
-----------------------------------------------------------------
--- 칠하기 색
-----------------------------------------------------------------
-
-Catalog.Paints = {} -- 파일에 적힌 순서
-Catalog.PaintById = {}
-local paintPool = {} -- 뽑힐 수 있는 색 (retired 제외)
-
-for index, paint in rawPaints do
-	local where = string.format("Paints.luau %d번째 줄(id=%s)", index, tostring(type(paint) == "table" and paint.id))
-	if type(paint) ~= "table" then
-		problem(where, "{ id = ..., name = ..., rgb = ... } 형태가 아니에요")
-		continue
-	end
-
-	local before = #problems
-	if not isValidId(paint.id) then
-		problem(where, "id는 영문으로 시작하고 영문·숫자·_만 쓸 수 있어요")
-	elseif Catalog.PaintById[paint.id] then
-		problem(where, "id가 다른 색과 겹쳐요")
-	end
-	if not isNonEmptyString(paint.name) then
-		problem(where, "name(화면에 보이는 이름)이 비어 있어요")
-	end
-	local rgbOk = type(paint.rgb) == "table" and #paint.rgb == 3
-	if rgbOk then
-		for _, channel in paint.rgb do
-			if type(channel) ~= "number" or channel < 0 or channel > 255 then
-				rgbOk = false
-			end
-		end
-	end
-	if not rgbOk then
-		problem(where, "rgb는 { 빨강, 초록, 파랑 } 숫자 3개(0~255)여야 해요. 예: rgb = { 255, 150, 190 }")
-	end
-	if paint.weight ~= nil and (type(paint.weight) ~= "number" or paint.weight <= 0) then
-		problem(where, "weight는 0보다 큰 숫자여야 해요")
-	end
-
-	if #problems == before then
-		local entry = {
-			id = paint.id,
-			name = paint.name,
-			color = Color3.fromRGB(paint.rgb[1], paint.rgb[2], paint.rgb[3]),
-			weight = paint.weight or 1,
-			retired = paint.retired == true,
-		}
-		table.insert(Catalog.Paints, entry)
-		Catalog.PaintById[entry.id] = entry
-		if not entry.retired then
-			table.insert(paintPool, entry)
-		end
-	end
-end
-
-local needsPaint = false
-for _, deco in Catalog.Decorations do
-	if deco.paintable and not deco.retired then
-		needsPaint = true
-	end
-end
-if needsPaint and #paintPool == 0 then
-	problem("Paints.luau", "paintable 장식이 있는데 뽑힐 수 있는 색이 하나도 없어요")
 end
 
 ----------------------------------------------------------------
@@ -396,22 +326,6 @@ function Catalog.RollDecoration(rarityIndex: number, rng: Random)
 	return pool[#pool]
 end
 
--- 색 하나를 뽑는다 (paintable 장식일 때만 부른다)
-function Catalog.RollPaint(rng: Random)
-	local total = 0
-	for _, paint in paintPool do
-		total += paint.weight
-	end
-	local r = rng:NextNumber() * total
-	for _, paint in paintPool do
-		r -= paint.weight
-		if r < 0 then
-			return paint
-		end
-	end
-	return paintPool[#paintPool]
-end
-
 -- 크기 하나를 뽑는다 (띠는 부르지 않고 보통)
 function Catalog.RollSize(rng: Random)
 	local r = rng:NextNumber()
@@ -437,26 +351,19 @@ function Catalog.ValueMult(trait, sizeId: string?): number
 	return trait.mult * Catalog.SizeOf(sizeId).mult
 end
 
--- 가방 칸 열쇠: 장식·특성·색·크기가 모두 같으면 한 칸에 쌓인다 (서버·클라이언트 공용)
+-- 가방 칸 열쇠: 장식·특성·크기가 모두 같으면 한 칸에 쌓인다 (서버·클라이언트 공용)
 -- 크기가 보통이면 크기를 빼서, 크기가 생기기 전 열쇠와 같다
-function Catalog.StackKey(decoId: string, traitId: string, paintId: string?, sizeId: string?): string
+function Catalog.StackKey(decoId: string, traitId: string, sizeId: string?): string
 	local key = decoId .. ":" .. traitId
-	if paintId then
-		key ..= ":" .. paintId
-	end
 	if sizeId and sizeId ~= Catalog.BaseSize.id then
 		key ..= "#" .. sizeId
 	end
 	return key
 end
 
--- 화면 이름: "반짝이 거대 분홍 공" (기본 특성·보통 크기·색 없음이면 그 말은 빼고)
-function Catalog.ItemName(deco, trait, paintId: string?, sizeId: string?): string
+-- 화면 이름: "반짝이 거대 공" (기본 특성·보통 크기면 그 말은 빼고)
+function Catalog.ItemName(deco, trait, sizeId: string?): string
 	local name = deco.name
-	local paint = paintId and Catalog.PaintById[paintId]
-	if paint then
-		name = paint.name .. " " .. name
-	end
 	local size = Catalog.SizeOf(sizeId)
 	if size ~= Catalog.BaseSize then
 		name = size.name .. " " .. name

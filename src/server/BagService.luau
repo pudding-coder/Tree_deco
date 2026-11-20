@@ -54,7 +54,7 @@ local function onSell(player: Player, key: any)
 		if stack.c <= 0 or stack.l or not PlayerData.IsKnownStack(stack) then
 			continue
 		end
-		if key ~= nil and PlayerData.StackKey(stack.d, stack.t, stack.p, stack.s) ~= key then
+		if key ~= nil and PlayerData.StackKey(stack.d, stack.t, stack.s) ~= key then
 			continue
 		end
 		sold += stack.c
