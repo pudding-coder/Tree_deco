@@ -18,6 +18,8 @@ Config.START_COINS = 1_000 -- 처음 접속할 때 주는 코인 (속도 업그�
 Config.STUDIO_START_COINS = 1000 -- Studio 테스트용 시작 코인
 Config.STUDIO_GIVE_TRAIT_SAMPLES = false -- Studio 테스트: 접속하면 특성마다 견본 장식(공·꼬마전구 줄·별)을 가방에 넣는다. 실제 서버에서는 동작하지 않는다
 Config.STUDIO_GIVE_MODEL_SAMPLES = true -- Studio 테스트: 접속하면 DecorationModels에 모델이 있는 장식을 하나씩(기본 특성) 가방에 넣는다. 이미 가진 장식은 건너뛴다. 실제 서버에서는 동작하지 않는다
+Config.DEMO_LUCK_NAMES = "uhyun3234" -- 시연용: 이 계정 이름(여러 명이면 쉼표로 구분)은 Studio·실제 서버 모두에서 행운 배수에 DEMO_LUCK_MULT를 곱한다(상한 무시). 코인 룰렛 가격에는 넣지 않는다. 끄려면 ""
+Config.DEMO_LUCK_MULT = 10 -- 시연 계정 행운 배수에 곱하는 값
 Config.DEMO_GIVE_ALL_NAMES = "uhyun3234" -- 시연용: 이 계정 이름(여러 명이면 쉼표로 구분)이 접속하면 Studio·실제 서버 모두에서 뽑을 수 있는 모든 장식을 하나씩(기본 특성) 가방에 넣고 가방 칸을 늘린다. 이미 가진 장식은 건너뛴다. 끄려면 ""
 Config.STUDIO_GIVE_ALL_TREE_EFFECTS = true -- Studio 테스트: 접속하면 상점의 트리 효과·바닥 아이템을 전부 산 상태로 만든다(켜기는 상점에서). 실제 서버에서는 동작하지 않는다
 
@@ -28,8 +30,8 @@ Config.FREE_SPIN_COOLDOWN = 15 -- 무료 룰렛 쿨타임(초)
 Config.REEL_STOP_TIME = 5 -- 한 번 돌릴 때 슬롯 3칸(레어도·장식·특성)이 모두 멈추는 기본 시간(초)
 Config.REEL_SUSPENSE_MIN_RARITY = 3 -- 긴장 연출: 두 칸이 이 등급(급) 이상이고 남은 한 칸이 그보다 낮으면 마지막 칸을 따로 오래 돌린다 (레어)
 Config.REEL_SUSPENSE_TIME = 5 -- 긴장 연출에서 앞 두 칸이 멈춘 뒤 마지막 칸이 더 도는 시간(초). REEL_STOP_TIME과 상관없다
-Config.REEL_SUSPENSE_REVERSE_CHANCE = 0.5 -- 긴장 연출이 역류(미스틱이 거의 나올 뻔하다 거꾸로 튕김)로 끝날 확률. 나머지는 희귀한 것에서 멈춘 척
-Config.REEL_REVERSE_CHANCE = 0.1 -- 긴장 연출이 아닐 때 마지막 칸이 커먼급이면 역류로 끝날 확률 (회전 시간이 약 3초 길어진다)
+Config.REEL_REVERSE_MIN_N = 5 -- 역류(미스틱이 나올 뻔하다 거꾸로 튕김): 나온 결과물 전체 확률(장식 등급 확률(행운 포함) × 특성 × 크기)이 1/이 값 이하이고
+Config.REEL_REVERSE_MAX_N = 20 -- 1/이 값 이상일 때만 역류로 끝난다 (약 1/10짜리 결과). 회전 시간이 약 3초 길어진다
 Config.STUDIO_FORCE_REEL_ENDING = "" -- Studio 테스트: 룰렛 마지막 칸 연출 고정. "reverse"(역류) "fakeStop"(멈춘 척) "slow"(보통). 비우면 원래대로. 실제 서버에서는 동작하지 않는다
 Config.COIN_SPIN_MIN_COST = 60 -- 코인 룰렛 최소 비용 (행운 배수를 곱함)
 Config.COIN_SPIN_INCOME_SEC = 90 -- 코인 룰렛 비용 = 몇 초 치 수입인지

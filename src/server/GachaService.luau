@@ -52,8 +52,24 @@ end
 
 GachaService.GetIncomePerSec = getIncomePerSec
 
-local function getLuck(player: Player, profile): number
+-- 시연 계정이면 행운에 곱하는 값 (Config.DEMO_LUCK_NAMES)
+local function getDemoLuck(player: Player): number
+	for name in string.gmatch(Config.DEMO_LUCK_NAMES or "", "[^,%s]+") do
+		if string.lower(name) == string.lower(player.Name) then
+			return Config.DEMO_LUCK_MULT
+		end
+	end
+	return 1
+end
+
+-- 코인 룰렛 가격에 쓰는 행운 (시연 배수 제외)
+local function getCostLuck(player: Player, profile): number
 	return Gacha.GetLuckMultiplier(profile.luckLevel, getLuckBoost(player))
+end
+
+-- 뽑기와 확률 표시에 쓰는 행운 (시연 계정이면 상한 없이 DEMO_LUCK_MULT배)
+local function getLuck(player: Player, profile): number
+	return getCostLuck(player, profile) * getDemoLuck(player)
 end
 
 -- 클라이언트 화면에 필요한 값
@@ -79,7 +95,8 @@ function GachaService.BuildState(player: Player)
 		reelTime = Gacha.GetReelTime(profile.speedLevel, speedBoost),
 		freeCooldown = Gacha.GetFreeCooldown(profile.speedLevel, speedBoost),
 		nextFreeSpinAt = profile.nextFreeSpinAt,
-		coinSpinCost = Gacha.GetCoinSpinCost(luck, getIncomePerSec(player)),
+		coinSpinCost = Gacha.GetCoinSpinCost(getCostLuck(player, profile), getIncomePerSec(player)),
+		costLuck = getCostLuck(player, profile), -- 코인 룰렛 가격용 행운 (시연 배수 제외)
 		stacks = stacks,
 		bagUsed = #stacks,
 		bagCapacity = profile.bagCapacity,
@@ -187,7 +204,7 @@ local function onSpin(player: Player, kind: any)
 		end
 		profile.nextFreeSpinAt = t + Gacha.GetFreeCooldown(profile.speedLevel, speedBoost)
 	else
-		local cost = Gacha.GetCoinSpinCost(luck, getIncomePerSec(player))
+		local cost = Gacha.GetCoinSpinCost(getCostLuck(player, profile), getIncomePerSec(player))
 		if profile.coins < cost then
 			return fail("코인이 부족합니다")
 		end
