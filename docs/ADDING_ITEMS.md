@@ -180,7 +180,7 @@ Candy = Color3.fromRGB(255, 150, 200),
    - `size = 1.2`: 모델 크기 배수
 2. `src/shared/Config.luau`의 `TREE_EFFECT_COST`에 코인 가격을 적는다. 로벅스 가격은 `TREE_EFFECT_ROBUX_PRICE`(지금은 '준비 중'으로만 보임)
 3. 모양: Studio에서 `ReplicatedStorage` 안에 `TreeEffectModels` 폴더를 만들고 모델 이름을 `id`와 똑같이 지어 넣는다. 방향 규칙은 장식 모델과 같다(`docs/DECORATION_MODELS.md`). 모델이 없으면 코드로 만든 기본 효과가 있는 `Grass`·`Fire`·`Confetti`·`Lightning`만 보이고, 나머지는 Play할 때 Output에 `모양이 없는 트리 효과` 경고가 나온다.
-   - 크기는 자동: 넓게 까는 바닥은 트리 지름보다 조금 크게, 바닥 자리 아이템은 3스터드, 트리 효과는 트리 높이의 1.3배.
+   - 크기는 자동: 넓게 까는 바닥은 트리 자리 매트의 돌 테두리 안쪽에 꽉 차게(맵이 없으면 트리 지름보다 조금 크게), 바닥 자리 아이템은 3스터드, 트리 효과는 트리 높이의 1.3배.
    - 모델 안 스크립트는 지워진다. 빙글빙글 도는 마법진처럼 스크립트로 움직이던 효과는 멈춰 보일 수 있다. 그럴 땐 Claude에게 움직임을 넣어 달라고 한다.
 4. `id`는 출시 후 바꾸지 않는다. 그만 팔려면 `retired = true`.
 

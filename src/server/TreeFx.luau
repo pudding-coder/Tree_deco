@@ -11,6 +11,7 @@ local TreeFx = {}
 --   base   트리 밑동 가운데 바닥 (CFrame, -Z가 트리 정면 = 사람이 서는 쪽)
 --   height 트리 높이 (토퍼 제외, 스터드)
 --   radius 트리 밑동 반지름 (스터드, 가장 넓은 층)
+--   floorDiameter 트리 자리 매트의 돌 테두리 안쪽 지름 (맵이 없으면 nil)
 --   spot   (바닥 아이템만) 바닥 자리 번호 1~MAX_FLOOR_ITEMS
 
 -- 바닥 자리(spread가 아닌 바닥 아이템): 트리 둘레, 정면 양옆부터
@@ -49,7 +50,7 @@ local BUILT_IN = {}
 
 -- 잔디밭: 트리 밑에 둥근 잔디를 깐다
 function BUILT_IN.Grass(ctx)
-	local diameter = ctx.radius * 2 + 8
+	local diameter = ctx.floorDiameter or (ctx.radius * 2 + 8)
 	return newPart({
 		Name = "Grass",
 		Shape = Enum.PartType.Cylinder,
@@ -278,8 +279,8 @@ local function fromModel(fx, ctx)
 	local scale
 	local target
 	if fx.area == "Floor" and fx.spread then
-		-- 트리 밑에 넓게: 가로 긴 변을 트리 지름보다 조금 크게
-		scale = (ctx.radius * 2 + 6) / math.max(size.X, size.Z, 0.01)
+		-- 트리 밑에 넓게: 가로 긴 변을 매트 테두리 안쪽 지름에 (맵이 없으면 트리 지름보다 조금 크게)
+		scale = (ctx.floorDiameter or (ctx.radius * 2 + 6)) / math.max(size.X, size.Z, 0.01)
 		target = ctx.base
 	elseif fx.area == "Floor" then
 		scale = FLOOR_ITEM_SIZE / math.max(size.X, size.Y, size.Z, 0.01)
