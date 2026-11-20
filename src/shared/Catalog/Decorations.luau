@@ -90,6 +90,7 @@ return {
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
 	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament", out = 0.6 },
+	{ id = "Monkey", name = "원숭이", rarity = "Epic", area = "Ornament" },
 
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
