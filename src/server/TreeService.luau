@@ -81,6 +81,10 @@ local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 -- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
 local GARLAND_BEAD_SIZE = 1.4 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
 local GARLAND_BEAD_EVERY = 2 -- 전구 자리 몇 칸마다 하나씩 달지 (2면 14개)
+-- 띠 모델은 같은 모델을 여러 개 다므로 빛이 겹쳐 눈부시다. 모델 안 빛·네온을 줄인다
+local GARLAND_LIGHT_EVERY = 4 -- 모델 안 빛(PointLight 등)은 몇 개마다 하나만 남길지
+local GARLAND_LIGHT_SCALE = 0.3 -- 남긴 빛의 밝기·범위 배율
+local GARLAND_NEON_SCALE = 0.55 -- 네온 파츠 색 밝기 배율 (네온은 색이 어두울수록 덜 번진다. 1이면 그대로)
 
 local TREE_GREEN = Color3.fromRGB(34, 110, 60)
 local TRUNK_BROWN = Color3.fromRGB(110, 72, 40)
@@ -1045,6 +1049,22 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?, paint)
 				copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
 				if paint then
 					TraitEffects.Paint(copy, paint.color)
+				end
+				local beadIndex = (k - 1) // GARLAND_BEAD_EVERY
+				for _, d in copy:GetDescendants() do
+					if d:IsA("Light") then
+						if beadIndex % GARLAND_LIGHT_EVERY ~= 0 then
+							d:Destroy()
+						else
+							d.Brightness *= GARLAND_LIGHT_SCALE
+							if d:IsA("PointLight") or d:IsA("SpotLight") then
+								d.Range *= GARLAND_LIGHT_SCALE * 2
+							end
+						end
+					elseif d:IsA("BasePart") and d.Material == Enum.Material.Neon then
+						local c = d.Color
+						d.Color = Color3.new(c.R * GARLAND_NEON_SCALE, c.G * GARLAND_NEON_SCALE, c.B * GARLAND_NEON_SCALE)
+					end
 				end
 				copy.Parent = holder
 			end
