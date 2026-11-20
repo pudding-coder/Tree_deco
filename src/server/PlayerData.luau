@@ -513,6 +513,18 @@ local function onPlayerAdded(player: Player)
 	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
 		giveModelSamples(profile)
 	end
+	if IS_STUDIO and Config.STUDIO_GIVE_ALL_TREE_EFFECTS then
+		local given = {}
+		for _, fx in Catalog.TreeEffects do
+			if not fx.retired and not profile.ownedEffects[fx.id] then
+				profile.ownedEffects[fx.id] = true
+				table.insert(given, fx.id)
+			end
+		end
+		if #given > 0 then
+			print("[PlayerData] Studio 테스트: 상점 트리 효과를 전부 넣었습니다: " .. table.concat(given, ", "))
+		end
+	end
 	profiles[player] = profile
 	createLeaderstats(player, profile)
 end
