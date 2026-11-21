@@ -75,12 +75,18 @@ local ORNAMENT_SPOTS = {
 local ORNAMENT_DROP = 0.4 -- 오너먼트가 띠 전선보다 이만큼 아래에 매달린다
 -- 띠가 걸리는 층 (띠 1번부터). 하나만 걸어도 트리 가운데에 오게 한다. 1층은 보이는 부분이 좁아서 쓰지 않는다
 local GARLAND_TIERS = { 4, 2, 5, 3 }
-local GARLAND_BALLS = 28 -- 임시 띠 모양: 트리를 한 바퀴 도는 전구 개수
+local GARLAND_POINTS = 48 -- 줄을 이루는 점 수 (많을수록 줄이 매끄럽게 휜다)
+local GARLAND_SWAGS = 8 -- 한 바퀴에 줄이 늘어지는 마디 수. 마디 끝(고정점) 사이가 아래로 처진다
+local GARLAND_SAG = 0 -- 마디 가운데가 고정점보다 처지는 깊이(스터드). 0이면 처지지 않는다
+local GARLAND_BULB_GAP = 0.9 -- 전구 사이 간격(스터드, 대략). 한 바퀴를 똑같이 나눠 이 간격에 가장 가깝게 단다. 둘레가 짧은 위쪽 띠는 전구가 적다
+local GARLAND_BULB_SIZE = 0.3 -- 전구 지름(스터드)
 local GARLAND_TILT = 0.35 -- 띠 기울기: 층에서 보이는 경사면 높이에 대한 비율. 한쪽은 높고 반대쪽은 낮게 비스듬히 두른다
 local GARLAND_WIRE_COLOR = Color3.fromRGB(30, 45, 30)
 -- 띠에 3D 모델이 있으면 전구 대신 그 모델을 줄에 단다 (예: CCTV 카메라 줄)
-local GARLAND_BEAD_SIZE = 1.4 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
-local GARLAND_BEAD_EVERY = 2 -- 전구 자리 몇 칸마다 하나씩 달지 (2면 14개)
+local GARLAND_BEAD_SIZE = 0.75 -- 띠에 다는 모델 하나의 가장 긴 변(스터드). 장식 줄의 size로 배수
+local GARLAND_BEAD_GAP = 1.6 -- 모델 사이 간격(스터드, 대략). 한 바퀴를 똑같이 나눠 단다. 둘레가 짧은 위쪽 띠는 모델이 적다
+local GARLAND_BEAD_SWAY = 10 -- 매달린 모델이 좌우로 흔들려 보이는 최대 각도(도). 모델마다 조금씩 다르다
+local GARLAND_BEAD_TWIST = 20 -- 매달린 모델이 옆으로 돌아간 최대 각도(도)
 -- 장식 모델의 빛·네온 줄이기 (무료 모델은 너무 밝게 만들어진 것이 많다. 1이면 그대로)
 -- 네온은 색이 어두울수록 덜 번진다
 local MODEL_LIGHT_SCALE = 0.35 -- 토퍼·오너먼트 모델 안 빛(PointLight 등)의 밝기 배율
@@ -183,6 +189,12 @@ local function slotOffset(area: string, index: number): CFrame
 	end
 end
 
+-- 띠 줄이 그 각도(도)에서 고정점보다 처진 깊이: 마디 끝에서 0, 마디 가운데에서 GARLAND_SAG
+local function garlandSag(angle: number): number
+	local frac = (angle / 360 * GARLAND_SWAGS) % 1
+	return GARLAND_SAG * math.sin(math.pi * frac)
+end
+
 -- 띠 자리마다 트리 겉면을 비스듬히 한 바퀴 도는 점을 만들고, 오너먼트를 띠와 나란히 놓는다
 -- bands: 층마다 밖으로 보이는 경사면 높이 { 아래, 위 } (스터드, 아래층부터)
 -- surfaceRadius(각도, 높이): 그 높이에서 트리 겉면까지 거리 (없으면 nil)
@@ -203,9 +215,9 @@ local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number,
 		garlandTilts[i] = tilt
 
 		local points = {}
-		for k = 1, GARLAND_BALLS do
-			local angle = (k - 1) / GARLAND_BALLS * 360
-			local y = center + tilt * math.sin(math.rad(angle))
+		for k = 1, GARLAND_POINTS do
+			local angle = (k - 1) / GARLAND_POINTS * 360
+			local y = center + tilt * math.sin(math.rad(angle)) - garlandSag(angle)
 			local r = surfaceRadius(angle, y)
 			if r then
 				points[k] = localPoint(angle, r + 0.35, y)
@@ -218,7 +230,7 @@ local function buildSlotPositions(bands: { { number } }, surfaceRadius: (number,
 	-- 오너먼트: 띠를 따라 그 각도의 띠 높이에 매단다 (그래서 사선으로 이어진다)
 	for i, spot in ORNAMENT_SPOTS do
 		local g = math.clamp(spot.garland, 1, count)
-		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - ORNAMENT_DROP
+		local y = garlandCenters[g] + garlandTilts[g] * math.sin(math.rad(spot.angle)) - garlandSag(spot.angle) - ORNAMENT_DROP
 		local r = surfaceRadius(spot.angle, y)
 		if r then
 			ornamentPoints[i] = localPoint(spot.angle, r + 0.6, y)
@@ -1045,40 +1057,40 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?)
 	local holder = Instance.new("Model")
 	holder.Name = deco.id
 	local points = garlandPaths[entry.i] or {}
-	for k = 1, GARLAND_BALLS do
-		local point = points[k]
-		if not point then
-			continue
-		end
+	-- 모델마다 흔들린 각도를 다르게 하되, 다시 그려도 같은 모양이 나오게 띠 자리로 정한 난수를 쓴다
+	local sway = Random.new(entry.i * 7919 + #deco.id)
+	local beadIndex = 0 -- 몇 번째로 단 모델인지 (빛 줄이기용)
+	-- 하나를 줄 위의 점(플롯 기준)에 매단다
+	local function hangAt(point: Vector3)
 		if bead then
-			-- 모델을 작게 복제해 단다. 정면(-Z)이 트리 바깥을 보게
-			if (k - 1) % GARLAND_BEAD_EVERY == 0 then
-				local copy = bead:Clone()
-				local _, size = copy:GetBoundingBox()
-				local longest = math.max(size.X, size.Y, size.Z)
-				if longest > 0 then
-					copy:ScaleTo(copy:GetScale() * GARLAND_BEAD_SIZE * deco.size / longest)
-				end
-				local world = plot.cframe:PointToWorldSpace(point)
-				local center = plot.cframe:PointToWorldSpace(Vector3.new(0, point.Y, 0))
-				local outward = world - center
-				local _, scaled = copy:GetBoundingBox()
-				if outward.Magnitude > 0.01 then
-					world += outward.Unit * (scaled.Z / 2 - 0.2) -- 뒤쪽이 줄에 닿게 바깥으로 (트리에 묻히지 않게)
-				end
-				local facing = if outward.Magnitude > 0.01 then CFrame.lookAt(world, world + outward) else CFrame.new(world)
-				facing *= CFrame.Angles(0, math.rad(deco.turn), 0)
-				local box = copy:GetBoundingBox()
-				copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
-				local beadIndex = (k - 1) // GARLAND_BEAD_EVERY
-				dimModel(copy, GARLAND_LIGHT_SCALE, GARLAND_NEON_SCALE, beadIndex % GARLAND_LIGHT_EVERY ~= 0)
-				copy.Parent = holder
+			-- 모델을 작게 복제해 줄 아래에 매단다. 정면(-Z)이 대체로 트리 바깥을 보고, 하나하나 조금씩 기울어 있다
+			local copy = bead:Clone()
+			local _, size = copy:GetBoundingBox()
+			local longest = math.max(size.X, size.Y, size.Z)
+			if longest > 0 then
+				copy:ScaleTo(copy:GetScale() * GARLAND_BEAD_SIZE * deco.size / longest)
 			end
+			local world = plot.cframe:PointToWorldSpace(point)
+			local center = plot.cframe:PointToWorldSpace(Vector3.new(0, point.Y, 0))
+			local outward = world - center
+			local _, scaled = copy:GetBoundingBox()
+			-- 줄에 걸린 점(모델 윗부분)을 기준으로 돌린 뒤, 모델 가운데를 그 아래·바깥에 둔다
+			local hang = if outward.Magnitude > 0.01 then CFrame.lookAt(world, world + outward) else CFrame.new(world)
+			hang *= CFrame.Angles(0, math.rad(deco.turn + sway:NextNumber(-GARLAND_BEAD_TWIST, GARLAND_BEAD_TWIST)), 0)
+			hang *= CFrame.Angles(0, 0, math.rad(sway:NextNumber(-GARLAND_BEAD_SWAY, GARLAND_BEAD_SWAY)))
+			local facing = hang * CFrame.new(0, -scaled.Y / 2 + 0.05, -(scaled.Z / 2 - 0.2)) -- 뒤쪽이 줄에 닿게 (트리에 묻히지 않게)
+			local box = copy:GetBoundingBox()
+			copy:PivotTo(facing * box:ToObjectSpace(copy:GetPivot()))
+			-- 같은 모델을 여러 개 달아 빛이 겹치므로, 빛은 GARLAND_LIGHT_EVERY개마다 하나만 남기고 어둡게
+			dimModel(copy, GARLAND_LIGHT_SCALE, GARLAND_NEON_SCALE, beadIndex % GARLAND_LIGHT_EVERY ~= 0)
+			beadIndex += 1
+			copy.Parent = holder
 		else
+			-- 작은 전구를 줄 바로 아래에 매단다
 			local ball = newPart({
 				Shape = Enum.PartType.Ball,
-				Size = Vector3.new(0.6, 0.6, 0.6),
-				CFrame = plot.cframe * CFrame.new(point),
+				Size = Vector3.new(GARLAND_BULB_SIZE, GARLAND_BULB_SIZE, GARLAND_BULB_SIZE),
+				CFrame = plot.cframe * CFrame.new(point - Vector3.new(0, GARLAND_BULB_SIZE * 0.55, 0)),
 				CanCollide = false,
 				CanQuery = false,
 				CastShadow = false,
@@ -1087,30 +1099,56 @@ local function renderGarland(plot, entry, deco, trait, bead: Model?)
 			-- 특성 효과는 전구가 아니라 아래 띠 모양 운반 파츠에 붙인다
 			decorateLook(ball, deco, trait, false)
 		end
-
-		local nextPoint = points[k % GARLAND_BALLS + 1]
-		if nextPoint then
-			local a = plot.cframe:PointToWorldSpace(point)
-			local b = plot.cframe:PointToWorldSpace(nextPoint)
-			newPart({
-				Name = "Wire",
-				Size = Vector3.new(0.1, 0.1, (b - a).Magnitude),
-				CFrame = CFrame.lookAt((a + b) / 2, b),
-				Color = GARLAND_WIRE_COLOR,
-				CanCollide = false,
-				CanQuery = false,
-				CastShadow = false,
-				Parent = holder,
-			})
-		end
 	end
 
-	-- 특성 효과: 전구 2칸마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
+	-- 전선: 점과 점 사이를 가는 파츠로 잇는다
+	local loopLength = 0
+	for k = 1, GARLAND_POINTS do
+		local a, b = points[k], points[k % GARLAND_POINTS + 1]
+		if not a or not b then
+			continue
+		end
+		loopLength += (b - a).Magnitude
+		local wa = plot.cframe:PointToWorldSpace(a)
+		local wb = plot.cframe:PointToWorldSpace(b)
+		newPart({
+			Name = "Wire",
+			Size = Vector3.new(0.1, 0.1, (wb - wa).Magnitude),
+			CFrame = CFrame.lookAt((wa + wb) / 2, wb),
+			Color = GARLAND_WIRE_COLOR,
+			CanCollide = false,
+			CanQuery = false,
+			CastShadow = false,
+			Parent = holder,
+		})
+	end
+
+	-- 전구·모델: 줄을 따라 같은 거리마다 하나씩 (점 사이 어디든 달 수 있어서 간격이 정확히 같다)
+	-- 한 바퀴 길이를 똑같이 나눠 처음 자리로 돌아오는 마지막 칸도 간격이 같다. 둘레가 짧은 위쪽 띠는 개수가 적다
+	local gap = if bead then GARLAND_BEAD_GAP * deco.size else GARLAND_BULB_GAP
+	if loopLength > 0 then
+		gap = loopLength / math.max(1, math.round(loopLength / gap))
+		local nextAt = 0 -- 다음 것을 달 거리 (줄 처음부터)
+		local walked = 0
+		for k = 1, GARLAND_POINTS do
+			local a, b = points[k], points[k % GARLAND_POINTS + 1]
+			if not a or not b then
+				continue
+			end
+			local length = (b - a).Magnitude
+			while nextAt < walked + length - 0.001 and nextAt < loopLength - 0.001 do
+				hangAt(a:Lerp(b, (nextAt - walked) / length))
+				nextAt += gap
+			end
+			walked += length
+		end
+	end
+	-- 특성 효과: 점 3개마다 보이지 않는 길쭉한 파츠를 놓고 거기에 효과를 붙여 줄 전체를 띠처럼 감싼다
 	if trait.effect then
 		local carrier = 0
-		for k = 1, GARLAND_BALLS, 2 do
+		for k = 1, GARLAND_POINTS, 3 do
 			local from = points[k]
-			local to = points[(k + 1) % GARLAND_BALLS + 1]
+			local to = points[(k + 2) % GARLAND_POINTS + 1]
 			if not from or not to then
 				continue
 			end

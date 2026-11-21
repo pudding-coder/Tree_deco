@@ -472,6 +472,48 @@ local function giveModelSamples(profile)
 	end
 end
 
+-- 시연 계정 목록(쉼표로 구분한 글자)에 이 플레이어가 있는지: 계정 이름(대소문자 무시) 또는 UserId(숫자)로 찾는다
+-- 표시 이름(닉네임)은 누구나 같게 바꿀 수 있어서 쓰지 않는다
+function PlayerData.IsListed(list: string?, player: Player): boolean
+	for entry in string.gmatch(list or "", "[^,%s]+") do
+		if string.lower(entry) == string.lower(player.Name) or entry == tostring(player.UserId) then
+			return true
+		end
+	end
+	return false
+end
+
+-- 시연용: Config.DEMO_GIVE_ALL_NAMES에 적힌 계정이면 뽑을 수 있는 모든 장식을 하나씩 넣는다 (실제 서버에서도 동작)
+local function isDemoPlayer(player: Player): boolean
+	return PlayerData.IsListed(Config.DEMO_GIVE_ALL_NAMES, player)
+end
+
+local function giveAllDecorations(profile)
+	if not Catalog.BaseTrait then
+		return
+	end
+	local owned = {}
+	for _, stack in profile.stacks do
+		if stack.c > 0 then
+			owned[stack.d] = true
+		end
+	end
+	for _, entry in profile.tree do
+		owned[entry.d] = true
+	end
+	local given = 0
+	for _, deco in Catalog.Decorations do
+		if not deco.retired and not owned[deco.id] then
+			PlayerData.AddItem(profile, deco, Catalog.BaseTrait, 1)
+			given += 1
+		end
+	end
+	-- 넣은 뒤에도 룰렛을 돌릴 수 있게 빈 칸을 기본 칸 수만큼 남긴다
+	local want = PlayerData.GetBagSlotsUsed(profile) + Config.BAG_BASE_SLOTS
+	profile.bagCapacity = math.clamp(math.max(profile.bagCapacity, want), Config.BAG_BASE_SLOTS, Config.BAG_MAX_SLOTS)
+	print(string.format("[PlayerData] 시연 계정: 장식 %d개를 가방에 넣었습니다 (가방 %d칸)", given, profile.bagCapacity))
+end
+
 local function onPlayerAdded(player: Player)
 	local ok, saved = loadData(player.UserId)
 	if player.Parent == nil then
@@ -502,6 +544,20 @@ local function onPlayerAdded(player: Player)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
 		giveModelSamples(profile)
+	end
+	if IS_STUDIO then
+		-- 시연 계정이 인식되는지 확인용: 서버가 보는 계정 이름·UserId (Config의 DEMO_* 목록에는 이 둘 중 하나를 적는다)
+		print(string.format(
+			"[PlayerData] 접속: 계정 이름 %s · 표시 이름 %s · UserId %d · 시연 행운 %s · 시연 장식 지급 %s",
+			player.Name,
+			player.DisplayName,
+			player.UserId,
+			if PlayerData.IsListed(Config.DEMO_LUCK_NAMES, player) then "켜짐" else "꺼짐",
+			if isDemoPlayer(player) then "켜짐" else "꺼짐"
+		))
+	end
+	if isDemoPlayer(player) then
+		giveAllDecorations(profile)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_ALL_TREE_EFFECTS then
 		local given = {}

@@ -9,6 +9,7 @@
 - 장식·특성 `id`는 출시 후 바꾸거나 지우지 않는다. 그만 나오게 하려면 `retired = true`.
 - 밸런스 숫자는 `src/shared/Config.luau`에만 둔다. `GAME_RULES.md`는 변수 이름으로 가리킨다.
 - 게임 결과(뽑기, 판매, 코인)는 항상 서버에서 정한다.
+- **`main`에 병합할 때는 시연용 설정을 끈다.** `Config.luau`의 `DEMO_LUCK_NAMES`, `DEMO_GIVE_ALL_NAMES`, `STUDIO_FORCE_REEL_ENDING`을 `""`로 바꾼 커밋을 넣고 병합한다. 작업 브랜치에서는 켜 둔 채로 둔다.
 
 ## 위치
 

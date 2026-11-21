@@ -19,6 +19,9 @@
 	        점프하면 놓고 내려온다. 장식은 트리에서 빠지지 않는다
 	retired (선택) true면 더 이상 뽑히지 않는다. 이미 가진 사람은 그대로 갖는다. (삭제 대신 이걸 쓸 것)
 
+	줄 끝 "-- [직접 제작]" 표시: 우리가 직접 만든 3D 모델. 원본 파일은 assets/models/decorations/에 있다.
+	표시가 없는 장식은 Toolbox(Creator Store) 등에서 가져온 모델이거나 아직 모델이 없다.
+
 	※ 초안: GAME_RULES.md에 확정되기 전 목록이다.
 ]]
 
@@ -36,17 +39,17 @@ return {
 	{ id = "CandyCane", name = "사탕지팡이", rarity = "Common", area = "Ornament" },
 	{ id = "Crab", name = "게", rarity = "Common", area = "Ornament" },
 	{ id = "Noob", name = "로블록스 뉴비 스킨 키링", rarity = "Common", area = "Ornament" },
-	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" },
+	{ id = "OctopusGuaSha", name = "문어 괄사", rarity = "Common", area = "Ornament" }, -- [직접 제작] Blender: OctopusGuaSha.fbx (tools/blender/make_octopus_guasha.py)
 	{ id = "DotPresentBox", name = "도트무늬 선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Santa", name = "산타", rarity = "Common", area = "Ornament" },
-	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 },
+	{ id = "TungSahurKeyring", name = "퉁퉁퉁 사후르 키링", rarity = "Common", area = "Ornament", out = 0.4 }, -- [직접 제작] STL에서 변환: TungSahurKeyring.obj
 	{ id = "Snowball", name = "눈뭉치", rarity = "Common", area = "Ornament" },
 	{ id = "Snowflake", name = "눈꽃", rarity = "Common", area = "Ornament" },
 	{ id = "PresentBox", name = "선물상자", rarity = "Common", area = "Ornament" },
 	{ id = "Apple", name = "사과", rarity = "Common", area = "Ornament", size = 0.6 },
 
 	{ id = "MiniLights", name = "꼬마전구 줄", rarity = "Common", area = "Garland" },
-	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland" },
+	{ id = "ExamPaperGarland", name = "시험지 줄", rarity = "Common", area = "Garland", size = 1.4 }, -- [직접 제작] Blender: ExamPaperGarland.fbx (tools/blender/make_exam_paper.py)
 
 	-- 언커먼
 	{ id = "PinkBow", name = "리본", rarity = "Uncommon", area = "Topper", sink = 0.3 },
@@ -61,6 +64,7 @@ return {
 	{ id = "EggDog", name = "에그독", rarity = "Uncommon", area = "Ornament" },
 	{ id = "PinkStrawberry", name = "핑크 딸기", rarity = "Uncommon", area = "Ornament" },
 	{ id = "Donut", name = "도넛", rarity = "Uncommon", area = "Ornament" },
+	{ id = "ChristmasRingDonut", name = "크리스마스 링 도넛", rarity = "Uncommon", area = "Ornament" }, -- [직접 제작] Blender: ChristmasRingDonut.fbx (tools/blender/make_christmas_donut.py)
 
 	{ id = "Tinsel", name = "반짝이 띠", rarity = "Uncommon", area = "Garland" },
 	{ id = "DonutGarland", name = "도넛 띠", rarity = "Uncommon", area = "Garland" },
@@ -88,7 +92,7 @@ return {
 	{ id = "EnterKey", name = "Enter키", rarity = "Epic", area = "Ornament" },
 	{ id = "BusinessHoursSign", name = "영업 중 표지판", rarity = "Epic", area = "Ornament" },
 	{ id = "MinecraftHerobine", name = "마인크래프트 히로빈", rarity = "Epic", area = "Ornament", out = 0.6 },
-	{ id = "Monkey", name = "원숭이", rarity = "Epic", area = "Ornament" },
+	{ id = "Monkey", name = "원숭이", rarity = "Epic", area = "Ornament" }, -- [직접 제작] Blender: Monkey.fbx (tools/blender/make_monkey.py)
 
 	{ id = "CandyCaneChain", name = "사탕지팡이 줄", rarity = "Epic", area = "Garland" },
 	{ id = "NeonLights", name = "네온 전구 줄", rarity = "Epic", area = "Garland" },
