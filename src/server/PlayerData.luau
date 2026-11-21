@@ -472,14 +472,20 @@ local function giveModelSamples(profile)
 	end
 end
 
--- 시연용: Config.DEMO_GIVE_ALL_NAMES에 적힌 계정이면 뽑을 수 있는 모든 장식을 하나씩 넣는다 (실제 서버에서도 동작)
-local function isDemoPlayer(player: Player): boolean
-	for name in string.gmatch(Config.DEMO_GIVE_ALL_NAMES or "", "[^,%s]+") do
-		if string.lower(name) == string.lower(player.Name) then
+-- 시연 계정 목록(쉼표로 구분한 글자)에 이 플레이어가 있는지: 계정 이름(대소문자 무시) 또는 UserId(숫자)로 찾는다
+-- 표시 이름(닉네임)은 누구나 같게 바꿀 수 있어서 쓰지 않는다
+function PlayerData.IsListed(list: string?, player: Player): boolean
+	for entry in string.gmatch(list or "", "[^,%s]+") do
+		if string.lower(entry) == string.lower(player.Name) or entry == tostring(player.UserId) then
 			return true
 		end
 	end
 	return false
+end
+
+-- 시연용: Config.DEMO_GIVE_ALL_NAMES에 적힌 계정이면 뽑을 수 있는 모든 장식을 하나씩 넣는다 (실제 서버에서도 동작)
+local function isDemoPlayer(player: Player): boolean
+	return PlayerData.IsListed(Config.DEMO_GIVE_ALL_NAMES, player)
 end
 
 local function giveAllDecorations(profile)
@@ -538,6 +544,17 @@ local function onPlayerAdded(player: Player)
 	end
 	if IS_STUDIO and Config.STUDIO_GIVE_MODEL_SAMPLES then
 		giveModelSamples(profile)
+	end
+	if IS_STUDIO then
+		-- 시연 계정이 인식되는지 확인용: 서버가 보는 계정 이름·UserId (Config의 DEMO_* 목록에는 이 둘 중 하나를 적는다)
+		print(string.format(
+			"[PlayerData] 접속: 계정 이름 %s · 표시 이름 %s · UserId %d · 시연 행운 %s · 시연 장식 지급 %s",
+			player.Name,
+			player.DisplayName,
+			player.UserId,
+			if PlayerData.IsListed(Config.DEMO_LUCK_NAMES, player) then "켜짐" else "꺼짐",
+			if isDemoPlayer(player) then "켜짐" else "꺼짐"
+		))
 	end
 	if isDemoPlayer(player) then
 		giveAllDecorations(profile)

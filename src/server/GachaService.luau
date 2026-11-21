@@ -54,10 +54,8 @@ GachaService.GetIncomePerSec = getIncomePerSec
 
 -- 시연 계정이면 행운에 곱하는 값 (Config.DEMO_LUCK_NAMES)
 local function getDemoLuck(player: Player): number
-	for name in string.gmatch(Config.DEMO_LUCK_NAMES or "", "[^,%s]+") do
-		if string.lower(name) == string.lower(player.Name) then
-			return Config.DEMO_LUCK_MULT
-		end
+	if PlayerData.IsListed(Config.DEMO_LUCK_NAMES, player) then
+		return Config.DEMO_LUCK_MULT
 	end
 	return 1
 end
